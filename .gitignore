@@ -1,0 +1,92 @@
+# Variables de entorno
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env*.local
+
+# Dependencias
+node_modules/
+.pnp
+.pnp.js
+
+# Build / Output
+dist/
+dist-ssr/
+build/
+out/
+
+# Caché
+.vite/
+.cache/
+.eslintcache
+.stylelintcache
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# IDEs
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Sistema operativo
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Archivos temporales
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+
+# Supabase local
+.supabase/
+supabase/.branches/
+supabase/.temp/
+
+# Uploads locales
+public/uploads/
+src/assets/uploads/
+
+# Certificados y claves
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+
+# Config sensible
+config/secrets.js
+config/secrets.json
+config/production.json
+
+# Misc
+*.local
+.vercel
+.netlify
