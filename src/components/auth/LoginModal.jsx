@@ -3,8 +3,11 @@ import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import logoUrl from "../../assets/logo_relance.jpg";
+import ResetPassword from "../../pages/ResetPassword";
 
 export default function LoginModal({ onSwitchToRegister }) {
+  // llamar a ResetPassword para redirigir a la página de restablecimiento de contraseña
+  const { openResetPassword } = useAuth();
   const { openRegisterModal } = useAuth();
   const { isLoginOpen, closeLoginModal, markJustLoggedIn } = useAuth();
   const navigate = useNavigate();
@@ -112,6 +115,14 @@ export default function LoginModal({ onSwitchToRegister }) {
             {loading ? "Entrando..." : "Iniciar sesión"}
           </button>
         </form>
+        {/* Forgotten Password */}
+        <p className="text-center text-sm text-gray-500 mt-4">
+          ¿Olvidaste tu contraseña?{" "}
+          {/* LLevarme a la página de restablecimiento */}
+          <button onClick={openResetPassword} className="text-brand">
+            Restablecer
+          </button>
+        </p>
 
         {/* Switch */}
         <p className="text-center text-sm text-gray-500 mt-4">
