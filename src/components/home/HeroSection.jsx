@@ -68,9 +68,12 @@ export default function HeroSection({ onRegisterClick }) {
           {!user && (
             <button
               onClick={onRegisterClick}
-              className="btn-primary text-base px-8 py-3.5 rounded-xl shadow-lg shadow-brand/20 hover:shadow-brand/30 transition-shadow duration-300"
+              className="btn-primary text-base px-8 py-3.5 rounded-xl shadow-lg shadow-brand/20 flex items-center gap-2 hover:shadow-brand/30 transition-shadow duration-300"
             >
-              Empieza gratis →
+              Empieza gratis{" "}
+              <svg className="size-6" viewBox="0 0 24 24" strokeWidth="2">
+                <use href="icons.svg#icon-arrowStart" />{" "}
+              </svg>
             </button>
           )}
 

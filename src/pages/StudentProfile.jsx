@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import Header from "../components/layout/Header";
+import MainLayout from "../components/layout/MainLayout";
 
 // ── Constantes ─────────────────────────────────────────────────────────────
 const SEARCH_TYPES = [
@@ -457,480 +458,484 @@ export default function StudentProfile() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-dark">
-      <Header onLoginClick={() => {}} onRegisterClick={() => {}} />
+    <MainLayout>
+      <div className="min-h-screen bg-dark">
+        {/* <Header onLoginClick={() => {}} onRegisterClick={() => {}} /> */}
 
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="font-display text-3xl font-bold text-white">
-            Mi perfil
-          </h1>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn-primary flex items-center gap-2 disabled:opacity-60"
-          >
-            {saving ? (
-              <>
-                <svg
-                  className="animate-spin w-4 h-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                Guardando...
-              </>
-            ) : saved ? (
-              "✓ Guardado"
-            ) : (
-              "Guardar cambios"
-            )}
-          </button>
-        </div>
-
-        <div className="space-y-6">
-          {/* ── 1. Foto de perfil ── */}
-          <SectionCard title="Foto de perfil">
-            <div className="flex items-center gap-5">
-              <div className="relative flex-shrink-0">
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt={fullName}
-                    className="w-20 h-20 rounded-2xl object-cover border-2 border-white/10"
-                  />
-                ) : (
-                  <div className="w-20 h-20 rounded-2xl bg-brand flex items-center justify-center text-dark font-display font-bold text-2xl">
-                    {initials}
-                  </div>
-                )}
-                {uploading && (
-                  <div className="absolute inset-0 rounded-2xl bg-black/60 flex items-center justify-center">
-                    <svg
-                      className="animate-spin w-5 h-5 text-brand"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="text-white font-semibold text-lg font-display">
-                  {fullName}
-                </p>
-                <p className="text-gray-500 text-sm mb-3">{user?.email}</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarUpload}
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="btn-secondary text-xs px-3 py-1.5"
-                >
-                  Cambiar foto
-                </button>
-              </div>
-            </div>
-          </SectionCard>
-
-          {/* ── 2. Descripción personal ── */}
-          <SectionCard title="Sobre mí">
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value.slice(0, 300))}
-              rows={4}
-              placeholder="Cuéntanos sobre ti, tus objetivos y qué tipo de oportunidades buscas..."
-              className="input-field resize-none"
-            />
-            <p className="text-xs text-gray-600 mt-1 text-right">
-              {bio.length}/300
-            </p>
-          </SectionCard>
-
-          {/* ── 3. Información académica ── */}
-          <SectionCard title="Información académica">
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5">
-                  Centro educativo
-                </label>
-                <input
-                  type="text"
-                  value={centerName}
-                  onChange={(e) => setCenterName(e.target.value)}
-                  placeholder="Ej: IES Torre del Mar"
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5">
-                  Titulación / Ciclo
-                </label>
-                <input
-                  type="text"
-                  value={degree}
-                  onChange={(e) => setDegree(e.target.value)}
-                  placeholder="Ej: DAM — Desarrollo de Aplicaciones Multiplataforma"
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5">
-                  Año de finalización
-                </label>
-                <input
-                  type="number"
-                  value={graduationYear}
-                  onChange={(e) => setGraduationYear(e.target.value)}
-                  placeholder="2025"
-                  min="2020"
-                  max="2035"
-                  className="input-field"
-                />
-              </div>
-            </div>
-          </SectionCard>
-
-          {/* ── 4. Habilidades técnicas ── */}
-          <SectionCard title="Habilidades técnicas">
-            <input
-              type="text"
-              value={skillInput}
-              onChange={(e) => setSkillInput(e.target.value)}
-              onKeyDown={handleSkillKey}
-              placeholder="Escribe una habilidad y pulsa Enter (React, Python, SQL...)"
-              className="input-field mb-3"
-            />
-            <div className="flex flex-wrap gap-2">
-              {skills.map((s) => (
-                <span
-                  key={s}
-                  className="flex items-center gap-1.5 bg-brand/10 border border-brand/20 text-brand text-sm px-3 py-1 rounded-full"
-                >
-                  {s}
-                  <button
-                    onClick={() => setSkills(skills.filter((x) => x !== s))}
-                    className="text-brand/60 hover:text-brand"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              {skills.length === 0 && (
-                <p className="text-gray-600 text-sm">
-                  Aún no has añadido habilidades
-                </p>
-              )}
-            </div>
-          </SectionCard>
-
-          {/* ── 5. Portfolio y proyectos ── */}
-          <SectionCard title="Portfolio y proyectos">
-            <div className="space-y-3 mb-4">
-              {projects.length === 0 && (
-                <p className="text-gray-600 text-sm text-center py-4">
-                  Aún no has añadido proyectos. ¡Muestra tu trabajo a las
-                  empresas!
-                </p>
-              )}
-              {projects.map((p) => (
-                <ProjectCard
-                  key={p.id}
-                  project={p}
-                  onEdit={(proj) => setProjectModal(proj)}
-                  onDelete={handleDeleteProject}
-                />
-              ))}
-            </div>
+        <main className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="font-display text-3xl font-bold text-white">
+              Mi perfil
+            </h1>
             <button
-              onClick={() => setProjectModal("new")}
-              className="w-full border border-dashed border-white/20 hover:border-brand/40 text-gray-500 hover:text-brand py-3 rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2"
+              onClick={handleSave}
+              disabled={saving}
+              className="btn-primary flex items-center gap-2 disabled:opacity-60"
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Añadir proyecto
-            </button>
-          </SectionCard>
-
-          {/* ── 6. Integración con GitHub / portfolio externo ── */}
-          <SectionCard title="Perfiles y enlaces externos">
-            <p className="text-gray-500 text-xs mb-4">
-              Añade enlaces a GitHub, tu portfolio personal, LinkedIn u otras
-              plataformas donde tengas publicados tus proyectos.
-            </p>
-            <div className="space-y-3">
-              {LINK_TYPES.map((lt) => {
-                const existing = externalLinks.find((l) => l.type === lt.id);
-                return (
-                  <div key={lt.id} className="flex items-center gap-3">
-                    <span className="text-xl flex-shrink-0 w-7 text-center">
-                      <svg width="20" height="20" fill="currentColor">
-                        <use href={`icons.svg#${lt.icon}`} />
-                      </svg>
-                    </span>
-                    <div className="flex-1">
-                      <label className="block text-xs text-gray-500 mb-1">
-                        {lt.label}
-                      </label>
-                      <input
-                        type="url"
-                        value={existing?.url ?? ""}
-                        onChange={(e) => updateLink(lt.id, e.target.value)}
-                        placeholder={lt.placeholder}
-                        className="input-field text-sm"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-xs text-gray-600 mt-3">
-              <svg width="16" height="16" fill="currentColor">
-                <use href="icons.svg#icon-info" />
-              </svg>
-              Futura versión: importación automática de repositorios vía API de
-              GitHub.
-            </p>
-          </SectionCard>
-
-          {/* ── 7. Tipo de búsqueda ── */}
-          <SectionCard title="Tipo de búsqueda">
-            <div className="space-y-2">
-              {SEARCH_TYPES.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setSearchType(t.id)}
-                  className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all duration-200 ${
-                    searchType === t.id
-                      ? "border-brand bg-brand/10 text-white"
-                      : "border-white/10 hover:border-white/20 text-gray-400"
-                  }`}
-                >
-                  <span className="text-xl">{t.icon}</span>
-                  <span className="text-sm font-medium flex-1">{t.label}</span>
-                  {searchType === t.id && (
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
+              {saving ? (
+                <>
+                  <svg
+                    className="animate-spin w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
                       stroke="currentColor"
-                      strokeWidth="3"
-                      className="text-brand flex-shrink-0"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          </SectionCard>
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  Guardando...
+                </>
+              ) : saved ? (
+                "✓ Guardado"
+              ) : (
+                "Guardar cambios"
+              )}
+            </button>
+          </div>
 
-          {/* ── 8. Disponibilidad ── */}
-          <SectionCard title="Disponibilidad">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5">
-                  Disponible a partir de
-                </label>
-                <input
-                  type="date"
-                  value={availableFrom}
-                  onChange={(e) => setAvailableFrom(e.target.value)}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-2">
-                  Modalidad preferida
-                </label>
-                <div className="flex gap-2">
-                  {MODALITIES.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => setModality(m.id)}
-                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all duration-200 ${
-                        modality === m.id
-                          ? "border-brand bg-brand/10 text-brand"
-                          : "border-white/10 text-gray-400 hover:border-white/20"
-                      }`}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
+          <div className="space-y-6">
+            {/* ── 1. Foto de perfil ── */}
+            <SectionCard title="Foto de perfil">
+              <div className="flex items-center gap-5">
+                <div className="relative flex-shrink-0">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={fullName}
+                      className="w-20 h-20 rounded-2xl object-cover border-2 border-white/10"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-2xl bg-brand flex items-center justify-center text-dark font-display font-bold text-2xl">
+                      {initials}
+                    </div>
+                  )}
+                  {uploading && (
+                    <div className="absolute inset-0 rounded-2xl bg-black/60 flex items-center justify-center">
+                      <svg
+                        className="animate-spin w-5 h-5 text-brand"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-white font-semibold text-lg font-display">
+                    {fullName}
+                  </p>
+                  <p className="text-gray-500 text-sm mb-3">{user?.email}</p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="btn-secondary text-xs px-3 py-1.5"
+                  >
+                    Cambiar foto
+                  </button>
                 </div>
               </div>
-            </div>
-          </SectionCard>
+            </SectionCard>
 
-          {/* ── 9. Ubicación ── */}
-          <SectionCard title="Ubicación">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5">
-                  Ciudad
-                </label>
-                <input
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Madrid"
-                  className="input-field"
-                />
+            {/* ── 2. Descripción personal ── */}
+            <SectionCard title="Sobre mí">
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value.slice(0, 300))}
+                rows={4}
+                placeholder="Cuéntanos sobre ti, tus objetivos y qué tipo de oportunidades buscas..."
+                className="input-field resize-none"
+              />
+              <p className="text-xs text-gray-600 mt-1 text-right">
+                {bio.length}/300
+              </p>
+            </SectionCard>
+
+            {/* ── 3. Información académica ── */}
+            <SectionCard title="Información académica">
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1.5">
+                    Centro educativo
+                  </label>
+                  <input
+                    type="text"
+                    value={centerName}
+                    onChange={(e) => setCenterName(e.target.value)}
+                    placeholder="Ej: IES Torre del Mar"
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1.5">
+                    Titulación / Ciclo
+                  </label>
+                  <input
+                    type="text"
+                    value={degree}
+                    onChange={(e) => setDegree(e.target.value)}
+                    placeholder="Ej: DAM — Desarrollo de Aplicaciones Multiplataforma"
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1.5">
+                    Año de finalización
+                  </label>
+                  <input
+                    type="number"
+                    value={graduationYear}
+                    onChange={(e) => setGraduationYear(e.target.value)}
+                    placeholder="2025"
+                    min="2020"
+                    max="2035"
+                    className="input-field"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5">
-                  Provincia
-                </label>
-                <input
-                  type="text"
-                  value={province}
-                  onChange={(e) => setProvince(e.target.value)}
-                  placeholder="Madrid"
-                  className="input-field"
-                />
+            </SectionCard>
+
+            {/* ── 4. Habilidades técnicas ── */}
+            <SectionCard title="Habilidades técnicas">
+              <input
+                type="text"
+                value={skillInput}
+                onChange={(e) => setSkillInput(e.target.value)}
+                onKeyDown={handleSkillKey}
+                placeholder="Escribe una habilidad y pulsa Enter (React, Python, SQL...)"
+                className="input-field mb-3"
+              />
+              <div className="flex flex-wrap gap-2">
+                {skills.map((s) => (
+                  <span
+                    key={s}
+                    className="flex items-center gap-1.5 bg-brand/10 border border-brand/20 text-brand text-sm px-3 py-1 rounded-full"
+                  >
+                    {s}
+                    <button
+                      onClick={() => setSkills(skills.filter((x) => x !== s))}
+                      className="text-brand/60 hover:text-brand"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                {skills.length === 0 && (
+                  <p className="text-gray-600 text-sm">
+                    Aún no has añadido habilidades
+                  </p>
+                )}
               </div>
-            </div>
-          </SectionCard>
+            </SectionCard>
 
-          {/* ── 10. Privacidad ── */}
-          <SectionCard title="Privacidad del perfil">
-            <div className="flex flex-col gap-2">
-              {[
-                {
-                  value: true,
-                  icon: "🌐",
-                  label: "Público",
-                  desc: "Visible para todas las empresas verificadas y tutores",
-                },
-                {
-                  value: false,
-                  icon: "🔒",
-                  label: "Privado",
-                  desc: "Solo empresas con candidatura activa o relación de seguimiento",
-                },
-              ].map((opt) => (
-                <button
-                  key={String(opt.value)}
-                  onClick={() => setIsPublic(opt.value)}
-                  className={`flex items-start gap-3 p-4 rounded-xl border text-left transition-all duration-200 ${
-                    isPublic === opt.value
-                      ? "border-brand bg-brand/10"
-                      : "border-white/10 hover:border-white/20"
-                  }`}
-                >
-                  <span className="text-xl mt-0.5">{opt.icon}</span>
-                  <div className="flex-1">
-                    <p
-                      className={`text-sm font-semibold ${isPublic === opt.value ? "text-white" : "text-gray-400"}`}
-                    >
-                      {opt.label}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
-                  </div>
-                  {isPublic === opt.value && (
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      className="text-brand mt-0.5 flex-shrink-0"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          </SectionCard>
-
-          {/* Botón guardar final */}
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn-primary w-full flex justify-center items-center gap-2 py-3.5 text-base disabled:opacity-60"
-          >
-            {saving ? (
-              <>
+            {/* ── 5. Portfolio y proyectos ── */}
+            <SectionCard title="Portfolio y proyectos">
+              <div className="space-y-3 mb-4">
+                {projects.length === 0 && (
+                  <p className="text-gray-600 text-sm text-center py-4">
+                    Aún no has añadido proyectos. ¡Muestra tu trabajo a las
+                    empresas!
+                  </p>
+                )}
+                {projects.map((p) => (
+                  <ProjectCard
+                    key={p.id}
+                    project={p}
+                    onEdit={(proj) => setProjectModal(proj)}
+                    onDelete={handleDeleteProject}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={() => setProjectModal("new")}
+                className="w-full border border-dashed border-white/20 hover:border-brand/40 text-gray-500 hover:text-brand py-3 rounded-xl text-sm transition-all duration-200 flex items-center justify-center gap-2"
+              >
                 <svg
-                  className="animate-spin w-4 h-4"
+                  width="16"
+                  height="16"
                   viewBox="0 0 24 24"
                   fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
                 >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                Guardando...
-              </>
-            ) : saved ? (
-              "✓ Perfil guardado"
-            ) : (
-              "Guardar perfil"
-            )}
-          </button>
-        </div>
-      </main>
+                Añadir proyecto
+              </button>
+            </SectionCard>
 
-      {/* Modal de proyecto */}
-      {projectModal && (
-        <ProjectModal
-          project={projectModal === "new" ? null : projectModal}
-          onSave={handleSaveProject}
-          onClose={() => setProjectModal(null)}
-        />
-      )}
-    </div>
+            {/* ── 6. Integración con GitHub / portfolio externo ── */}
+            <SectionCard title="Perfiles y enlaces externos">
+              <p className="text-gray-500 text-xs mb-4">
+                Añade enlaces a GitHub, tu portfolio personal, LinkedIn u otras
+                plataformas donde tengas publicados tus proyectos.
+              </p>
+              <div className="space-y-3">
+                {LINK_TYPES.map((lt) => {
+                  const existing = externalLinks.find((l) => l.type === lt.id);
+                  return (
+                    <div key={lt.id} className="flex items-center gap-3">
+                      <span className="text-xl flex-shrink-0 w-7 text-center">
+                        <svg width="20" height="20" fill="currentColor">
+                          <use href={`icons.svg#${lt.icon}`} />
+                        </svg>
+                      </span>
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-500 mb-1">
+                          {lt.label}
+                        </label>
+                        <input
+                          type="url"
+                          value={existing?.url ?? ""}
+                          onChange={(e) => updateLink(lt.id, e.target.value)}
+                          placeholder={lt.placeholder}
+                          className="input-field text-sm"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-600 mt-3">
+                <svg width="16" height="16" fill="currentColor">
+                  <use href="icons.svg#icon-info" />
+                </svg>
+                Futura versión: importación automática de repositorios vía API
+                de GitHub.
+              </p>
+            </SectionCard>
+
+            {/* ── 7. Tipo de búsqueda ── */}
+            <SectionCard title="Tipo de búsqueda">
+              <div className="space-y-2">
+                {SEARCH_TYPES.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setSearchType(t.id)}
+                    className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all duration-200 ${
+                      searchType === t.id
+                        ? "border-brand bg-brand/10 text-white"
+                        : "border-white/10 hover:border-white/20 text-gray-400"
+                    }`}
+                  >
+                    <span className="text-xl">{t.icon}</span>
+                    <span className="text-sm font-medium flex-1">
+                      {t.label}
+                    </span>
+                    {searchType === t.id && (
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        className="text-brand flex-shrink-0"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </SectionCard>
+
+            {/* ── 8. Disponibilidad ── */}
+            <SectionCard title="Disponibilidad">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1.5">
+                    Disponible a partir de
+                  </label>
+                  <input
+                    type="date"
+                    value={availableFrom}
+                    onChange={(e) => setAvailableFrom(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-2">
+                    Modalidad preferida
+                  </label>
+                  <div className="flex gap-2">
+                    {MODALITIES.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => setModality(m.id)}
+                        className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all duration-200 ${
+                          modality === m.id
+                            ? "border-brand bg-brand/10 text-brand"
+                            : "border-white/10 text-gray-400 hover:border-white/20"
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* ── 9. Ubicación ── */}
+            <SectionCard title="Ubicación">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1.5">
+                    Ciudad
+                  </label>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Madrid"
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1.5">
+                    Provincia
+                  </label>
+                  <input
+                    type="text"
+                    value={province}
+                    onChange={(e) => setProvince(e.target.value)}
+                    placeholder="Madrid"
+                    className="input-field"
+                  />
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* ── 10. Privacidad ── */}
+            <SectionCard title="Privacidad del perfil">
+              <div className="flex flex-col gap-2">
+                {[
+                  {
+                    value: true,
+                    icon: "🌐",
+                    label: "Público",
+                    desc: "Visible para todas las empresas verificadas y tutores",
+                  },
+                  {
+                    value: false,
+                    icon: "🔒",
+                    label: "Privado",
+                    desc: "Solo empresas con candidatura activa o relación de seguimiento",
+                  },
+                ].map((opt) => (
+                  <button
+                    key={String(opt.value)}
+                    onClick={() => setIsPublic(opt.value)}
+                    className={`flex items-start gap-3 p-4 rounded-xl border text-left transition-all duration-200 ${
+                      isPublic === opt.value
+                        ? "border-brand bg-brand/10"
+                        : "border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    <span className="text-xl mt-0.5">{opt.icon}</span>
+                    <div className="flex-1">
+                      <p
+                        className={`text-sm font-semibold ${isPublic === opt.value ? "text-white" : "text-gray-400"}`}
+                      >
+                        {opt.label}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
+                    </div>
+                    {isPublic === opt.value && (
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        className="text-brand mt-0.5 flex-shrink-0"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </SectionCard>
+
+            {/* Botón guardar final */}
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="btn-primary w-full flex justify-center items-center gap-2 py-3.5 text-base disabled:opacity-60"
+            >
+              {saving ? (
+                <>
+                  <svg
+                    className="animate-spin w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  Guardando...
+                </>
+              ) : saved ? (
+                "✓ Perfil guardado"
+              ) : (
+                "Guardar perfil"
+              )}
+            </button>
+          </div>
+        </main>
+
+        {/* Modal de proyecto */}
+        {projectModal && (
+          <ProjectModal
+            project={projectModal === "new" ? null : projectModal}
+            onSave={handleSaveProject}
+            onClose={() => setProjectModal(null)}
+          />
+        )}
+      </div>
+    </MainLayout>
   );
 }

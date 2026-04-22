@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
 import logoUrl from "../../assets/logo_relance.jpg";
+import MainLayout from "../../components/layout/MainLayout";
 
 // ── Constantes ─────────────────────────────────────────────────────────────
 const ROLES = [
@@ -39,6 +40,9 @@ function PasswordField({
   value,
   onChange,
   placeholder = "Mínimo 8 caracteres",
+  required = true,
+  minLength = 8,
+  showStrength = true,
 }) {
   const navigate = useNavigate();
   const [show, setShow] = useState(false);
@@ -68,8 +72,8 @@ function PasswordField({
           value={value}
           onChange={onChange}
           placeholder={placeholder}
-          required
-          minLength={8}
+          required={required}
+          minLength={minLength}
           className="input-field pr-10"
         />
         <button
@@ -104,7 +108,7 @@ function PasswordField({
           )}
         </button>
       </div>
-      {value && (
+      {showStrength && value && (
         <div className="mt-2 flex items-center gap-2">
           {[1, 2, 3, 4].map((lvl) => (
             <div
@@ -179,13 +183,19 @@ function StudentForm({ onSubmit, loading, error }) {
           <label className="block text-sm text-gray-400 mb-1.5">
             Confirmar contraseña *
           </label>
-          <input
+          {/* <input
             type="password"
             required
             value={form.confirmPassword}
             onChange={s("confirmPassword")}
             placeholder="Repite la contraseña"
             className="input-field"
+          /> */}
+          <PasswordField
+            value={form.confirmPassword}
+            onChange={s("confirmPassword")}
+            placeholder="Repite la contraseña"
+            showStrength={false}
           />
           {form.confirmPassword && form.confirmPassword !== form.password && (
             <p className="text-xs text-red-400 mt-1">No coinciden</p>
@@ -211,7 +221,7 @@ function StudentForm({ onSubmit, loading, error }) {
               type="text"
               value={form.centerName}
               onChange={s("centerName")}
-              placeholder="Ej: IES Torre del Mar"
+              placeholder="Ej: IES Trassierra"
               className="input-field"
             />
           </div>
@@ -315,13 +325,19 @@ function CompanyForm({ onSubmit, loading, error }) {
           <label className="block text-sm text-gray-400 mb-1.5">
             Confirmar contraseña *
           </label>
-          <input
+          {/* <input
             type="password"
             required
             value={form.confirmPassword}
             onChange={s("confirmPassword")}
             placeholder="Repite la contraseña"
             className="input-field"
+          /> */}
+          <PasswordField
+            value={form.confirmPassword}
+            onChange={s("confirmPassword")}
+            placeholder="Repite la contraseña"
+            showStrength={false}
           />
           {form.confirmPassword && form.confirmPassword !== form.password && (
             <p className="text-xs text-red-400 mt-1">No coinciden</p>
@@ -417,7 +433,7 @@ function CompanyForm({ onSubmit, loading, error }) {
               type="text"
               value={form.city}
               onChange={s("city")}
-              placeholder="Madrid"
+              placeholder="Córdoba"
               className="input-field"
             />
           </div>
@@ -516,13 +532,19 @@ function CenterForm({ onSubmit, loading, error }) {
           <label className="block text-sm text-gray-400 mb-1.5">
             Confirmar contraseña *
           </label>
-          <input
+          {/* <input
             type="password"
             required
             value={form.confirmPassword}
             onChange={s("confirmPassword")}
             placeholder="Repite la contraseña"
             className="input-field"
+          /> */}
+          <PasswordField
+            value={form.confirmPassword}
+            onChange={s("confirmPassword")}
+            placeholder="Repite la contraseña"
+            showStrength={false}
           />
           {form.confirmPassword && form.confirmPassword !== form.password && (
             <p className="text-xs text-red-400 mt-1">No coinciden</p>
@@ -562,7 +584,7 @@ function CenterForm({ onSubmit, loading, error }) {
               required
               value={form.institutionalCode}
               onChange={s("institutionalCode")}
-              placeholder="Ej: IES-MAD-2024"
+              placeholder="Ej: IES-COR-2026"
               className="input-field"
             />
           </div>
@@ -599,7 +621,7 @@ function CenterForm({ onSubmit, loading, error }) {
               required
               value={form.city}
               onChange={s("city")}
-              placeholder="Madrid"
+              placeholder="Córdoba"
               className="input-field"
             />
           </div>
@@ -611,7 +633,7 @@ function CenterForm({ onSubmit, loading, error }) {
               type="text"
               value={form.province}
               onChange={s("province")}
-              placeholder="Madrid"
+              placeholder="Córdoba"
               className="input-field"
             />
           </div>
@@ -723,47 +745,54 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-dark flex items-center justify-center p-4">
-        <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-md p-10 text-center">
-          <div className="text-6xl mb-5">🎉</div>
-          <h2 className="font-display text-2xl font-bold text-white mb-3">
-            ¡Cuenta creada!
-          </h2>
-          <p className="text-gray-400 text-sm mb-2">
-            Hemos enviado un correo de verificación a:
-          </p>
-          <p className="text-brand font-semibold mb-6">{registeredEmail}</p>
-          <p className="text-gray-500 text-xs mb-8">
-            Revisa tu bandeja de entrada (y la carpeta de spam) y haz clic en el
-            enlace para activar tu cuenta.
-            {(selectedRole === "empresa" ||
-              selectedRole === "centro_educativo") && (
-              <span className="block mt-2">
-                Además, el equipo de Relance verificará tus datos en 24–48 h.
-              </span>
-            )}
-          </p>
-          <button onClick={() => navigate("/")} className="btn-primary w-full">
-            Ir al inicio
-          </button>
-          <button
-            onClick={() => navigate("/login")}
-            className="btn-secondary w-full mt-3"
-          >
-            Iniciar sesión
-          </button>
+      <MainLayout>
+        <div className="min-h-screen bg-dark flex items-center justify-center p-4">
+          <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-md p-10 text-center">
+            <div className="text-6xl mb-5">🎉</div>
+            <h2 className="font-display text-2xl font-bold text-white mb-3">
+              ¡Cuenta creada!
+            </h2>
+            <p className="text-gray-400 text-sm mb-2">
+              Hemos enviado un correo de verificación a:
+            </p>
+            <p className="text-brand font-semibold mb-6">{registeredEmail}</p>
+            <p className="text-gray-500 text-xs mb-8">
+              Revisa tu bandeja de entrada (y la carpeta de spam) y haz clic en
+              el enlace para activar tu cuenta.
+              {(selectedRole === "empresa" ||
+                selectedRole === "centro_educativo") && (
+                <span className="block mt-2">
+                  Además, el equipo de Relance verificará tus datos en 24–48 h.
+                </span>
+              )}
+            </p>
+            <button
+              onClick={() => navigate("/")}
+              className="btn-primary w-full"
+            >
+              Ir al inicio
+            </button>
+            <button
+              onClick={() => navigate("/login")}
+              className="btn-secondary w-full mt-3"
+            >
+              Iniciar sesión
+            </button>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   return (
-    // <div className="min-h-screen bg-dark py-12 px-4">
-    <div className="relative min-h-screen bg-dark py-12 px-4 overflow-hidden">
+    <MainLayout>
+      {/* <div className="min-h-screen bg-dark py-12 px-4"> */}
+      {/* // <div className="relative min-h-screen bg-dark py-12 px-4 overflow-hidden"> */}
       {/* GRID de fondo */}
       <div
         className="absolute inset-0 opacity-[0.03]"
         style={{
+          zIndex: -99,
           backgroundImage: `linear-gradient(rgba(192,255,114,1) 1px, transparent 1px), linear-gradient(90deg, rgba(192,255,114,1) 1px, transparent 1px)`,
           backgroundSize: "60px 60px",
         }}
@@ -782,17 +811,16 @@ export default function RegisterPage() {
       />
 
       {/* Contenido */}
-      <div className="relative z-10"></div>
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-10">
-          <a href="/">
+        <div className="text-center m-10">
+          {/* <a href="/">
             <img
               src={logoUrl}
               alt="Relance"
               className="h-9 rounded-md mx-auto mb-6"
             />
-          </a>
+          </a> */}
           <h1 className="font-display text-3xl font-extrabold text-white mb-2">
             Crea tu cuenta
           </h1>
@@ -932,6 +960,7 @@ export default function RegisterPage() {
           </a>
         </p>
       </div>
-    </div>
+      {/* </div> */}
+    </MainLayout>
   );
 }

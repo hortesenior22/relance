@@ -1,41 +1,53 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from '../../context/AuthContext'
-import UserMenu from '../auth/UserMenu'
-import logoUrl from '../../assets/logo_relance.jpg'
+import { useState, useEffect } from "react";
+import { useAuth } from "../../context/AuthContext";
+import UserMenu from "../auth/UserMenu";
+import logoUrl from "../../assets/logo_relance.jpg";
 
-export default function Header({ onLoginClick, onRegisterClick }) {
-  const { user } = useAuth()
-  const [scrolled, setScrolled] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+type HeaderProps = {
+  onLoginClick?: () => void;
+  onRegisterClick?: () => void;
+};
+
+export default function Header({
+  onLoginClick,
+  onRegisterClick,
+}: HeaderProps): JSX.Element {
+  const { user } = useAuth();
+
+  const [scrolled, setScrolled] = useState<boolean>(false);
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10)
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+    const handleScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
-  const fullName = user?.user_metadata?.full_name ?? user?.email ?? ''
-  const avatarUrl = user?.user_metadata?.avatar_url
-  const initials = fullName
-    .split(' ')
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const fullName: string = user?.user_metadata?.full_name ?? user?.email ?? "";
+
+  const avatarUrl: string | undefined = user?.user_metadata?.avatar_url;
+
+  const initials: string = fullName
+    .split(" ")
     .slice(0, 2)
-    .map((n) => n[0]?.toUpperCase())
-    .join('')
+    .map((n: string) => n[0]?.toUpperCase())
+    .join("");
 
-  const navLinks = [
-    { label: 'Inicio', href: '/' },
-    { label: 'Cómo funciona', href: '#como-funciona' },
-    { label: 'Para empresas', href: '#empresas' },
-    { label: 'Para centros educativos', href: '#centros' },
-  ]
+  const navLinks: { label: string; href: string }[] = [
+    { label: "Inicio", href: "/" },
+    { label: "Cómo funciona", href: "#como-funciona" },
+    { label: "Para empresas", href: "#empresas" },
+    { label: "Para centros educativos", href: "#centros" },
+  ];
 
   return (
     <header
       className={`sticky top-0 z-40 transition-all duration-300 ${
         scrolled
-          ? 'bg-dark/90 backdrop-blur-md border-b border-brand/10 shadow-lg shadow-black/20'
-          : 'bg-transparent'
+          ? "bg-dark/90 backdrop-blur-md border-b border-brand/10 shadow-lg shadow-black/20"
+          : "bg-transparent"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -49,7 +61,7 @@ export default function Header({ onLoginClick, onRegisterClick }) {
             />
           </a>
 
-          {/* Nav central — solo desktop */}
+          {/* Nav desktop */}
           <nav className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => (
               <a
@@ -62,10 +74,9 @@ export default function Header({ onLoginClick, onRegisterClick }) {
             ))}
           </nav>
 
-          {/* Sección derecha */}
+          {/* Right section */}
           <div className="flex items-center gap-3">
             {user ? (
-              /* Avatar con dropdown */
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
@@ -80,16 +91,14 @@ export default function Header({ onLoginClick, onRegisterClick }) {
                     />
                   ) : (
                     <div className="w-full h-full bg-brand flex items-center justify-center text-dark font-bold text-sm font-display">
-                      {initials || '?'}
+                      {initials || "?"}
                     </div>
                   )}
                 </button>
-                {menuOpen && (
-                  <UserMenu onClose={() => setMenuOpen(false)} />
-                )}
+
+                {menuOpen && <UserMenu onClose={() => setMenuOpen(false)} />}
               </div>
             ) : (
-              /* Botones auth */
               <>
                 <button
                   onClick={onLoginClick}
@@ -106,19 +115,33 @@ export default function Header({ onLoginClick, onRegisterClick }) {
               </>
             )}
 
-            {/* Hamburguesa mobile */}
+            {/* Mobile menu */}
             <button
               onClick={() => setMobileNavOpen(!mobileNavOpen)}
               className="md:hidden p-2 text-gray-400 hover:text-white transition-colors"
               aria-label="Menú"
             >
               {mobileNavOpen ? (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               ) : (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <line x1="3" y1="6" x2="21" y2="6" />
                   <line x1="3" y1="12" x2="21" y2="12" />
                   <line x1="3" y1="18" x2="21" y2="18" />
@@ -128,7 +151,7 @@ export default function Header({ onLoginClick, onRegisterClick }) {
           </div>
         </div>
 
-        {/* Nav mobile desplegable */}
+        {/* Mobile nav */}
         {mobileNavOpen && (
           <nav className="md:hidden border-t border-white/10 py-3 pb-4 animate-slide-down">
             {navLinks.map((link) => (
@@ -141,9 +164,13 @@ export default function Header({ onLoginClick, onRegisterClick }) {
                 {link.label}
               </a>
             ))}
+
             {!user && (
               <button
-                onClick={() => { setMobileNavOpen(false); onLoginClick() }}
+                onClick={() => {
+                  setMobileNavOpen(false);
+                  onLoginClick?.();
+                }}
                 className="mt-2 w-full btn-secondary text-sm"
               >
                 Iniciar sesión
@@ -153,5 +180,5 @@ export default function Header({ onLoginClick, onRegisterClick }) {
         )}
       </div>
     </header>
-  )
+  );
 }

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../components/layout/Header";
 import HeroSection from "../components/home/HeroSection";
 import LoginModal from "../components/auth/LoginModal";
+import MainLayout from "../components/layout/MainLayout";
 
 export default function Home() {
   const [showLogin, setShowLogin] = useState(false);
@@ -12,7 +13,7 @@ export default function Home() {
 
   const goToRegister = () => navigate("/registro");
 
-  // 👇 Abrir modal si viene desde otra página (ej: registro)
+  // Abrre el modal si viene de otra página
   useEffect(() => {
     if (location.state?.openLogin) {
       setShowLogin(true);
@@ -23,13 +24,14 @@ export default function Home() {
   }, [location.state, navigate, location.pathname]);
 
   return (
-    <div className="min-h-screen bg-dark">
-      <Header
+    <MainLayout>
+      <div className="min-h-screen bg-dark">
+        {/* <Header
         onLoginClick={() => setShowLogin(true)}
         onRegisterClick={goToRegister}
-      />
+      /> */}
 
-      <main>
+        {/* <main> */}
         <HeroSection onRegisterClick={goToRegister} />
 
         {/* Sección placeholder */}
@@ -52,18 +54,19 @@ export default function Home() {
             centros educativos".
           </p>
         </section>
-      </main>
+        {/* </main> */}
 
-      {/* Modal login */}
-      {showLogin && (
-        <LoginModal
-          onClose={() => setShowLogin(false)}
-          onSwitchToRegister={() => {
-            setShowLogin(false);
-            goToRegister();
-          }}
-        />
-      )}
-    </div>
+        {/* Modal login */}
+        {showLogin && (
+          <LoginModal
+            onClose={() => setShowLogin(false)}
+            onSwitchToRegister={() => {
+              setShowLogin(false);
+              goToRegister();
+            }}
+          />
+        )}
+      </div>
+    </MainLayout>
   );
 }
