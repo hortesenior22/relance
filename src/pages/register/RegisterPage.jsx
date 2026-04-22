@@ -758,7 +758,31 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-dark py-12 px-4">
+    // <div className="min-h-screen bg-dark py-12 px-4">
+    <div className="relative min-h-screen bg-dark py-12 px-4 overflow-hidden">
+      {/* GRID de fondo */}
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: `linear-gradient(rgba(192,255,114,1) 1px, transparent 1px), linear-gradient(90deg, rgba(192,255,114,1) 1px, transparent 1px)`,
+          backgroundSize: "60px 60px",
+        }}
+      />
+
+      {/* Glow central */}
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full opacity-[0.06] blur-[120px] pointer-events-none"
+        style={{ background: "#c0ff72" }}
+      />
+
+      {/* Glow secundario */}
+      <div
+        className="absolute bottom-20 right-10 w-[300px] h-[300px] rounded-full opacity-[0.04] blur-[80px] pointer-events-none"
+        style={{ background: "#c0ff72" }}
+      />
+
+      {/* Contenido */}
+      <div className="relative z-10"></div>
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
