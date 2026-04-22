@@ -2,10 +2,19 @@ import { useEffect, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
+// Redirige al perfil correcto según el rol
+function getProfilePath(role) {
+  if (role === "empresa") return "/perfil/empresa";
+  if (role === "centro_educativo") return "/perfil/centro";
+  if (role === "tutor_empresa" || role === "tutor_centro")
+    return "/perfil/tutor";
+  return "/perfil";
+}
+
 export default function UserMenu({ onClose }) {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
   const ref = useRef(null);
+  const navigate = useNavigate();
 
   const fullName = user?.user_metadata?.full_name ?? user?.email ?? "Usuario";
   const avatarUrl = user?.user_metadata?.avatar_url;
@@ -18,9 +27,7 @@ export default function UserMenu({ onClose }) {
 
   useEffect(() => {
     const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        onClose();
-      }
+      if (ref.current && !ref.current.contains(e.target)) onClose();
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -29,12 +36,25 @@ export default function UserMenu({ onClose }) {
   const handleSignOut = async () => {
     await signOut();
     onClose();
-    navigate("/", { replace: true });
+    navigate("/", { replace: true }); // Redirige al home después de cerrar sesión
   };
 
+  const profilePath = getProfilePath(role);
+
+  // Items estáticos + condicionales por rol
   const menuItems = [
-    { icon: "icon-user-alt", label: "Mi perfil", href: "/perfil", roles: null },
-    // { icon: 'icon-settings', label: 'Configuración', href: '/configuracion', roles: null },
+    {
+      icon: "icon-user",
+      label: "Mi perfil",
+      href: profilePath,
+      roles: null,
+    },
+    {
+      icon: "icon-settings",
+      label: "Configuración",
+      href: profilePath,
+      roles: null,
+    },
     {
       icon: "icon-document",
       label: "Mis candidaturas",
@@ -42,22 +62,47 @@ export default function UserMenu({ onClose }) {
       roles: ["estudiante"],
     },
     {
-      icon: "icon-building",
+      icon: "icon-briefcase",
       label: "Gestión de ofertas",
       href: "/ofertas",
       roles: ["empresa"],
     },
     {
-      icon: "icon-home",
+      icon: "icon-educativeCenter",
       label: "Panel del centro",
       href: "/panel-centro",
       roles: ["centro_educativo"],
+    },
+    {
+      icon: "icon-tutor",
+      label: "Mis estudiantes",
+      href: "/mis-estudiantes",
+      roles: ["tutor_empresa", "tutor_centro"],
     },
   ];
 
   const visibleItems = menuItems.filter(
     (item) => item.roles === null || item.roles.includes(role),
   );
+
+  // Badge de rol
+  const roleBadges = {
+    estudiante: { label: "Estudiante", color: "bg-blue-500/20 text-blue-400" },
+    empresa: { label: "Empresa", color: "bg-purple-500/20 text-purple-400" },
+    centro_educativo: {
+      label: "Centro educativo",
+      color: "bg-orange-500/20 text-orange-400",
+    },
+    tutor_empresa: {
+      label: "Tutor de empresa",
+      color: "bg-green-500/20 text-green-400",
+    },
+    tutor_centro: {
+      label: "Tutor de centro",
+      color: "bg-teal-500/20 text-teal-400",
+    },
+  };
+  const badge = roleBadges[role];
 
   return (
     <div
@@ -70,18 +115,25 @@ export default function UserMenu({ onClose }) {
           <img
             src={avatarUrl}
             alt={fullName}
-            className="w-10 h-10 rounded-full object-cover"
+            className="w-10 h-10 rounded-full object-cover flex-shrink-0"
           />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-brand flex items-center justify-center text-dark font-bold text-sm flex-shrink-0">
-            {initials}
+          <div className="w-10 h-10 rounded-full bg-brand flex items-center justify-center text-dark font-bold text-sm flex-shrink-0 font-display">
+            {initials || "?"}
           </div>
         )}
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-white font-semibold text-sm truncate font-display">
             {fullName}
           </p>
           <p className="text-gray-500 text-xs truncate">{user?.email}</p>
+          {badge && (
+            <span
+              className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 ${badge.color}`}
+            >
+              {badge.label}
+            </span>
+          )}
         </div>
       </div>
 
@@ -94,25 +146,33 @@ export default function UserMenu({ onClose }) {
             onClick={onClose}
             className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors duration-150"
           >
-            <svg className="w-5 h-5 text-gray-300 flex-shrink-0">
-              <use href={`/icons.svg#${item.icon}`} />
-            </svg>
-
+            <span>
+              <svg className="w-5 h-5" viewBox="0 0 640 640">
+                <use
+                  href={`/icons.svg#${item.icon}`}
+                  xlinkHref={`/icons.svg#${item.icon}`}
+                />
+              </svg>
+            </span>
             <span>{item.label}</span>
           </a>
         ))}
       </div>
 
-      {/* Separador + cerrar sesión */}
+      {/* Cerrar sesión */}
       <div className="border-t border-white/10 py-1">
         <button
           onClick={handleSignOut}
           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors duration-150"
         >
-          <svg className="w-5 h-5 text-red-400 flex-shrink-0">
-            <use href="/icons.svg#icon-exit-1" />
-          </svg>
-
+          <span>
+            <svg className="size-5 text-red-400" viewBox="0 0 640 640">
+              <use
+                href={`/icons.svg#icon-exit`}
+                xlinkHref={`/icons.svg#icon-exit`}
+              />
+            </svg>
+          </span>
           <span>Cerrar sesión</span>
         </button>
       </div>

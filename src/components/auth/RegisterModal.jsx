@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { supabase } from "../../lib/supabase";
-import Swal from "sweetalert2";
 import logoUrl from "../../assets/logo_relance.jpg";
 
 const ROLES = [
@@ -12,23 +11,61 @@ const ROLES = [
   },
   {
     id: "empresa",
-    icon: "icon-building",
+    icon: "icon-company",
     label: "Empresa",
     desc: "Publica ofertas y encuentra talento",
+    extraField: {
+      label: "CIF de la empresa",
+      placeholder: "B12345678",
+      key: "cif",
+    },
+    note: "Será verificado por el equipo de Relance",
   },
   {
     id: "centro_educativo",
-    icon: "icon-home",
+    icon: "icon-educativeCenter",
     label: "Centro educativo",
     desc: "Gestiona tus estudiantes",
+    extraField: {
+      label: "Código institucional",
+      placeholder: "Ej: IES-MAD-2024",
+      key: "code",
+    },
+    note: "Será verificado por el equipo de Relance",
   },
   {
     id: "tutor",
     icon: "icon-user2",
     label: "Tutor",
     desc: "Solo por enlace de invitación",
+    disabled: true,
   },
 ];
+
+function PasswordStrength({ password }) {
+  const score =
+    password.length === 0
+      ? 0
+      : password.length < 6
+        ? 1
+        : password.length < 8
+          ? 2
+          : 3;
+  const colors = ["", "bg-red-500", "bg-yellow-500", "bg-brand"];
+  const labels = ["", "Débil", "Media", "Fuerte"];
+  if (!password) return null;
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      {[1, 2, 3].map((lvl) => (
+        <div
+          key={lvl}
+          className={`h-1 flex-1 rounded-full transition-all duration-300 ${score >= lvl ? colors[score] : "bg-white/10"}`}
+        />
+      ))}
+      <span className="text-xs text-gray-500 w-10">{labels[score]}</span>
+    </div>
+  );
+}
 
 export default function RegisterModal({ onClose, onSwitchToLogin }) {
   const [fullName, setFullName] = useState("");
@@ -37,57 +74,34 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState(null);
-  const [cif, setCif] = useState("");
-  const [institutionalCode, setInstitutionalCode] = useState("");
+  const [extraValue, setExtraValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  // const [success, setSuccess] = useState(false);
-  // Control de envío para evitar múltiples peticiones simultáneas
-  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  const passwordStrength = () => {
-    if (password.length === 0) return null;
-    if (password.length < 6) return "weak";
-    if (password.length < 8) return "medium";
-    return "strong";
-  };
-
-  const strength = passwordStrength();
-
-  const isDisabled = role === "tutor" || !role;
+  const selectedRole = ROLES.find((r) => r.id === role);
+  const isTutor = role === "tutor";
+  const canSubmit = role && !isTutor;
 
   const handleRegister = async (e) => {
     e.preventDefault();
-
-    // Evita múltiples envíos simultáneos (causa común del rate limit)
-    if (submitting) return;
-
-    setSubmitting(true);
-    setLoading(true);
-    setError(null);
-
-    // Validaciones básicas
     if (password !== confirmPassword) {
       setError("Las contraseñas no coinciden.");
-      setSubmitting(false);
-      setLoading(false);
+      return;
+    }
+    if (password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres.");
       return;
     }
 
-    if (password.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres.");
-      setSubmitting(false);
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
+    setError(null);
 
     const metadata = {
       full_name: fullName,
       role,
-      ...(role === "empresa" && { cif }),
-      ...(role === "centro_educativo" && {
-        institutional_code: institutionalCode,
-      }),
+      ...(role === "empresa" && { cif: extraValue }),
+      ...(role === "centro_educativo" && { institutional_code: extraValue }),
     };
 
     const { error } = await supabase.auth.signUp({
@@ -96,70 +110,43 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
       options: { data: metadata },
     });
 
-    // ERROR HANDLING MEJORADO
-    if (error) {
-      // Caso específico de Supabase rate limit
-      if (error.message?.toLowerCase().includes("rate limit")) {
-        setError(
-          "Demasiados intentos seguidos. Espera unos minutos e inténtalo de nuevo.",
-        );
-      } else {
-        setError(error.message);
-      }
-
-      setSubmitting(false);
-      setLoading(false);
-      return;
-    }
-
-    setSubmitting(false);
     setLoading(false);
-
-    // SUCCESS MODAL
-    Swal.fire({
-      icon: "success",
-      title: "¡Cuenta creada!",
-      html: `
-      <p style="color:#9ca3af; font-size:14px; line-height:1.5;">
-        Revisa tu correo electrónico para confirmar tu cuenta.<br/>
-        Una vez confirmada, podrás iniciar sesión.
-      </p>
-    `,
-      confirmButtonText: "Entendido",
-      confirmButtonColor: "#c0ff72",
-      background: "#0b0f14",
-      color: "#ffffff",
-      iconColor: "#c0ff72",
-      customClass: {
-        popup: "rounded-2xl border border-white/10",
-      },
-    }).then(() => {
-      onClose();
-    });
+    if (error) {
+      setError(error.message);
+    } else {
+      setSuccess(true);
+    }
   };
 
-  // if (success) {
-  //   return (
-  //     <div
-  //       className="modal-overlay"
-  //       onClick={(e) => e.target === e.currentTarget && onClose()}
-  //     >
-  //       <div className="modal-card text-center">
-  //         <div className="text-5xl mb-4">✅</div>
-  //         <h2 className="font-display text-2xl font-bold text-white mb-2">
-  //           ¡Cuenta creada!
-  //         </h2>
-  //         <p className="text-gray-400 text-sm mb-6">
-  //           Revisa tu correo electrónico para confirmar tu cuenta. Una vez
-  //           confirmada, podrás iniciar sesión.
-  //         </p>
-  //         <button onClick={onClose} className="btn-primary w-full">
-  //           Entendido
-  //         </button>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  if (success) {
+    return (
+      <div
+        className="modal-overlay"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <div className="modal-card text-center">
+          <div className="text-5xl mb-4">✅</div>
+          <h2 className="font-display text-2xl font-bold text-white mb-2">
+            ¡Cuenta creada!
+          </h2>
+          <p className="text-gray-400 text-sm mb-6">
+            Revisa tu correo electrónico en{" "}
+            <span className="text-brand">{email}</span> para confirmar tu
+            cuenta.
+            {(role === "empresa" || role === "centro_educativo") && (
+              <span className="block mt-2 text-gray-500">
+                Tu {role === "empresa" ? "CIF" : "código institucional"} será
+                verificado por el equipo de Relance en las próximas 24–48 h.
+              </span>
+            )}
+          </p>
+          <button onClick={onClose} className="btn-primary w-full">
+            Entendido
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -267,30 +254,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                 )}
               </button>
             </div>
-            {/* Indicador de fuerza */}
-            {strength && (
-              <div className="mt-2 flex gap-1">
-                {["weak", "medium", "strong"].map((lvl, i) => (
-                  <div
-                    key={lvl}
-                    className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                      ["weak", "medium", "strong"].indexOf(strength) >= i
-                        ? strength === "weak"
-                          ? "bg-red-500"
-                          : strength === "medium"
-                            ? "bg-yellow-500"
-                            : "bg-brand"
-                        : "bg-white/10"
-                    }`}
-                  />
-                ))}
-                <span className="text-xs text-gray-500 ml-2">
-                  {strength === "weak" && "Débil"}
-                  {strength === "medium" && "Media"}
-                  {strength === "strong" && "Fuerte"}
-                </span>
-              </div>
-            )}
+            <PasswordStrength password={password} />
           </div>
 
           {/* Confirmar contraseña */}
@@ -311,9 +275,16 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                 Las contraseñas no coinciden
               </p>
             )}
+            {confirmPassword &&
+              confirmPassword === password &&
+              password.length >= 8 && (
+                <p className="text-xs text-brand mt-1">
+                  ✓ Las contraseñas coinciden
+                </p>
+              )}
           </div>
 
-          {/* Selector de rol */}
+          {/* Selector de rol — cards visuales */}
           <div>
             <label className="block text-sm text-gray-400 mb-2">
               Tipo de cuenta
@@ -323,14 +294,18 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                 <button
                   type="button"
                   key={r.id}
-                  onClick={() => setRole(r.id)}
+                  onClick={() => {
+                    setRole(r.id);
+                    setExtraValue("");
+                  }}
                   className={`p-3 rounded-xl border text-left transition-all duration-200 ${
                     role === r.id
                       ? "border-brand bg-brand/10 text-white"
                       : "border-white/10 hover:border-white/20 text-gray-400 hover:text-gray-300"
-                  } ${r.id === "tutor" ? "opacity-60" : ""}`}
+                  } ${r.disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+                  disabled={r.disabled}
                 >
-                  <div className="mb-1">
+                  <div className="text-xl mb-1">
                     <svg className="w-5 h-5">
                       <use href={`icons.svg#${r.icon}`} />
                     </svg>
@@ -344,62 +319,34 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
             </div>
           </div>
 
-          {/* Campo adicional: CIF para empresa */}
-          {role === "empresa" && (
+          {/* Campo adicional para empresa o centro educativo */}
+          {selectedRole?.extraField && (
             <div className="animate-fade-in">
               <label className="block text-sm text-gray-400 mb-1.5">
-                CIF de la empresa
+                {selectedRole.extraField.label}
               </label>
               <input
                 type="text"
                 required
-                value={cif}
-                onChange={(e) => setCif(e.target.value)}
-                placeholder="B12345678"
+                value={extraValue}
+                onChange={(e) => setExtraValue(e.target.value)}
+                placeholder={selectedRole.extraField.placeholder}
                 className="input-field"
               />
-              <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                <svg className="w-4 h-4 text-gray-400">
-                  <use href={`icons.svg#icon-info`} />
-                </svg>
-                Será verificado por el equipo de Relance
-              </p>
-            </div>
-          )}
-
-          {/* Campo adicional: Código institucional */}
-          {role === "centro_educativo" && (
-            <div className="animate-fade-in">
-              <label className="block text-sm text-gray-400 mb-1.5">
-                Código institucional
-              </label>
-              <input
-                type="text"
-                required
-                value={institutionalCode}
-                onChange={(e) => setInstitutionalCode(e.target.value)}
-                placeholder="Ej: IES-COR-2026"
-                className="input-field"
-              />
-              <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                <svg className="w-4 h-4 text-gray-400">
-                  <use href={`icons.svg#icon-info`} />
-                </svg>
-                Será verificado por el equipo de Relance
+              <p className="text-xs text-gray-500 mt-1">
+                ℹ️ {selectedRole.note}
               </p>
             </div>
           )}
 
           {/* Aviso para tutor */}
-          {role === "tutor" && (
+          {isTutor && (
             <div className="animate-fade-in bg-brand/10 border border-brand/30 rounded-xl p-4">
               <p className="text-sm text-brand">
-                <svg className="w-4 h-4 inline-block mr-1 align-text-bottom">
-                  <use href="icons.svg#icon-info" />
-                </svg>
-                Los tutores deben registrarse a través del{" "}
+                👨‍🏫 Los tutores deben registrarse a través del{" "}
                 <strong>enlace de invitación</strong> enviado por su empresa o
-                centro educativo.
+                centro educativo. Existen dos tipos: tutores de centro educativo
+                y tutores de empresa.
               </p>
             </div>
           )}
@@ -414,7 +361,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
           {/* Submit */}
           <button
             type="submit"
-            disabled={isDisabled || loading || submitting}
+            disabled={!canSubmit || loading}
             className="btn-primary w-full flex justify-center items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {loading ? (
@@ -440,15 +387,16 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                 </svg>
                 Creando cuenta...
               </>
-            ) : role === "tutor" ? (
+            ) : isTutor ? (
               "Registro solo por invitación"
+            ) : !role ? (
+              "Selecciona un tipo de cuenta"
             ) : (
               "Crear cuenta"
             )}
           </button>
         </form>
 
-        {/* Switch a login */}
         <p className="text-center text-sm text-gray-500 mt-6">
           ¿Ya tienes cuenta?{" "}
           <button

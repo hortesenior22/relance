@@ -1,42 +1,41 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
-import UserMenu from "../auth/UserMenu";
-import logoUrl from "../../assets/logo_relance.jpg";
+import { useState, useEffect } from 'react'
+import { useAuth } from '../../context/AuthContext'
+import UserMenu from '../auth/UserMenu'
+import logoUrl from '../../assets/logo_relance.jpg'
 
 export default function Header({ onLoginClick, onRegisterClick }) {
-  const { user } = useAuth();
-  const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const { openLoginModal } = useAuth();
+  const { user } = useAuth()
+  const [scrolled, setScrolled] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    const handleScroll = () => setScrolled(window.scrollY > 10)
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
-  const fullName = user?.user_metadata?.full_name ?? user?.email ?? "";
-  const avatarUrl = user?.user_metadata?.avatar_url;
+  const fullName = user?.user_metadata?.full_name ?? user?.email ?? ''
+  const avatarUrl = user?.user_metadata?.avatar_url
   const initials = fullName
-    .split(" ")
+    .split(' ')
     .slice(0, 2)
     .map((n) => n[0]?.toUpperCase())
-    .join("");
+    .join('')
 
   const navLinks = [
-    { label: "Inicio", href: "/" },
-    // { label: 'Cómo funciona', href: '#como-funciona' },
-    // { label: 'Para empresas', href: '#empresas' },
-    // { label: 'Para centros educativos', href: '#centros' },
-  ];
+    { label: 'Inicio', href: '/' },
+    { label: 'Cómo funciona', href: '#como-funciona' },
+    { label: 'Para empresas', href: '#empresas' },
+    { label: 'Para centros educativos', href: '#centros' },
+  ]
 
   return (
     <header
       className={`sticky top-0 z-40 transition-all duration-300 ${
         scrolled
-          ? "bg-dark/90 backdrop-blur-md border-b border-brand/10 shadow-lg shadow-black/20"
-          : "bg-transparent"
+          ? 'bg-dark/90 backdrop-blur-md border-b border-brand/10 shadow-lg shadow-black/20'
+          : 'bg-transparent'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -81,17 +80,19 @@ export default function Header({ onLoginClick, onRegisterClick }) {
                     />
                   ) : (
                     <div className="w-full h-full bg-brand flex items-center justify-center text-dark font-bold text-sm font-display">
-                      {initials || "?"}
+                      {initials || '?'}
                     </div>
                   )}
                 </button>
-                {menuOpen && <UserMenu onClose={() => setMenuOpen(false)} />}
+                {menuOpen && (
+                  <UserMenu onClose={() => setMenuOpen(false)} />
+                )}
               </div>
             ) : (
               /* Botones auth */
               <>
                 <button
-                  onClick={openLoginModal}
+                  onClick={onLoginClick}
                   className="hidden sm:flex btn-secondary text-sm"
                 >
                   Iniciar sesión
@@ -112,26 +113,12 @@ export default function Header({ onLoginClick, onRegisterClick }) {
               aria-label="Menú"
             >
               {mobileNavOpen ? (
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               ) : (
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="3" y1="6" x2="21" y2="6" />
                   <line x1="3" y1="12" x2="21" y2="12" />
                   <line x1="3" y1="18" x2="21" y2="18" />
@@ -156,10 +143,7 @@ export default function Header({ onLoginClick, onRegisterClick }) {
             ))}
             {!user && (
               <button
-                onClick={() => {
-                  setMobileNavOpen(false);
-                  onLoginClick();
-                }}
+                onClick={() => { setMobileNavOpen(false); onLoginClick() }}
                 className="mt-2 w-full btn-secondary text-sm"
               >
                 Iniciar sesión
@@ -169,5 +153,5 @@ export default function Header({ onLoginClick, onRegisterClick }) {
         )}
       </div>
     </header>
-  );
+  )
 }
