@@ -56,7 +56,7 @@ export default function UserMenu({ onClose }) {
       roles: null,
     },
     {
-      icon: "icon-document",
+      icon: "icon-candidacy",
       label: "Mis candidaturas",
       href: "/candidaturas",
       roles: ["estudiante"],

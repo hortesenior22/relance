@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import logoUrl from "../../assets/logo_relance.jpg";
+import { loginWithGoogle } from "../../lib/supabase";
 
-// Vista: 'login' | 'forgot'
 export default function LoginModal({ onClose, onSwitchToRegister }) {
   const [view, setView] = useState("login");
   const [email, setEmail] = useState("");
@@ -12,36 +12,46 @@ export default function LoginModal({ onClose, onSwitchToRegister }) {
   const [error, setError] = useState(null);
   const [forgotSent, setForgotSent] = useState(false);
 
-  // ── Login ──────────────────────────────────────────────────────────────────
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) {
-      setError(
-        error.message === "Invalid login credentials"
-          ? "Correo o contraseña incorrectos."
-          : error.message,
-      );
-      setLoading(false);
-    } else {
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError(
+          error.message === "Invalid login credentials"
+            ? "Correo o contraseña incorrectos."
+            : error.message,
+        );
+        return;
+      }
+
+      // IMPORTANTE: cerrar modal después de login exitoso
       onClose();
+    } catch (err) {
+      setError("Error inesperado al iniciar sesión");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ── Recuperar contraseña ───────────────────────────────────────────────────
   const handleForgot = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
+
     setLoading(false);
+
     if (error) {
       setError(error.message);
     } else {
@@ -49,7 +59,6 @@ export default function LoginModal({ onClose, onSwitchToRegister }) {
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div
       className="modal-overlay"
@@ -62,9 +71,7 @@ export default function LoginModal({ onClose, onSwitchToRegister }) {
           className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
           aria-label="Cerrar"
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
-          </svg>
+          ✕
         </button>
 
         {/* Logo */}
@@ -72,7 +79,7 @@ export default function LoginModal({ onClose, onSwitchToRegister }) {
           <img src={logoUrl} alt="Relance" className="h-8 rounded-md" />
         </div>
 
-        {/* ── Vista: Login ── */}
+        {/* ───────── LOGIN ───────── */}
         {view === "login" && (
           <>
             <h2 className="font-display text-2xl font-bold text-white text-center mb-1">
@@ -83,78 +90,85 @@ export default function LoginModal({ onClose, onSwitchToRegister }) {
             </p>
 
             <form onSubmit={handleLogin} className="space-y-4">
+              {/* Email */}
               <div>
-                <label
-                  className="block text-sm text-gray-400 mb-1.5"
-                  htmlFor="login-email"
-                >
+                <label className="block text-sm text-gray-400 mb-1.5">
                   Correo electrónico
                 </label>
                 <input
-                  id="login-email"
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="tu@correo.com"
-                  className="input-field"
+                  className="input-field py-2 text-sm"
                 />
               </div>
 
+              {/* Password */}
               <div>
-                <label
-                  className="block text-sm text-gray-400 mb-1.5"
-                  htmlFor="login-password"
-                >
+                <label className="block text-sm text-gray-400 mb-1.5">
                   Contraseña
                 </label>
                 <div className="relative">
                   <input
-                    id="login-password"
                     type={showPassword ? "text" : "password"}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="input-field pr-10"
+                    className="input-field py-2 pr-10 text-sm"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                    aria-label={showPassword ? "Ocultar" : "Mostrar"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
                   >
-                    {showPassword ? (
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
-                        <line x1="1" y1="1" x2="23" y2="23" />
-                      </svg>
-                    ) : (
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
+                    👁
                   </button>
                 </div>
               </div>
 
-              {/* Enlace recuperar contraseña */}
-              <div className="text-right">
+              {/* Botón 1: LOGIN */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full py-1.5 text-sm"
+              >
+                {loading ? "Iniciando sesión..." : "Iniciar sesión"}
+              </button>
+
+              {/* Botón 2: GOOGLE */}
+              <button
+                type="button"
+                onClick={loginWithGoogle}
+                className="w-full flex items-center justify-center py-1.5 text-sm gap-2 border border-gray-700 bg-white text-gray-900 font-medium rounded-lg   hover:bg-gray-100 transition-colors"
+              >
+                {/* Icono Google */}
+                <svg width="18" height="18" viewBox="0 0 48 48">
+                  <path
+                    fill="#EA4335"
+                    d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C36.68 2.36 30.82 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.21C12.43 13.09 17.77 9.5 24 9.5z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M46.1 24.55c0-1.57-.14-3.09-.39-4.55H24v9.1h12.44c-.54 2.9-2.18 5.36-4.64 7.04l7.18 5.57C43.94 37.1 46.1 31.35 46.1 24.55z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M10.54 28.43A14.5 14.5 0 019.5 24c0-1.52.26-2.99.72-4.43l-7.98-6.21A23.9 23.9 0 000 24c0 3.84.92 7.46 2.56 10.64l7.98-6.21z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M24 48c6.48 0 11.93-2.13 15.9-5.81l-7.18-5.57c-2.01 1.35-4.6 2.17-8.72 2.17-6.23 0-11.57-3.59-13.46-8.8l-7.98 6.21C6.51 42.62 14.62 48 24 48z"
+                  />
+                </svg>
+
+                <span>Continuar con Google</span>
+              </button>
+
+              {/* Botón 3: OLVIDE CONTRASEÑA (centrado) */}
+              <div className="text-center">
                 <button
                   type="button"
                   onClick={() => {
@@ -166,52 +180,14 @@ export default function LoginModal({ onClose, onSwitchToRegister }) {
                   ¿Olvidaste tu contraseña?
                 </button>
               </div>
-
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary w-full flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <>
-                    <svg
-                      className="animate-spin w-4 h-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    Iniciando sesión...
-                  </>
-                ) : (
-                  "Iniciar sesión"
-                )}
-              </button>
             </form>
 
+            {/* Botón 4: REGISTRO */}
             <p className="text-center text-sm text-gray-500 mt-6">
               ¿No tienes cuenta?{" "}
               <button
                 onClick={onSwitchToRegister}
-                className="text-brand hover:text-brand-dark font-medium transition-colors"
+                className="text-brand hover:text-brand-dark font-medium"
               >
                 Regístrate
               </button>
@@ -219,7 +195,7 @@ export default function LoginModal({ onClose, onSwitchToRegister }) {
           </>
         )}
 
-        {/* ── Vista: Recuperar contraseña ── */}
+        {/* ───────── FORGOT PASSWORD ───────── */}
         {view === "forgot" && (
           <>
             <button
@@ -228,105 +204,35 @@ export default function LoginModal({ onClose, onSwitchToRegister }) {
                 setError(null);
                 setForgotSent(false);
               }}
-              className="flex items-center gap-1.5 text-gray-500 hover:text-white text-sm mb-4 transition-colors"
+              className="text-sm text-gray-400 mb-4"
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M19 12H5M12 5l-7 7 7 7" />
-              </svg>
-              Volver al inicio de sesión
+              ← Volver
             </button>
 
-            <h2 className="font-display text-2xl font-bold text-white text-center mb-1">
+            <h2 className="text-xl font-bold text-center text-white mb-2">
               Recuperar contraseña
             </h2>
-            <p className="text-gray-500 text-sm text-center mb-6">
-              Te enviaremos un enlace para restablecer tu contraseña
+
+            <p className="text-sm text-gray-500 text-center mb-6">
+              Te enviaremos un enlace a tu correo
             </p>
 
             {forgotSent ? (
-              <div className="text-center">
-                <div className="text-5xl flex justify-center">
-                  <svg className="w-28">
-                    <use href="icons.svg#icon-envelope" />
-                  </svg>
-                </div>
-                <p className="text-white font-semibold mb-2">Correo enviado</p>
-                <p className="text-gray-400 text-sm">
-                  Revisa tu bandeja de entrada en{" "}
-                  <span className="text-brand">{email}</span> y sigue las
-                  instrucciones.
-                </p>
-                <button
-                  onClick={() => {
-                    setView("login");
-                    setForgotSent(false);
-                  }}
-                  className="btn-secondary w-full mt-6"
-                >
-                  Volver al inicio de sesión
-                </button>
-              </div>
+              <p className="text-center text-sm text-green-400">
+                Revisa tu correo 📩
+              </p>
             ) : (
               <form onSubmit={handleForgot} className="space-y-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1.5">
-                    Correo electrónico
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tu@correo.com"
-                    className="input-field"
-                  />
-                </div>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@correo.com"
+                  className="input-field"
+                />
 
-                {error && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
-                    {error}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary w-full flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <>
-                      <svg
-                        className="animate-spin w-4 h-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        />
-                      </svg>
-                      Enviando...
-                    </>
-                  ) : (
-                    "Enviar enlace de recuperación"
-                  )}
-                </button>
+                <button className="btn-primary w-full">Enviar enlace</button>
               </form>
             )}
           </>

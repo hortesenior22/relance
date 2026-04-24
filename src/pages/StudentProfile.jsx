@@ -984,7 +984,7 @@ export default function StudentProfile() {
     if (!user) return;
     const load = async () => {
       const { data, error } = await supabase
-        .from("estudiantes") // ← tabla actualizada
+        .from("estudiante") // ← tabla actualizada
         .select("*")
         .eq("id", user.id)
         .single();
@@ -1051,7 +1051,7 @@ export default function StudentProfile() {
       .getPublicUrl(storagePath);
     const freshUrl = `${urlData.publicUrl}?t=${Date.now()}`;
     setAvatarUrl(freshUrl);
-    await supabase.from("estudiantes").upsert({
+    await supabase.from("estudiante").upsert({
       id: user.id,
       avatar_url: freshUrl,
       updated_at: new Date().toISOString(),
@@ -1111,7 +1111,7 @@ export default function StudentProfile() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("estudiantes").upsert(payload);
+    const { error } = await supabase.from("estudiante").upsert(payload);
     setSaving(false);
     if (error) {
       setSaveError("Error al guardar: " + error.message);
