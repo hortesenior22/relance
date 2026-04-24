@@ -194,7 +194,7 @@ export function useGitHubSession() {
       provider: "github",
       options: {
         scopes: "read:user public_repo",
-        redirectTo: window.location.href,
+        redirectTo: `${window.location.origin}/auth/callback`
       },
     });
   }, []);

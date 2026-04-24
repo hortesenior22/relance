@@ -7,7 +7,6 @@ export default function Footer() {
         {/* Logo */}
         <div className="flex items-center gap-3">
           <img src={logoUrl} alt="Logo" className="h-10 w-auto" />
-          <span className="font-semibold text-gray-700">Relance</span>
         </div>
 
         {/* Links */}
