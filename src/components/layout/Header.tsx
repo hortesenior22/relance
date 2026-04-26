@@ -37,9 +37,9 @@ export default function Header({
 
   const navLinks: { label: string; href: string }[] = [
     { label: "Inicio", href: "/" },
-    { label: "Cómo funciona", href: "#como-funciona" },
-    { label: "Para empresas", href: "#empresas" },
-    { label: "Para centros educativos", href: "#centros" },
+    // { label: "Cómo funciona", href: "#como-funciona" },
+    // { label: "Para empresas", href: "#empresas" },
+    // { label: "Para centros educativos", href: "#centros" },
   ];
 
   return (

@@ -26,15 +26,8 @@ export default function Home() {
   return (
     <MainLayout>
       <div className="min-h-screen bg-dark">
-        {/* <Header
-        onLoginClick={() => setShowLogin(true)}
-        onRegisterClick={goToRegister}
-      /> */}
-
-        {/* <main> */}
         <HeroSection onRegisterClick={goToRegister} />
 
-        {/* Sección placeholder */}
         <section
           id="como-funciona"
           className="py-32 max-w-5xl mx-auto px-6 text-center"
@@ -54,7 +47,6 @@ export default function Home() {
             centros educativos".
           </p>
         </section>
-        {/* </main> */}
 
         {/* Modal login */}
         {showLogin && (

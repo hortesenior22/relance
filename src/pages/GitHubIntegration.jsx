@@ -1,29 +1,11 @@
-// ─────────────────────────────────────────────────────────────────────────────
+// ==========================
 // GitHubIntegration.jsx
-//
-// Integración GitHub OAuth para el perfil de estudiante.
-// Pega este componente en tu proyecto y:
-//   1. Importa <GitHubReposSection> en StudentProfile.jsx
-//   2. Añade las variables de entorno (ver abajo)
-//   3. Configura el OAuth App en GitHub (ver README al final)
-// ─────────────────────────────────────────────────────────────────────────────
+// ==========================
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 
-// ── Variables de entorno necesarias ──────────────────────────────────────────
-// En tu .env:
-//   VITE_GITHUB_CLIENT_ID=tu_client_id_aqui
-//
-// En Supabase > Authentication > Providers > GitHub:
-//   Activa GitHub OAuth e introduce Client ID y Client Secret
-//
-// En tu GitHub OAuth App (github.com/settings/developers):
-//   Homepage URL: http://localhost:5173 (o tu dominio)
-//   Callback URL: https://[tu-proyecto].supabase.co/auth/v1/callback
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─── Iconos ──────────────────────────────────────────────────────────────────
+// ============= Iconos =============
 function IconGitHub({ size = 16 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -109,7 +91,7 @@ function Spinner({ className = "w-4 h-4" }) {
   );
 }
 
-// ─── Colores por lenguaje (GitHub style) ────────────────────────────────────
+// ========== Colores por lenguaje (GitHub style) ==========
 const LANG_COLORS = {
   JavaScript: "#f1e05a",
   TypeScript: "#3178c6",
@@ -145,64 +127,80 @@ function LangDot({ lang }) {
   );
 }
 
-// ─── Hook: sesión de GitHub vía Supabase OAuth ───────────────────────────────
+// ========== Hook: sesión de GitHub vía Supabase OAuth ==========
+
+// Extrae la sesión de GitHub del objeto de sesión de Supabase.
+// Funciona tanto para usuarios que se autenticaron directamente con GitHub
+// como para usuarios de Google/email que vincularon GitHub después:
+// en ambos casos Supabase guarda el provider_token de GitHub en la sesión.
+function extractGitHubSession(session) {
+  if (!session?.provider_token) return null;
+
+  const user = session.user;
+  const provider = user?.app_metadata?.provider;
+  const metadata = user?.user_metadata ?? {};
+
+  // Caso 1: el usuario se autenticó con GitHub directamente
+  if (provider === "github") {
+    return {
+      token: session.provider_token,
+      username: metadata.user_name || metadata.preferred_username || metadata.login,
+      avatarUrl: metadata.avatar_url,
+    };
+  }
+
+  // Caso 2: usuario de otro provider (Google, email) que vinculó GitHub.
+  // Supabase guarda el provider_token de GitHub pero el provider sigue siendo el original.
+  // Detectamos que el token es de GitHub comprobando identities o user_name en metadata.
+  const githubIdentity = user?.identities?.find((i) => i.provider === "github");
+  if (githubIdentity) {
+    const ghData = githubIdentity.identity_data ?? {};
+    return {
+      token: session.provider_token,
+      username: ghData.user_name || ghData.preferred_username || ghData.login || metadata.user_name,
+      avatarUrl: ghData.avatar_url || metadata.avatar_url,
+    };
+  }
+
+  return null;
+}
+
 export function useGitHubSession() {
   const [githubSession, setGithubSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Detectar token de GitHub desde la sesión de Supabase (provider_token)
     const check = async () => {
       const { data } = await supabase.auth.getSession();
-      const session = data?.session;
-      if (
-        session?.provider_token &&
-        session?.user?.app_metadata?.provider === "github"
-      ) {
-        setGithubSession({
-          token: session.provider_token,
-          username: session.user?.user_metadata?.user_name,
-          avatarUrl: session.user?.user_metadata?.avatar_url,
-        });
-      }
+      setGithubSession(extractGitHubSession(data?.session));
       setLoading(false);
     };
+
     check();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        if (
-          session?.provider_token &&
-          session?.user?.app_metadata?.provider === "github"
-        ) {
-          setGithubSession({
-            token: session.provider_token,
-            username: session.user?.user_metadata?.user_name,
-            avatarUrl: session.user?.user_metadata?.avatar_url,
-          });
-        } else {
-          setGithubSession(null);
-        }
+        setGithubSession(extractGitHubSession(session));
       },
     );
 
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const connectGitHub = useCallback(async () => {
+  const connectGitHub = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "github",
       options: {
         scopes: "read:user public_repo",
-        redirectTo: window.location.href,
+        redirectTo: `${window.location.origin}/perfil`,
       },
     });
-  }, []);
+  };
 
   return { githubSession, loading, connectGitHub };
 }
 
-// ─── Hook: obtener repos del usuario autenticado ─────────────────────────────
+// ========== Hook: obtener repos del usuario autenticado ==========
 export function useGitHubRepos(token) {
   const [repos, setRepos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -253,7 +251,7 @@ export function useGitHubRepos(token) {
   return { repos, loading, error, refetch: fetchRepos };
 }
 
-// ─── Tarjeta de repositorio ──────────────────────────────────────────────────
+// ========== Tarjeta de repositorio ==========
 function RepoCard({ repo, isVinculado, onToggle }) {
   const fecha = repo.actualizado
     ? new Date(repo.actualizado).toLocaleDateString("es-ES", {
@@ -329,16 +327,9 @@ function RepoCard({ repo, isVinculado, onToggle }) {
   );
 }
 
-// ─── COMPONENTE PRINCIPAL que se integra en StudentProfile ──────────────────
+// ========== COMPONENTE PRINCIPAL que se integra en StudentProfile ==========
 /**
- * GitHubReposSection
- *
- * Props:
- *   - reposVinculados: array de repos guardados en la BD
- *   - onReposChange: callback(nuevosRepos) — actualiza el estado del padre
- *   - githubUsername: string | null — guardado en el perfil
- *   - onUsernameChange: callback(username) — guarda el username
- */
+ * GitHubReposSection */
 export default function GitHubReposSection({
   reposVinculados = [],
   onReposChange,
@@ -381,7 +372,7 @@ export default function GitHubReposSection({
       r.descripcion.toLowerCase().includes(busqueda.toLowerCase()),
   );
 
-  // ── Estado: cargando sesión ──────────────────────────────────────────────
+  // ========== Estado: cargando sesión ==========
   if (sessionLoading) {
     return (
       <div className="flex items-center justify-center py-8 text-gray-600 gap-2">
@@ -390,7 +381,7 @@ export default function GitHubReposSection({
     );
   }
 
-  // ── Estado: no conectado ─────────────────────────────────────────────────
+  // ========== Estado: no conectado ==========
   if (!githubSession) {
     return (
       <div className="text-center py-10 border border-dashed border-white/10 rounded-xl">
@@ -448,7 +439,7 @@ export default function GitHubReposSection({
     );
   }
 
-  // ── Estado: conectado ────────────────────────────────────────────────────
+  // ========== Estado: conectado ==========
   return (
     <div>
       {/* Header de sesión */}

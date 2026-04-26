@@ -12,18 +12,25 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// 🔌 Cliente Supabase
+// 🔌 Cliente Supabase (✅ AQUÍ ESTÁ EL FIX)
 export const supabase = createClient(
   supabaseUrl ?? "https://placeholder.supabase.co",
   supabaseAnonKey ?? "placeholder",
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true, // 🔥 NECESARIO para OAuth (GitHub y Google)
+    },
+  },
 );
 
-// 🔐 LOGIN CON GOOGLE (añadido)
+// 🔐 LOGIN CON GOOGLE (lo mantenemos tal cual, solo mejoramos redirect opcionalmente)
 export async function loginWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: window.location.origin, // importante para dev y prod
+      redirectTo: `${window.location.origin}/perfil`, // 🔥 mejor que origin solo
     },
   });
 

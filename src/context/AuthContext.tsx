@@ -16,33 +16,32 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-type AuthProviderProps = {
-  children: ReactNode;
-};
-
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Obtener sesión inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    const init = async () => {
+      const { data } = await supabase.auth.getSession();
+      setUser(data.session?.user ?? null);
       setLoading(false);
-    });
+    };
 
-    // Escuchar cambios de sesión
+    init();
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session: Session | null) => {
       setUser(session?.user ?? null);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const signOut = async (): Promise<void> => {
+  const signOut = async () => {
     await supabase.auth.signOut();
+    setUser(null);
   };
 
   return (
@@ -52,8 +51,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 }
 
-export const useAuth = (): AuthContextType => {
+export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth debe usarse dentro de <AuthProvider>");
+  if (!ctx) throw new Error("useAuth debe usarse dentro de AuthProvider");
   return ctx;
 };
