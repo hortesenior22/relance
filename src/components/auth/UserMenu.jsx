@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
+import { showAlert } from "../../lib/swal";
 
 // Redirige al perfil correcto según el rol
 function getProfilePath(role) {
@@ -8,7 +10,7 @@ function getProfilePath(role) {
   if (role === "centro_educativo") return "/perfil/centro";
   if (role === "tutor_empresa" || role === "tutor_centro")
     return "/perfil/tutor";
-  return "/perfil";
+  return "/perfil/estudiante";
 }
 
 export default function UserMenu({ onClose }) {
@@ -34,10 +36,73 @@ export default function UserMenu({ onClose }) {
   }, [onClose]);
 
   const handleSignOut = async () => {
-    await signOut();
+    // Detectamos qué proveedores OAuth tiene vinculados el usuario
+    const identities = user?.identities ?? [];
+    const hasGoogle = identities.some((i) => i.provider === "google");
+    const hasGitHub = identities.some((i) => i.provider === "github");
+    const hasOAuth = hasGoogle || hasGitHub;
+
+    if (hasOAuth) {
+      // Construimos los botones según los proveedores activos
+      const googleBtn = hasGoogle
+        ? `<a href="https://accounts.google.com/Logout"
+            target="_blank" rel="noopener noreferrer"
+            onclick="event.stopPropagation()"
+            class="flex items-center justify-center gap-2 p-2.5 rounded-lg border border-gray-300 bg-gray-100 text-gray-800
+                   hover:bg-gray-200 transition-all w-full text-xs font-medium">
+            <svg width="16" height="16"><use href="/icons.svg#icon-google"/></svg>
+            Cerrar sesión en Google
+          </a>`
+        : "";
+
+      const githubBtn = hasGitHub
+        ? `<a href="https://github.com/logout"
+            target="_blank" rel="noopener noreferrer"
+            onclick="event.stopPropagation()"
+            class="flex items-center justify-center gap-2 p-2.5 rounded-lg border border-gray-700 bg-gray-900 text-white
+                   hover:bg-gray-800 transition-all w-full text-xs font-medium">
+            <svg width="16" height="16" class="text-white"><use href="/icons.svg#icon-github"/></svg>
+            Cerrar sesión en GitHub
+          </a>`
+        : "";
+
+      const providerNames = [hasGoogle && "Google", hasGitHub && "GitHub"]
+        .filter(Boolean)
+        .join(" y ");
+
+      const result = await showAlert({
+        icon: "warning",
+        title: "Antes de cerrar sesión",
+        html: `
+          <p class="text-sm text-gray-400 mb-3">
+            Tienes sesión activa en <strong class="text-white">${providerNames}</strong>.
+            Si estás en un dispositivo compartido, ciérrala también para mayor seguridad.
+          </p>
+          <div class="flex flex-col gap-2">
+            ${googleBtn}
+            ${githubBtn}
+          </div>
+          <p class="text-xs text-gray-600 mt-3">
+            Cuando estés listo, pulsa el botón para cerrar sesión en Relance.
+          </p>
+        `,
+        confirmButtonText: "Entendido, cerrar sesión",
+        showCancelButton: true,
+        cancelButtonText: "Cancelar",
+        allowOutsideClick: false,
+        allowEscapeKey: true,
+      });
+
+      if (!result.isConfirmed) return;
+    }
+
+    // Logout de Supabase
+    await supabase.auth.signOut();
     onClose();
-    navigate("/", { replace: true }); // Redirige al home después de cerrar sesión
+    navigate("/", { replace: true });
   };
+
+  // Items del menú con control por roles
 
   const profilePath = getProfilePath(role);
 
@@ -56,7 +121,7 @@ export default function UserMenu({ onClose }) {
       roles: null,
     },
     {
-      icon: "icon-document",
+      icon: "icon-candidacy",
       label: "Mis candidaturas",
       href: "/candidaturas",
       roles: ["estudiante"],

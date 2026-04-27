@@ -37,9 +37,9 @@ export default function Header({
 
   const navLinks: { label: string; href: string }[] = [
     { label: "Inicio", href: "/" },
-    { label: "Cómo funciona", href: "#como-funciona" },
-    { label: "Para empresas", href: "#empresas" },
-    { label: "Para centros educativos", href: "#centros" },
+    // { label: "Cómo funciona", href: "#como-funciona" },
+    // { label: "Para empresas", href: "#empresas" },
+    // { label: "Para centros educativos", href: "#centros" },
   ];
 
   return (
@@ -102,13 +102,13 @@ export default function Header({
               <>
                 <button
                   onClick={onLoginClick}
-                  className="hidden sm:flex btn-secondary text-sm"
+                  className="hidden md:flex btn-secondary text-sm"
                 >
                   Iniciar sesión
                 </button>
                 <button
                   onClick={onRegisterClick}
-                  className="btn-primary text-sm"
+                  className="hidden md:flex btn-primary text-sm"
                 >
                   Registrarse
                 </button>
@@ -166,15 +166,26 @@ export default function Header({
             ))}
 
             {!user && (
-              <button
-                onClick={() => {
-                  setMobileNavOpen(false);
-                  onLoginClick?.();
-                }}
-                className="mt-2 w-full btn-secondary text-sm"
-              >
-                Iniciar sesión
-              </button>
+              <>
+                <button
+                  onClick={() => {
+                    setMobileNavOpen(false);
+                    onLoginClick?.();
+                  }}
+                  className="mt-2 w-full btn-secondary text-sm"
+                >
+                  Iniciar sesión
+                </button>
+                <button
+                  onClick={() => {
+                    setMobileNavOpen(false);
+                    onRegisterClick?.();
+                  }}
+                  className="mt-2 w-full btn-primary text-sm"
+                >
+                  Registrarse
+                </button>
+              </>
             )}
           </nav>
         )}

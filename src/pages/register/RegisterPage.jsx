@@ -748,7 +748,11 @@ export default function RegisterPage() {
       <MainLayout>
         <div className="min-h-screen bg-dark flex items-center justify-center p-4">
           <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-md p-10 text-center">
-            <div className="text-6xl mb-5">🎉</div>
+            <div className="mb-5 flex justify-center">
+              <svg className="w-16 h-16 text-brand" viewBox="0 0 640 640">
+                <use href="/icons.svg#icon-party" />
+              </svg>
+            </div>
             <h2 className="font-display text-2xl font-bold text-white mb-3">
               ¡Cuenta creada!
             </h2>

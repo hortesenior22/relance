@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useAuth } from "../context/AuthContext";
-import { supabase } from "../lib/supabase";
+import { useAuth } from "../../context/AuthContext";
+import { supabase } from "../../lib/supabase";
 // import Header from "../components/layout/Header";
-import GitHubReposSection from "./GitHubIntegration"; // ← nuevo
-import MainLayout from "../components/layout/MainLayout";
+import GitHubReposSection from "../GitHubIntegration";
+import MainLayout from "../../components/layout/MainLayout";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTES
@@ -12,19 +12,19 @@ const TIPO_BUSQUEDA = [
   {
     id: "practicas",
     label: "Solo prácticas",
-    icon: "📚",
+    icon: "icon-book",
     desc: "Busco exclusivamente prácticas formativas",
   },
   {
     id: "practicas_contratacion",
     label: "Prácticas + contratación",
-    icon: "🚀",
+    icon: "icon-handshake",
     desc: "Prácticas con posibilidad de incorporación",
   },
   {
     id: "empleo",
     label: "Empleo directo",
-    icon: "💼",
+    icon: "icon-briefcase",
     desc: "Busco incorporación inmediata al mercado laboral",
   },
 ];
@@ -466,7 +466,7 @@ function FormacionModal({ item, onSave, onClose }) {
                       onClick={() => seleccionarCentro(s)}
                       className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-white/8 hover:text-white transition-colors border-b border-white/5 last:border-0"
                     >
-                      🏫 {s}
+                      {s}
                     </button>
                   ))}
                 </div>
@@ -711,7 +711,10 @@ Genera UNA descripción en español de máximo 200 caracteres, directa, sin ador
           </h2>
           <div className="mb-5 p-4 bg-brand/5 border border-brand/20 rounded-xl">
             <p className="text-brand text-xs font-semibold uppercase tracking-wider mb-2">
-              ✨ Rellena automáticamente con IA
+              <svg className="w-3.5 h-3.5" viewBox="0 0 640 640">
+                <use href="/icons.svg#icon-sparkles" />
+              </svg>{" "}
+              Rellena automáticamente con IA
             </p>
             <p className="text-gray-500 text-xs mb-3">
               Pega la URL de un repositorio de GitHub y la IA generará título,
@@ -972,7 +975,7 @@ export default function StudentProfile() {
     dribbble: "",
   });
 
-  // ── NUEVO: Estado GitHub ──────────────────────────────────────────────────
+  // Estado GitHub ──────────────────────────────────────────────────
   const [githubUsername, setGithubUsername] = useState(null);
   const [githubReposVinculados, setGithubReposVinculados] = useState([]);
 
@@ -984,7 +987,7 @@ export default function StudentProfile() {
     if (!user) return;
     const load = async () => {
       const { data, error } = await supabase
-        .from("estudiantes") // ← tabla actualizada
+        .from("estudiante")
         .select("*")
         .eq("id", user.id)
         .single();
@@ -1014,7 +1017,7 @@ export default function StudentProfile() {
             dribbble: "",
           },
         );
-        // ── GitHub ──
+        // GitHub
         setGithubUsername(data.github_username ?? null);
         setGithubReposVinculados(data.github_repos_vinculados ?? []);
       }
@@ -1051,7 +1054,7 @@ export default function StudentProfile() {
       .getPublicUrl(storagePath);
     const freshUrl = `${urlData.publicUrl}?t=${Date.now()}`;
     setAvatarUrl(freshUrl);
-    await supabase.from("estudiantes").upsert({
+    await supabase.from("estudiante").upsert({
       id: user.id,
       avatar_url: freshUrl,
       updated_at: new Date().toISOString(),
@@ -1105,13 +1108,13 @@ export default function StudentProfile() {
       modalidad,
       proyectos,
       redes_sociales: redesSociales,
-      // ── GitHub ──
+      // GitHub
       github_username: githubUsername,
       github_repos_vinculados: githubReposVinculados,
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("estudiantes").upsert(payload);
+    const { error } = await supabase.from("estudiante").upsert(payload);
     setSaving(false);
     if (error) {
       setSaveError("Error al guardar: " + error.message);
@@ -1355,7 +1358,12 @@ export default function StudentProfile() {
                         : "border-white/10 hover:border-white/20"
                     }`}
                   >
-                    <span className="text-xl flex-shrink-0">{t.icon}</span>
+                    <svg
+                      className="w-5 h-5 flex-shrink-0"
+                      viewBox="0 0 640 640"
+                    >
+                      <use href={`/icons.svg#${t.icon}`} />
+                    </svg>
                     <div className="flex-1 min-w-0">
                       <p
                         className={`text-sm font-semibold ${tipoBusqueda === t.id ? "text-white" : "text-gray-300"}`}

@@ -1,4 +1,4 @@
-import { useAuth } from "../../context/AuthContext";
+import { getRoleRoute, useAuth } from "../../context/AuthContext";
 import { useHeroStats } from "../../hooks/useHeroStats";
 
 export default function HeroSection({ onRegisterClick }) {
@@ -10,6 +10,18 @@ export default function HeroSection({ onRegisterClick }) {
     if (next) next.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Mapeo seguro de roles → rutas
+  const profileRoutes = {
+    estudiante: "/perfil/estudiante",
+    empresa: "/perfil/empresa",
+    centro: "/perfil/centro",
+    tutor: "/perfil/tutor",
+  };
+  console.log("Usuario actual:", user?.userId, "Rol:", user?.rol);
+
+  // Ruta de perfil basada en rol, con fallback
+  const profileUrl = getRoleRoute(user?.role ?? "estudiante");
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-dark">
       <div
@@ -19,10 +31,12 @@ export default function HeroSection({ onRegisterClick }) {
           backgroundSize: "60px 60px",
         }}
       />
+
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full opacity-[0.06] blur-[120px] pointer-events-none"
         style={{ background: "#c0ff72" }}
       />
+
       <div
         className="absolute bottom-20 right-10 w-[300px] h-[300px] rounded-full opacity-[0.04] blur-[80px] pointer-events-none"
         style={{ background: "#c0ff72" }}
@@ -64,26 +78,29 @@ export default function HeroSection({ onRegisterClick }) {
           className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-hero-in opacity-0"
           style={{ animationDelay: "0.35s" }}
         >
-          {/* Botón "Empieza gratis" solo si NO hay sesión iniciada */}
+          {/* Usuario no logueado */}
           {!user && (
             <button
               onClick={onRegisterClick}
               className="btn-primary text-base px-8 py-3.5 rounded-xl shadow-lg shadow-brand/20 flex items-center gap-2 hover:shadow-brand/30 transition-shadow duration-300"
             >
-              Empieza gratis{" "}
+              Empieza gratis
               <svg className="size-6" viewBox="0 0 24 24" strokeWidth="2">
-                <use href="icons.svg#icon-arrowStart" />{" "}
+                <use href="icons.svg#icon-arrowStart" />
               </svg>
             </button>
           )}
 
-          {/* Si hay sesión, mostrar acceso directo al perfil */}
+          {/* Usuario logueado */}
           {user && (
             <a
-              href="/perfil"
-              className="btn-primary text-base px-8 py-3.5 rounded-xl shadow-lg shadow-brand/20 hover:shadow-brand/30 transition-shadow duration-300"
+              href={profileUrl}
+              className="flex btn-primary text-base px-8 py-3.5 rounded-xl shadow-lg shadow-brand/20 hover:shadow-brand/30 transition-shadow duration-300"
             >
-              Ir a mi perfil →
+              Ir a mi perfil
+              <svg className="size-6" viewBox="0 0 24 24" strokeWidth="2">
+                <use href="icons.svg#icon-arrowStart" />
+              </svg>
             </a>
           )}
 
@@ -92,7 +109,7 @@ export default function HeroSection({ onRegisterClick }) {
             className="flex items-center gap-2 text-gray-400 hover:text-white text-sm font-medium transition-colors duration-200 group"
           >
             <span>Saber más</span>
-            <svg
+            {/* <svg
               className="w-4 h-4 group-hover:translate-y-0.5 transition-transform duration-200"
               viewBox="0 0 24 24"
               fill="none"
@@ -100,18 +117,31 @@ export default function HeroSection({ onRegisterClick }) {
               strokeWidth="2"
             >
               <path d="M12 5v14M5 12l7 7 7-7" />
+            </svg> */}
+            <svg className="w-4 h-4 group-hover:translate-y-0.5 transition-transform duration-200">
+              <use href="icons.svg#icon-arrowDown" />
             </svg>
           </button>
         </div>
 
+        {/* Stats */}
         <div
           className="mt-16 flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-12 animate-hero-in opacity-0"
           style={{ animationDelay: "0.5s" }}
         >
           {[
-            { value: stats.estudiantes + "+", label: "Estudiantes activos" },
-            { value: stats.empresas + "+", label: "Empresas verificadas" },
-            { value: stats.centros + "+", label: "Centros educativos" },
+            {
+              value: stats?.estudiantes ? stats.estudiantes + "+" : "0+",
+              label: "Estudiantes activos",
+            },
+            {
+              value: stats?.empresas ? stats.empresas + "+" : "0+",
+              label: "Empresas verificadas",
+            },
+            {
+              value: stats?.centros ? stats.centros + "+" : "0+",
+              label: "Centros educativos",
+            },
           ].map((stat) => (
             <div key={stat.label} className="text-center">
               <div className="font-display text-2xl font-bold text-white">
