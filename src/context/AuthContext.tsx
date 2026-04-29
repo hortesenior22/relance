@@ -9,14 +9,23 @@ import { supabase } from "../lib/supabase";
 import { Session, User } from "@supabase/supabase-js";
 import { AccountType } from "../components/auth/AccountType";
 
+export type UserRole =
+  | AccountType
+  | "centro_educativo"
+  | "tutor_empresa"
+  | "tutor_centro";
+
 /** Devuelve la ruta de perfil según el rol */
-export function getRoleRoute(role: AccountType | null): string {
+export function getRoleRoute(role: UserRole | null): string {
   switch (role) {
     case "empresa":
       return "/perfil/empresa";
     case "centro":
+    case "centro_educativo":
       return "/perfil/centro";
     case "tutor":
+    case "tutor_empresa":
+    case "tutor_centro":
       return "/perfil/tutor";
     case "estudiante":
     default:
@@ -27,19 +36,19 @@ export function getRoleRoute(role: AccountType | null): string {
 /** Consulta el rol del usuario en la tabla `usuario` */
 export async function fetchUserRole(
   userId: string,
-): Promise<AccountType | null> {
+): Promise<UserRole | null> {
   const { data, error } = await supabase
     .from("usuario")
     .select("rol")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) return null;
-  return data.rol as AccountType;
+  return data.rol as UserRole;
 }
 
 type AuthContextType = {
   user: User | null;
-  userRole: AccountType | null;
+  userRole: UserRole | null;
   loading: boolean;
   signOut: () => Promise<void>;
 };
@@ -48,7 +57,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<AccountType | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Carga el rol desde la BD cada vez que cambia el usuario

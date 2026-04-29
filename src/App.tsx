@@ -10,6 +10,7 @@ import TutorProfile from "./pages/profiles/TutorProfile";
 import RegisterPage from "./pages/register/RegisterPage";
 import TutorRegisterPage from "./pages/register/TutorRegisterPage";
 import ResetPassword from "./pages/ResetPassword";
+import AuthCallback from "./pages/AuthCallback";
 import OnboardingModal from "./components/auth/OnboardingModal";
 
 import { useEffect, useState, useRef } from "react";
@@ -115,6 +116,7 @@ function AppContent() {
         <Route path="/registro" element={<RegisterPage />} />
         <Route path="/registro-tutor" element={<TutorRegisterPage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* RUTAS PROTEGIDAS - Solo accesibles para el rol correspondiente */}
         <Route element={<ProtectedRoute requiredRole="estudiante" />}>
@@ -126,11 +128,15 @@ function AppContent() {
         <Route element={<ProtectedRoute requiredRole="centro_educativo" />}>
           <Route path="/perfil/centro" element={<CenterProfile />} />
         </Route>
-        <Route element={<ProtectedRoute requiredRole="tutor" />}>
+        <Route
+          element={
+            <ProtectedRoute requiredRole={["tutor", "tutor_empresa", "tutor_centro"]} />
+          }
+        >
           <Route path="/perfil/tutor" element={<TutorProfile />} />
         </Route>
 
-        {/* <Route path="*" element={<NotFound />} /> */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   );
