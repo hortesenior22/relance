@@ -25,7 +25,14 @@ export default function ProtectedRoute({ requiredRole } = {}) {
   }
 
   // Con rol requerido y el usuario tiene un rol diferente → a su perfil
-  if (requiredRole && userRole && userRole !== requiredRole) {
+  const roleAllowed =
+    !requiredRole ||
+    !userRole ||
+    (Array.isArray(requiredRole)
+      ? requiredRole.includes(userRole)
+      : userRole === requiredRole);
+
+  if (!roleAllowed && userRole) {
     return <Navigate to={getRoleRoute(userRole)} replace />;
   }
 

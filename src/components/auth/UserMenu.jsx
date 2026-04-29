@@ -4,23 +4,14 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { showAlert } from "../../lib/swal";
 
-// Redirige al perfil correcto según el rol
-function getProfilePath(role) {
-  if (role === "empresa") return "/perfil/empresa";
-  if (role === "centro_educativo") return "/perfil/centro";
-  if (role === "tutor_empresa" || role === "tutor_centro")
-    return "/perfil/tutor";
-  return "/perfil/estudiante";
-}
-
 export default function UserMenu({ onClose }) {
-  const { user, signOut } = useAuth();
+  const { user, userRole } = useAuth();
   const ref = useRef(null);
   const navigate = useNavigate();
 
   const fullName = user?.user_metadata?.full_name ?? user?.email ?? "Usuario";
   const avatarUrl = user?.user_metadata?.avatar_url;
-  const role = user?.user_metadata?.role;
+  const role = userRole ?? user?.user_metadata?.role;
   const initials = fullName
     .split(" ")
     .slice(0, 2)
@@ -104,7 +95,14 @@ export default function UserMenu({ onClose }) {
 
   // Items del menú con control por roles
 
-  const profilePath = getProfilePath(role);
+  const profilePath =
+    role === "empresa"
+      ? "/perfil/empresa"
+      : role === "centro_educativo" || role === "centro"
+        ? "/perfil/centro"
+        : role === "tutor_empresa" || role === "tutor_centro" || role === "tutor"
+          ? "/perfil/tutor"
+          : "/perfil/estudiante";
 
   // Items estáticos + condicionales por rol
   const menuItems = [
