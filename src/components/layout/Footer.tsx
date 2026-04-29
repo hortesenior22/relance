@@ -14,7 +14,7 @@ export default function Footer() {
           <a href="#" className="hover:text-gray-900">
             Inicio
           </a>
-          <a href="#" className="hover:text-gray-900">
+          {/* <a href="#" className="hover:text-gray-900">
             Servicios
           </a>
           <a href="#" className="hover:text-gray-900">
@@ -22,7 +22,7 @@ export default function Footer() {
           </a>
           <a href="#" className="hover:text-gray-900">
             Contacto
-          </a>
+          </a> */}
         </div>
 
         {/* Social / extra */}

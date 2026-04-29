@@ -180,7 +180,10 @@ function QRModal({ url, entityName, onClose }) {
         </div>
 
         <p className="text-xs text-gray-600 mt-4">
-          ⏳ Los enlaces de invitación caducan a los{" "}
+          <svg className="w-3.5 h-3.5 inline-block mr-1" viewBox="0 0 640 640">
+            <use href="/icons.svg#icon-hourglass" />
+          </svg>{" "}
+          Los enlaces de invitación caducan a los{" "}
           <strong className="text-gray-500">7 días</strong>. Genera uno nuevo
           cuando sea necesario.
         </p>
@@ -381,7 +384,12 @@ export default function CompanyProfile() {
                   />
                 ) : (
                   <div className="w-20 h-20 rounded-2xl bg-dark border border-white/10 flex items-center justify-center text-4xl">
-                    🏢
+                    <svg
+                      className="w-10 h-10 text-gray-500"
+                      viewBox="0 0 640 640"
+                    >
+                      <use href="/icons.svg#icon-building" />
+                    </svg>
                   </div>
                 )}
                 {uploading && (

@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useAuth } from "../context/AuthContext";
-import { supabase } from "../lib/supabase";
-// import Header from "../components/layout/Header";
-import GitHubReposSection from "./GitHubIntegration";
-import MainLayout from "../components/layout/MainLayout";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { supabase } from "../../lib/supabase";
+import Header from "../../components/layout/Header";
+import MainLayout from "../../components/layout/MainLayout";
 
-// ─────────────────────────────────────────────────────────────────────────────
+// =============================================================================
 // CONSTANTES
-// ─────────────────────────────────────────────────────────────────────────────
+// =============================================================================
 const TIPO_BUSQUEDA = [
   {
     id: "practicas",
@@ -18,7 +18,7 @@ const TIPO_BUSQUEDA = [
   {
     id: "practicas_contratacion",
     label: "Prácticas + contratación",
-    icon: "icon-handshake",
+    icon: "icon-rocket",
     desc: "Prácticas con posibilidad de incorporación",
   },
   {
@@ -95,9 +95,9 @@ const REDES_SOCIALES = [
   },
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
+// =============================================================================
 // ICONOS SVG INLINE
-// ─────────────────────────────────────────────────────────────────────────────
+// =============================================================================
 function IconLinkedIn({ size = 16 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -279,9 +279,9 @@ function Spinner({ className = "w-4 h-4" }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// =============================================================================
 // COMPONENTES UI
-// ─────────────────────────────────────────────────────────────────────────────
+// =============================================================================
 function SectionCard({ title, subtitle, children }) {
   return (
     <section className="bg-dark-800 border border-white/10 rounded-2xl p-6">
@@ -296,9 +296,9 @@ function SectionCard({ title, subtitle, children }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// =============================================================================
 // FORMACIÓN ACADÉMICA — subcomponente
-// ─────────────────────────────────────────────────────────────────────────────
+// =============================================================================
 function FormacionItem({ item, onEdit, onDelete }) {
   const mesInicio = item.mes_inicio ? MESES[parseInt(item.mes_inicio) - 1] : "";
   const mesFin = item.mes_fin ? MESES[parseInt(item.mes_fin) - 1] : "";
@@ -306,6 +306,7 @@ function FormacionItem({ item, onEdit, onDelete }) {
 
   return (
     <div className="group flex items-start gap-3 p-4 bg-dark border border-white/8 rounded-xl relative">
+      {/* Línea de tiempo */}
       <div className="flex flex-col items-center flex-shrink-0 pt-1">
         <div className="w-2.5 h-2.5 rounded-full border-2 border-brand bg-dark" />
         <div className="w-px flex-1 bg-white/10 mt-1 min-h-[32px]" />
@@ -320,6 +321,7 @@ function FormacionItem({ item, onEdit, onDelete }) {
           <span className={item.en_curso ? "text-brand" : ""}>{finLabel}</span>
         </p>
       </div>
+      {/* Acciones hover */}
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <button
           onClick={() => onEdit(item)}
@@ -363,6 +365,7 @@ function FormacionModal({ item, onSave, onClose }) {
     (_, i) => anioActual - i,
   );
 
+  // Buscar centros en Supabase mientras se escribe
   const buscarCentros = useCallback(async (q) => {
     if (q.length < 2) {
       setCentroSugerencias([]);
@@ -374,6 +377,7 @@ function FormacionModal({ item, onSave, onClose }) {
       .select("center_name")
       .ilike("center_name", `%${q}%`)
       .limit(8);
+    // También busca en tabla específica si existe
     const { data: data2 } = await supabase
       .from("centros_educativos")
       .select("nombre")
@@ -409,77 +413,147 @@ function FormacionModal({ item, onSave, onClose }) {
     (form.en_curso || (form.mes_fin && form.anio_fin));
 
   return (
-    <MainLayout>
-      <div
-        className="modal-overlay"
-        onClick={(e) => e.target === e.currentTarget && onClose()}
-      >
-        <div className="modal-card max-h-[90vh] overflow-y-auto">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-500 hover:text-white"
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
-            </svg>
-          </button>
-          <h2 className="font-display text-xl font-bold text-white mb-6">
-            {item ? "Editar formación" : "Añadir formación"}
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">
-                Título / Grado <span className="text-brand">*</span>
-              </label>
+    <div
+      className="modal-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="modal-card max-h-[90vh] overflow-y-auto">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-white"
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+          </svg>
+        </button>
+
+        <h2 className="font-display text-xl font-bold text-white mb-6">
+          {item ? "Editar formación" : "Añadir formación"}
+        </h2>
+
+        <div className="space-y-4">
+          {/* Título */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Título / Grado <span className="text-brand">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.titulo}
+              onChange={s("titulo")}
+              placeholder="Ej: Técnico Superior en DAM"
+              className="input-field"
+            />
+          </div>
+
+          {/* Centro con autocompletado */}
+          <div className="relative">
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Centro educativo <span className="text-brand">*</span>
+            </label>
+            <div className="relative">
               <input
                 type="text"
-                value={form.titulo}
-                onChange={s("titulo")}
-                placeholder="Ej: Técnico Superior en DAM"
-                className="input-field"
+                value={centroQuery}
+                onChange={handleCentroChange}
+                placeholder="Escribe para buscar centros..."
+                className="input-field pr-8"
+                autoComplete="off"
               />
-            </div>
-            <div className="relative">
-              <label className="block text-sm text-gray-400 mb-1.5">
-                Centro educativo <span className="text-brand">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={centroQuery}
-                  onChange={handleCentroChange}
-                  placeholder="Escribe para buscar centros..."
-                  className="input-field pr-8"
-                  autoComplete="off"
-                />
-                {loadingSugerencias && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <Spinner className="w-4 h-4 text-brand" />
-                  </div>
-                )}
-              </div>
-              {centroSugerencias.length > 0 && (
-                <div className="absolute z-30 top-full mt-1 w-full bg-dark-800 border border-white/15 rounded-xl overflow-hidden shadow-xl">
-                  {centroSugerencias.map((s, i) => (
-                    <button
-                      key={i}
-                      onClick={() => seleccionarCentro(s)}
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-white/8 hover:text-white transition-colors border-b border-white/5 last:border-0"
-                    >
-                      {s}
-                    </button>
-                  ))}
+              {loadingSugerencias && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Spinner className="w-4 h-4 text-brand" />
                 </div>
               )}
             </div>
+            {centroSugerencias.length > 0 && (
+              <div className="absolute z-30 top-full mt-1 w-full bg-dark-800 border border-white/15 rounded-xl overflow-hidden shadow-xl">
+                {centroSugerencias.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => seleccionarCentro(s)}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-white/8 hover:text-white transition-colors border-b border-white/5 last:border-0"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Fecha de inicio */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Fecha de inicio <span className="text-brand">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={form.mes_inicio}
+                onChange={s("mes_inicio")}
+                className="input-field"
+              >
+                <option value="">Mes</option>
+                {MESES.map((m, i) => (
+                  <option key={m} value={String(i + 1).padStart(2, "0")}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={form.anio_inicio}
+                onChange={s("anio_inicio")}
+                className="input-field"
+              >
+                <option value="">Año</option>
+                {anios.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* En curso toggle */}
+          <div className="flex items-center gap-3 p-3 bg-dark border border-white/8 rounded-xl">
+            <button
+              type="button"
+              onClick={() =>
+                setForm((f) => ({
+                  ...f,
+                  en_curso: !f.en_curso,
+                  mes_fin: "",
+                  anio_fin: "",
+                }))
+              }
+              className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${
+                form.en_curso ? "bg-brand" : "bg-white/15"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                  form.en_curso ? "translate-x-5" : ""
+                }`}
+              />
+            </button>
             <div>
+              <p className="text-sm text-white font-medium">Todavía en curso</p>
+              <p className="text-xs text-gray-500">
+                Aparecerá como "Actualidad" en tu perfil
+              </p>
+            </div>
+          </div>
+
+          {/* Fecha de fin (solo si no está en curso) */}
+          {!form.en_curso && (
+            <div className="animate-fade-in">
               <label className="block text-sm text-gray-400 mb-1.5">
-                Fecha de inicio <span className="text-brand">*</span>
+                Fecha de finalización <span className="text-brand">*</span>
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <select
-                  value={form.mes_inicio}
-                  onChange={s("mes_inicio")}
+                  value={form.mes_fin}
+                  onChange={s("mes_fin")}
                   className="input-field"
                 >
                   <option value="">Mes</option>
@@ -490,8 +564,8 @@ function FormacionModal({ item, onSave, onClose }) {
                   ))}
                 </select>
                 <select
-                  value={form.anio_inicio}
-                  onChange={s("anio_inicio")}
+                  value={form.anio_fin}
+                  onChange={s("anio_fin")}
                   className="input-field"
                 >
                   <option value="">Año</option>
@@ -503,89 +577,31 @@ function FormacionModal({ item, onSave, onClose }) {
                 </select>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-3 bg-dark border border-white/8 rounded-xl">
-              <button
-                type="button"
-                onClick={() =>
-                  setForm((f) => ({
-                    ...f,
-                    en_curso: !f.en_curso,
-                    mes_fin: "",
-                    anio_fin: "",
-                  }))
-                }
-                className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${form.en_curso ? "bg-brand" : "bg-white/15"}`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${form.en_curso ? "translate-x-5" : ""}`}
-                />
-              </button>
-              <div>
-                <p className="text-sm text-white font-medium">
-                  Todavía en curso
-                </p>
-                <p className="text-xs text-gray-500">
-                  Aparecerá como "Actualidad" en tu perfil
-                </p>
-              </div>
-            </div>
-            {!form.en_curso && (
-              <div className="animate-fade-in">
-                <label className="block text-sm text-gray-400 mb-1.5">
-                  Fecha de finalización <span className="text-brand">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={form.mes_fin}
-                    onChange={s("mes_fin")}
-                    className="input-field"
-                  >
-                    <option value="">Mes</option>
-                    {MESES.map((m, i) => (
-                      <option key={m} value={String(i + 1).padStart(2, "0")}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={form.anio_fin}
-                    onChange={s("anio_fin")}
-                    className="input-field"
-                  >
-                    <option value="">Año</option>
-                    {anios.map((a) => (
-                      <option key={a} value={a}>
-                        {a}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="flex gap-3 mt-6">
-            <button onClick={onClose} className="btn-secondary flex-1">
-              Cancelar
-            </button>
-            <button
-              onClick={() =>
-                isValid && onSave({ ...form, id: form.id || Date.now() })
-              }
-              disabled={!isValid}
-              className="btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {item ? "Guardar cambios" : "Añadir formación"}
-            </button>
-          </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="btn-secondary flex-1">
+            Cancelar
+          </button>
+          <button
+            onClick={() =>
+              isValid && onSave({ ...form, id: form.id || Date.now() })
+            }
+            disabled={!isValid}
+            className="btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {item ? "Guardar cambios" : "Añadir formación"}
+          </button>
         </div>
       </div>
-    </MainLayout>
+    </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// =============================================================================
 // PORTFOLIO — subcomponente con IA via Anthropic API
-// ─────────────────────────────────────────────────────────────────────────────
+// =============================================================================
 function ProyectoModal({ proyecto, onSave, onClose }) {
   const [form, setForm] = useState(
     proyecto || {
@@ -614,10 +630,13 @@ function ProyectoModal({ proyecto, onSave, onClose }) {
     }
   };
 
+  // Analizar repo de GitHub con IA (Anthropic API desde el cliente)
   const analizarConIA = async () => {
     if (!githubUrl.trim()) return;
     setAnalizando(true);
     setErrorAnalisis(null);
+
+    // Extraer owner/repo de la URL
     const match = githubUrl.match(/github\.com\/([^/]+)\/([^/?\s]+)/);
     if (!match) {
       setErrorAnalisis(
@@ -627,12 +646,15 @@ function ProyectoModal({ proyecto, onSave, onClose }) {
       return;
     }
     const [, owner, repo] = match;
+
     try {
+      // Obtener datos del repo desde la GitHub API pública (sin auth)
       const [repoRes, readmeRes, langsRes] = await Promise.allSettled([
         fetch(`https://api.github.com/repos/${owner}/${repo}`),
         fetch(`https://api.github.com/repos/${owner}/${repo}/readme`),
         fetch(`https://api.github.com/repos/${owner}/${repo}/languages`),
       ]);
+
       const repoData =
         repoRes.status === "fulfilled" && repoRes.value.ok
           ? await repoRes.value.json()
@@ -646,7 +668,10 @@ function ProyectoModal({ proyecto, onSave, onClose }) {
         const rd = await readmeRes.value.json();
         readmeText = atob(rd.content?.replace(/\n/g, "") || "").slice(0, 2000);
       }
+
       const tecnologiasDetectadas = Object.keys(langsData).slice(0, 8);
+
+      // Llamar a la Anthropic API para generar descripción
       const prompt = `Eres un asistente que genera descripciones profesionales y concisas de proyectos de GitHub para un currículum digital de desarrollador.
 
 Datos del repositorio:
@@ -667,9 +692,11 @@ Genera UNA descripción en español de máximo 200 caracteres, directa, sin ador
           messages: [{ role: "user", content: prompt }],
         }),
       });
+
       const aiData = await response.json();
       const descripcionIA =
         aiData.content?.[0]?.text?.trim() || repoData.description || "";
+
       setForm((f) => ({
         ...f,
         titulo: repoData.name || repo,
@@ -692,269 +719,273 @@ Genera UNA descripción en español de máximo 200 caracteres, directa, sin ador
   const isValid = form.titulo.trim();
 
   return (
-    <MainLayout>
-      <div
-        className="modal-overlay"
-        onClick={(e) => e.target === e.currentTarget && onClose()}
-      >
-        <div className="modal-card max-h-[90vh] overflow-y-auto">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-500 hover:text-white"
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
-            </svg>
-          </button>
-          <h2 className="font-display text-xl font-bold text-white mb-6">
-            {proyecto ? "Editar proyecto" : "Añadir proyecto"}
-          </h2>
-          <div className="mb-5 p-4 bg-brand/5 border border-brand/20 rounded-xl">
-            <p className="text-brand text-xs font-semibold uppercase tracking-wider mb-2">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 640 640">
-                <use href="/icons.svg#icon-sparkles" />
-              </svg>{" "}
-              Rellena automáticamente con IA
-            </p>
-            <p className="text-gray-500 text-xs mb-3">
-              Pega la URL de un repositorio de GitHub y la IA generará título,
-              descripción y tecnologías automáticamente.
-            </p>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={githubUrl}
-                onChange={(e) => setGithubUrl(e.target.value)}
-                placeholder="https://github.com/usuario/repositorio"
-                className="input-field flex-1 text-sm"
-              />
-              <button
-                onClick={analizarConIA}
-                disabled={analizando || !githubUrl.trim()}
-                className="btn-primary flex-shrink-0 flex items-center gap-2 text-sm disabled:opacity-40"
-              >
-                {analizando ? (
-                  <>
-                    <Spinner className="w-3.5 h-3.5" /> Analizando...
-                  </>
-                ) : (
-                  "Analizar"
-                )}
-              </button>
-            </div>
-            {errorAnalisis && (
-              <p className="text-red-400 text-xs mt-2">{errorAnalisis}</p>
-            )}
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">
-                Título del proyecto <span className="text-brand">*</span>
-              </label>
-              <input
-                type="text"
-                value={form.titulo}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, titulo: e.target.value }))
-                }
-                placeholder="Mi proyecto"
-                className="input-field"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">
-                Descripción
-              </label>
-              <textarea
-                rows={3}
-                value={form.descripcion}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    descripcion: e.target.value.slice(0, 300),
-                  }))
-                }
-                placeholder="¿Qué hace este proyecto? ¿Qué problema resuelve?"
-                className="input-field resize-none"
-              />
-              <p className="text-xs text-gray-600 mt-1 text-right">
-                {form.descripcion.length}/300
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">
-                Tecnologías
-              </label>
-              <input
-                type="text"
-                value={techInput}
-                onChange={(e) => setTechInput(e.target.value)}
-                onKeyDown={handleTechKey}
-                placeholder="Escribe y pulsa Enter (React, Node.js...)"
-                className="input-field mb-2"
-              />
-              <div className="flex flex-wrap gap-1.5">
-                {form.tecnologias.map((t) => (
-                  <span
-                    key={t}
-                    className="flex items-center gap-1 bg-brand/10 border border-brand/20 text-brand text-xs px-2.5 py-1 rounded-full"
-                  >
-                    {t}
-                    <button
-                      onClick={() =>
-                        setForm((f) => ({
-                          ...f,
-                          tecnologias: f.tecnologias.filter((x) => x !== t),
-                        }))
-                      }
-                      className="text-brand/60 hover:text-brand"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">
-                URL del repositorio
-              </label>
-              <input
-                type="url"
-                value={form.url_repo}
-                onChange={(e) => {
-                  setForm((f) => ({ ...f, url_repo: e.target.value }));
-                  setGithubUrl(e.target.value);
-                }}
-                placeholder="https://github.com/usuario/repo"
-                className="input-field"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">
-                URL de la demo
-              </label>
-              <input
-                type="url"
-                value={form.url_demo}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, url_demo: e.target.value }))
-                }
-                placeholder="https://miproyecto.vercel.app"
-                className="input-field"
-              />
-            </div>
-          </div>
-          <div className="flex gap-3 mt-6">
-            <button onClick={onClose} className="btn-secondary flex-1">
-              Cancelar
-            </button>
+    <div
+      className="modal-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="modal-card max-h-[90vh] overflow-y-auto">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-white"
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+          </svg>
+        </button>
+
+        <h2 className="font-display text-xl font-bold text-white mb-6">
+          {proyecto ? "Editar proyecto" : "Añadir proyecto"}
+        </h2>
+
+        {/* Análisis IA desde GitHub */}
+        <div className="mb-5 p-4 bg-brand/5 border border-brand/20 rounded-xl">
+          <p className="text-brand text-xs font-semibold uppercase tracking-wider mb-2">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 640 640">
+              <use href="/icons.svg#icon-sparkles" />
+            </svg>{" "}
+            Rellena automáticamente con IA
+          </p>
+          <p className="text-gray-500 text-xs mb-3">
+            Pega la URL de un repositorio de GitHub y la IA generará título,
+            descripción y tecnologías automáticamente.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={githubUrl}
+              onChange={(e) => setGithubUrl(e.target.value)}
+              placeholder="https://github.com/usuario/repositorio"
+              className="input-field flex-1 text-sm"
+            />
             <button
-              onClick={() =>
-                isValid && onSave({ ...form, id: form.id || Date.now() })
-              }
-              disabled={!isValid}
-              className="btn-primary flex-1 disabled:opacity-40"
+              onClick={analizarConIA}
+              disabled={analizando || !githubUrl.trim()}
+              className="btn-primary flex-shrink-0 flex items-center gap-2 text-sm disabled:opacity-40"
             >
-              {proyecto ? "Guardar cambios" : "Añadir proyecto"}
+              {analizando ? (
+                <>
+                  <Spinner className="w-3.5 h-3.5" /> Analizando...
+                </>
+              ) : (
+                "Analizar"
+              )}
             </button>
+          </div>
+          {errorAnalisis && (
+            <p className="text-red-400 text-xs mt-2">{errorAnalisis}</p>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Título del proyecto <span className="text-brand">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.titulo}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, titulo: e.target.value }))
+              }
+              placeholder="Mi proyecto"
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Descripción
+            </label>
+            <textarea
+              rows={3}
+              value={form.descripcion}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  descripcion: e.target.value.slice(0, 300),
+                }))
+              }
+              placeholder="¿Qué hace este proyecto? ¿Qué problema resuelve?"
+              className="input-field resize-none"
+            />
+            <p className="text-xs text-gray-600 mt-1 text-right">
+              {form.descripcion.length}/300
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Tecnologías
+            </label>
+            <input
+              type="text"
+              value={techInput}
+              onChange={(e) => setTechInput(e.target.value)}
+              onKeyDown={handleTechKey}
+              placeholder="Escribe y pulsa Enter (React, Node.js...)"
+              className="input-field mb-2"
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {form.tecnologias.map((t) => (
+                <span
+                  key={t}
+                  className="flex items-center gap-1 bg-brand/10 border border-brand/20 text-brand text-xs px-2.5 py-1 rounded-full"
+                >
+                  {t}
+                  <button
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        tecnologias: f.tecnologias.filter((x) => x !== t),
+                      }))
+                    }
+                    className="text-brand/60 hover:text-brand"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              URL del repositorio
+            </label>
+            <input
+              type="url"
+              value={form.url_repo}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, url_repo: e.target.value }));
+                setGithubUrl(e.target.value);
+              }}
+              placeholder="https://github.com/usuario/repo"
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              URL de la demo
+            </label>
+            <input
+              type="url"
+              value={form.url_demo}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, url_demo: e.target.value }))
+              }
+              placeholder="https://miproyecto.vercel.app"
+              className="input-field"
+            />
           </div>
         </div>
+
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="btn-secondary flex-1">
+            Cancelar
+          </button>
+          <button
+            onClick={() =>
+              isValid && onSave({ ...form, id: form.id || Date.now() })
+            }
+            disabled={!isValid}
+            className="btn-primary flex-1 disabled:opacity-40"
+          >
+            {proyecto ? "Guardar cambios" : "Añadir proyecto"}
+          </button>
+        </div>
       </div>
-    </MainLayout>
+    </div>
   );
 }
 
 function ProyectoCard({ proyecto, onEdit, onDelete }) {
   return (
-    <MainLayout>
-      <div className="group bg-dark border border-white/8 rounded-xl p-4 hover:border-white/15 transition-all duration-200">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-display font-semibold text-white text-sm truncate">
-              {proyecto.titulo}
-            </h3>
-            {proyecto.descripcion && (
-              <p className="text-gray-500 text-xs mt-1 line-clamp-2">
-                {proyecto.descripcion}
-              </p>
-            )}
-            {proyecto.tecnologias?.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {proyecto.tecnologias.slice(0, 5).map((t) => (
-                  <span
-                    key={t}
-                    className="bg-brand/10 border border-brand/20 text-brand text-xs px-2 py-0.5 rounded-full"
-                  >
-                    {t}
-                  </span>
-                ))}
-                {proyecto.tecnologias.length > 5 && (
-                  <span className="text-gray-600 text-xs px-2 py-0.5">
-                    +{proyecto.tecnologias.length - 5}
-                  </span>
-                )}
-              </div>
-            )}
-            <div className="flex flex-wrap gap-3 mt-2">
-              {proyecto.url_repo && (
-                <a
-                  href={proyecto.url_repo}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand transition-colors"
+    <div className="group bg-dark border border-white/8 rounded-xl p-4 hover:border-white/15 transition-all duration-200">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-display font-semibold text-white text-sm truncate">
+            {proyecto.titulo}
+          </h3>
+          {proyecto.descripcion && (
+            <p className="text-gray-500 text-xs mt-1 line-clamp-2">
+              {proyecto.descripcion}
+            </p>
+          )}
+          {proyecto.tecnologias?.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {proyecto.tecnologias.slice(0, 5).map((t) => (
+                <span
+                  key={t}
+                  className="bg-brand/10 border border-brand/20 text-brand text-xs px-2 py-0.5 rounded-full"
                 >
-                  <IconGitHub size={12} /> Repositorio
-                </a>
-              )}
-              {proyecto.url_demo && (
-                <a
-                  href={proyecto.url_demo}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand transition-colors"
-                >
-                  <IconGlobe size={12} /> Demo
-                </a>
+                  {t}
+                </span>
+              ))}
+              {proyecto.tecnologias.length > 5 && (
+                <span className="text-gray-600 text-xs px-2 py-0.5">
+                  +{proyecto.tecnologias.length - 5}
+                </span>
               )}
             </div>
-          </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => onEdit(proyecto)}
-              className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-            >
-              <IconEdit />
-            </button>
-            <button
-              onClick={() => onDelete(proyecto.id)}
-              className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-            >
-              <IconTrash />
-            </button>
+          )}
+          <div className="flex flex-wrap gap-3 mt-2">
+            {proyecto.url_repo && (
+              <a
+                href={proyecto.url_repo}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand transition-colors"
+              >
+                <IconGitHub size={12} /> Repositorio
+              </a>
+            )}
+            {proyecto.url_demo && (
+              <a
+                href={proyecto.url_demo}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand transition-colors"
+              >
+                <IconGlobe size={12} /> Demo
+              </a>
+            )}
           </div>
         </div>
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => onEdit(proyecto)}
+            className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+          >
+            <IconEdit />
+          </button>
+          <button
+            onClick={() => onDelete(proyecto.id)}
+            className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+          >
+            <IconTrash />
+          </button>
+        </div>
       </div>
-    </MainLayout>
+    </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// =============================================================================
 // PÁGINA PRINCIPAL
-// ─────────────────────────────────────────────────────────────────────────────
+// =============================================================================
 export default function StudentProfile() {
   const { user } = useAuth();
   const fileInputRef = useRef(null);
 
+  // Estado general
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
 
-  const [formacionModal, setFormacionModal] = useState(null);
-  const [proyectoModal, setProyectoModal] = useState(null);
+  // Modales
+  const [formacionModal, setFormacionModal] = useState(null); // null | 'new' | item
+  const [proyectoModal, setProyectoModal] = useState(null); // null | 'new' | proyecto
 
+  // === Campos del perfil =============================================================================
   const [nombre, setNombre] = useState("");
   const [apellidos, setApellidos] = useState("");
   const [avatarUrl, setAvatarUrl] = useState(null);
@@ -975,19 +1006,27 @@ export default function StudentProfile() {
     dribbble: "",
   });
 
-  // Estado GitHub ──────────────────────────────────────────────────
+  // === GitHub vinculado =============================================================================
   const [githubUsername, setGithubUsername] = useState(null);
-  const [githubReposVinculados, setGithubReposVinculados] = useState([]);
+  const [githubConnecting, setGithubConnecting] = useState(false);
+  const [githubError, setGithubError] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const fullName = user?.user_metadata?.full_name ?? user?.email ?? "Tu perfil";
   const displayName = nombre && apellidos ? `${nombre} ${apellidos}` : fullName;
+  const initials = displayName
+    .split(" ")
+    .slice(0, 2)
+    .map((n) => n[0]?.toUpperCase())
+    .join("");
 
-  // ── Cargar perfil desde Supabase ───────────────────────────────────────────
+  // === Cargar perfil desde Supabase =============================================================================
   useEffect(() => {
     if (!user) return;
     const load = async () => {
       const { data, error } = await supabase
-        .from("estudiante")
+        .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
@@ -1017,18 +1056,109 @@ export default function StudentProfile() {
             dribbble: "",
           },
         );
-        // GitHub
         setGithubUsername(data.github_username ?? null);
-        setGithubReposVinculados(data.github_repos_vinculados ?? []);
       }
     };
     load();
   }, [user]);
 
-  // ── Subir avatar ───────────────────────────────────────────────────────────
+  // === Detectar vuelta desde GitHub OAuth (callback) ===================================================================
+  // Si venimos de /auth/callback y hay un parámetro ?github_connected=1,
+  // recargamos el perfil para mostrar el username vinculado.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("github_connected") === "1") {
+      // Limpiar la URL
+      navigate("/perfil/estudiante", { replace: true });
+      // Recargar datos del perfil
+      if (user) {
+        supabase
+          .from("profiles")
+          .select("github_username, redes_sociales")
+          .eq("id", user.id)
+          .single()
+          .then(({ data }) => {
+            if (data) {
+              setGithubUsername(data.github_username ?? null);
+              if (data.redes_sociales) setRedesSociales(data.redes_sociales);
+            }
+          });
+      }
+    }
+  }, [location.search, user, navigate]);
+
+  // === Vincular GitHub con la cuenta actual (NO crea usuario nuevo) ===================================================================
+  // Usa linkIdentity que añade el proveedor a la sesión existente.
+  const handleLinkGitHub = async () => {
+    if (!user) return;
+    setGithubConnecting(true);
+    setGithubError(null);
+
+    try {
+      // linkIdentity vincula GitHub a la cuenta ya autenticada
+      // SIN crear un usuario nuevo. Requiere que el usuario esté logueado.
+      const { error } = await supabase.auth.linkIdentity({
+        provider: "github",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          // Scopes mínimos: leer perfil público y repos
+          scopes: "read:user,repo",
+        },
+      });
+
+      if (error) {
+        // Si linkIdentity no está disponible (plan free de Supabase),
+        // fallback a signInWithOAuth con el mismo usuario
+        if (
+          error.message?.includes("not enabled") ||
+          error.message?.includes("linking")
+        ) {
+          // Guardar en sessionStorage que venimos de un link (no login nuevo)
+          sessionStorage.setItem("github_link_intent", user.id);
+          const { error: oauthError } = await supabase.auth.signInWithOAuth({
+            provider: "github",
+            options: {
+              redirectTo: `${window.location.origin}/auth/callback`,
+              scopes: "read:user,repo",
+              skipBrowserRedirect: false,
+            },
+          });
+          if (oauthError) throw oauthError;
+        } else {
+          throw error;
+        }
+      }
+      // Si no hay error, el browser redirige automáticamente a GitHub
+      // y luego a /auth/callback
+    } catch (err) {
+      setGithubError(err.message || "Error al conectar con GitHub.");
+      setGithubConnecting(false);
+    }
+  };
+
+  // === Desconectar GitHub ===================================================================
+  const handleUnlinkGitHub = async () => {
+    if (!user || !githubUsername) return;
+    const confirmar = window.confirm(
+      `¿Desconectar la cuenta de GitHub @${githubUsername}? Los proyectos importados no se eliminarán.`,
+    );
+    if (!confirmar) return;
+
+    await supabase.from("profiles").upsert({
+      id: user.id,
+      github_username: null,
+      redes_sociales: { ...redesSociales, github: "" },
+      updated_at: new Date().toISOString(),
+    });
+    setGithubUsername(null);
+    setRedesSociales((r) => ({ ...r, github: "" }));
+  };
+
+  // === Subir avatar a Supabase Storage ===================================================================
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
+
     if (file.size > 2 * 1024 * 1024) {
       setUploadError("La imagen no puede superar 2 MB.");
       return;
@@ -1037,24 +1167,30 @@ export default function StudentProfile() {
       setUploadError("Formato no válido. Usa JPG, PNG o WebP.");
       return;
     }
+
     setUploading(true);
     setUploadError(null);
     const ext = file.name.split(".").pop().toLowerCase();
     const storagePath = `avatars/${user.id}.${ext}`;
+
     const { error: uploadErr } = await supabase.storage
       .from("profiles")
       .upload(storagePath, file, { upsert: true, contentType: file.type });
+
     if (uploadErr) {
       setUploadError("Error al subir la imagen: " + uploadErr.message);
       setUploading(false);
       return;
     }
+
     const { data: urlData } = supabase.storage
       .from("profiles")
       .getPublicUrl(storagePath);
     const freshUrl = `${urlData.publicUrl}?t=${Date.now()}`;
     setAvatarUrl(freshUrl);
-    await supabase.from("estudiante").upsert({
+
+    // Persistir inmediatamente
+    await supabase.from("profiles").upsert({
       id: user.id,
       avatar_url: freshUrl,
       updated_at: new Date().toISOString(),
@@ -1062,6 +1198,7 @@ export default function StudentProfile() {
     setUploading(false);
   };
 
+  // === Habilidades ===================================================================
   const handleHabilidadKey = (e) => {
     if (e.key === "Enter" && habilidadInput.trim()) {
       e.preventDefault();
@@ -1071,6 +1208,7 @@ export default function StudentProfile() {
     }
   };
 
+  // === Formaciones CRUD ===================================================================
   const handleGuardarFormacion = (item) => {
     if (formacionModal === "new") {
       setFormaciones((fs) => [...fs, item]);
@@ -1080,6 +1218,7 @@ export default function StudentProfile() {
     setFormacionModal(null);
   };
 
+  // === Proyectos CRUD ===================================================================
   const handleGuardarProyecto = (p) => {
     if (proyectoModal === "new") {
       setProyectos((ps) => [...ps, p]);
@@ -1089,7 +1228,7 @@ export default function StudentProfile() {
     setProyectoModal(null);
   };
 
-  // ── Guardar perfil completo ────────────────────────────────────────────────
+  // === Guardar perfil completo en Supabase ===================================================================
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
@@ -1108,14 +1247,12 @@ export default function StudentProfile() {
       modalidad,
       proyectos,
       redes_sociales: redesSociales,
-      // GitHub
-      github_username: githubUsername,
-      github_repos_vinculados: githubReposVinculados,
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("estudiante").upsert(payload);
+    const { error } = await supabase.from("profiles").upsert(payload);
     setSaving(false);
+
     if (error) {
       setSaveError("Error al guardar: " + error.message);
     } else {
@@ -1124,9 +1261,9 @@ export default function StudentProfile() {
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // =============================================================================
   // RENDER
-  // ─────────────────────────────────────────────────────────────────────────
+  // =============================================================================
   return (
     <MainLayout>
       <div className="min-h-screen bg-dark">
@@ -1169,9 +1306,10 @@ export default function StudentProfile() {
           )}
 
           <div className="space-y-6">
-            {/* ── 1. INFORMACIÓN PERSONAL ── */}
+            {/* ── 1. FOTO DE PERFIL + NOMBRE ── */}
             <SectionCard title="Información personal">
               <div className="flex items-center gap-5 mb-5">
+                {/* Avatar */}
                 <div className="relative flex-shrink-0">
                   {avatarUrl ? (
                     <img
@@ -1189,6 +1327,7 @@ export default function StudentProfile() {
                       <Spinner className="w-6 h-6 text-brand" />
                     </div>
                   )}
+                  {/* Botón de cámara superpuesto */}
                   <button
                     onClick={() => {
                       setUploadError(null);
@@ -1196,6 +1335,7 @@ export default function StudentProfile() {
                     }}
                     disabled={uploading}
                     className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-brand flex items-center justify-center text-dark shadow-lg hover:bg-brand-dark transition-colors disabled:opacity-50"
+                    aria-label="Cambiar foto"
                   >
                     <IconCamera size={14} />
                   </button>
@@ -1207,6 +1347,7 @@ export default function StudentProfile() {
                     onChange={handleAvatarUpload}
                   />
                 </div>
+
                 <div className="flex-1">
                   <p className="text-gray-500 text-xs mb-1">Foto de perfil</p>
                   <p className="text-gray-600 text-xs">
@@ -1217,6 +1358,8 @@ export default function StudentProfile() {
                   )}
                 </div>
               </div>
+
+              {/* Nombre y apellidos */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1.5">
@@ -1245,7 +1388,7 @@ export default function StudentProfile() {
               </div>
             </SectionCard>
 
-            {/* ── 2. SOBRE MÍ ── */}
+            {/* === 2. SOBRE MÍ === */}
             <SectionCard
               title="Sobre mí"
               subtitle="Cuéntale a las empresas quién eres y qué buscas"
@@ -1269,7 +1412,7 @@ export default function StudentProfile() {
               </div>
             </SectionCard>
 
-            {/* ── 3. FORMACIÓN ACADÉMICA ── */}
+            {/* === 3. FORMACIÓN ACADÉMICA === */}
             <SectionCard
               title="Formación académica"
               subtitle="Añade tus estudios. Si sigues en curso aparecerá como «Actualidad»"
@@ -1285,6 +1428,7 @@ export default function StudentProfile() {
                     </p>
                   </div>
                 )}
+                {/* Ordenar: en_curso primero, luego por año desc */}
                 {[...formaciones]
                   .sort((a, b) => {
                     if (a.en_curso && !b.en_curso) return -1;
@@ -1310,7 +1454,7 @@ export default function StudentProfile() {
               </button>
             </SectionCard>
 
-            {/* ── 4. HABILIDADES TÉCNICAS ── */}
+            {/* === 4. HABILIDADES TÉCNICAS === */}
             <SectionCard title="Habilidades técnicas">
               <input
                 type="text"
@@ -1345,7 +1489,7 @@ export default function StudentProfile() {
               </div>
             </SectionCard>
 
-            {/* ── 5. TIPO DE BÚSQUEDA ── */}
+            {/* === 5. TIPO DE BÚSQUEDA === */}
             <SectionCard title="Tipo de búsqueda">
               <div className="space-y-2">
                 {TIPO_BUSQUEDA.map((t) => (
@@ -1382,7 +1526,7 @@ export default function StudentProfile() {
               </div>
             </SectionCard>
 
-            {/* ── 6. DISPONIBILIDAD ── */}
+            {/* === 6. DISPONIBILIDAD === */}
             <SectionCard title="Disponibilidad y modalidad">
               <div className="space-y-4">
                 <div>
@@ -1428,7 +1572,7 @@ export default function StudentProfile() {
               </div>
             </SectionCard>
 
-            {/* ── 7. PORTFOLIO Y PROYECTOS ── */}
+            {/* === 7. PORTFOLIO Y PROYECTOS === */}
             <SectionCard
               title="Portfolio y proyectos"
               subtitle="Muestra tu trabajo. Pega una URL de GitHub y la IA rellenará los datos automáticamente"
@@ -1463,20 +1607,95 @@ export default function StudentProfile() {
               </button>
             </SectionCard>
 
-            {/* ── 8. REPOSITORIOS DE GITHUB (NUEVO) ── */}
+            {/* === 8. GITHUB VINCULADO === */}
             <SectionCard
-              title="Repositorios de GitHub"
-              subtitle="Conecta tu cuenta para mostrar tus repos directamente en tu perfil"
+              title="Cuenta de GitHub"
+              subtitle="Vincula tu GitHub para importar repositorios automáticamente con IA"
             >
-              <GitHubReposSection
-                reposVinculados={githubReposVinculados}
-                onReposChange={setGithubReposVinculados}
-                githubUsername={githubUsername}
-                onUsernameChange={setGithubUsername}
-              />
+              {githubUsername ? (
+                /* - Estado: GitHub conectado - */
+                <div className="flex items-center gap-4 p-4 bg-dark border border-white/10 rounded-xl">
+                  <div className="w-12 h-12 rounded-xl bg-[#24292e] border border-white/10 flex items-center justify-center flex-shrink-0">
+                    <IconGitHub size={22} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-white font-semibold text-sm">
+                        @{githubUsername}
+                      </p>
+                      <span className="inline-flex items-center gap-1 text-xs bg-brand/15 border border-brand/25 text-brand px-2 py-0.5 rounded-full">
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        Conectado
+                      </span>
+                    </div>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      Tus repositorios están disponibles al añadir proyectos
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleUnlinkGitHub}
+                    className="flex-shrink-0 text-xs text-gray-600 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-500/10"
+                  >
+                    Desconectar
+                  </button>
+                </div>
+              ) : (
+                /* - Estado: GitHub no conectado - */
+                <div>
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-[#24292e]/60 border border-white/10 flex items-center justify-center flex-shrink-0">
+                      <IconGitHub size={22} className="text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-white text-sm font-medium mb-0.5">
+                        Conecta tu cuenta de GitHub
+                      </p>
+                      <p className="text-gray-500 text-xs leading-relaxed">
+                        Al conectar GitHub, podrás importar repositorios
+                        directamente. La IA analizará el código y generará
+                        título, descripción y tecnologías automáticamente.
+                        <strong className="text-gray-400 block mt-1">
+                          Tu sesión actual no se verá afectada.
+                        </strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  {githubError && (
+                    <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-red-400 text-xs">
+                      {githubError}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleLinkGitHub}
+                    disabled={githubConnecting}
+                    className="flex items-center gap-2.5 bg-[#24292e] hover:bg-[#2f363d] border border-white/15 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {githubConnecting ? (
+                      <>
+                        <Spinner className="w-4 h-4" /> Conectando...
+                      </>
+                    ) : (
+                      <>
+                        <IconGitHub size={16} /> Conectarse a GitHub
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </SectionCard>
 
-            {/* ── 9. REDES SOCIALES ── */}
+            {/* === 9. REDES SOCIALES === */}
             <SectionCard
               title="Redes sociales y enlaces"
               subtitle="Enlaza tus perfiles profesionales para que las empresas puedan conocerte mejor"

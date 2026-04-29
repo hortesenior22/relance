@@ -1,20 +1,33 @@
-import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { Outlet, Navigate } from "react-router-dom";
+import { useAuth, getRoleRoute } from "../../context/AuthContext";
 
-export default function ProtectedRoute({ children }) {
-  const { user, loading, openLoginModal } = useAuth();
-  const navigate = useNavigate();
+/**
+ * ProtectedRoute — protege rutas según autenticación y rol.
+ *
+ * Uso en App.tsx:
+ *   <Route element={<ProtectedRoute requiredRole="estudiante" />}>
+ *     <Route path="/perfil/estudiante" element={<StudentProfile />} />
+ *   </Route>
+ *
+ * Si no se pasa requiredRole, solo comprueba que el usuario esté autenticado.
+ * Si el usuario está autenticado pero tiene un rol distinto, lo redirige
+ * a su propio perfil en lugar de mostrarle un 403.
+ */
+export default function ProtectedRoute({ requiredRole } = {}) {
+  const { user, userRole, loading } = useAuth();
 
-  useEffect(() => {
-    if (!loading && !user) {
-      openLoginModal();
-      navigate("/", { replace: true });
-    }
-  }, [loading, user]);
-
+  // Mientras carga la sesión/rol no renderizamos nada
   if (loading) return null;
-  if (!user) return null;
 
-  return children;
+  // Sin sesión → al inicio
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  // Con rol requerido y el usuario tiene un rol diferente → a su perfil
+  if (requiredRole && userRole && userRole !== requiredRole) {
+    return <Navigate to={getRoleRoute(userRole)} replace />;
+  }
+
+  return <Outlet />;
 }

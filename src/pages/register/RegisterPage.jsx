@@ -274,9 +274,11 @@ function CompanyForm({ onSubmit, loading, error }) {
     companyName: "",
     cif: "",
     sector: "",
-    size: "",
-    website: "",
-    city: "",
+    tamanio: "",
+    ciudad: "",
+    web: "",
+    telefono: "",
+    descripcion: "",
   });
   const s = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -325,14 +327,6 @@ function CompanyForm({ onSubmit, loading, error }) {
           <label className="block text-sm text-gray-400 mb-1.5">
             Confirmar contraseña *
           </label>
-          {/* <input
-            type="password"
-            required
-            value={form.confirmPassword}
-            onChange={s("confirmPassword")}
-            placeholder="Repite la contraseña"
-            className="input-field"
-          /> */}
           <PasswordField
             value={form.confirmPassword}
             onChange={s("confirmPassword")}
@@ -397,9 +391,9 @@ function CompanyForm({ onSubmit, loading, error }) {
                 "Comercio",
                 "Industria",
                 "Otro",
-              ].map((s) => (
-                <option key={s} value={s}>
-                  {s}
+              ].map((sec) => (
+                <option key={sec} value={sec}>
+                  {sec}
                 </option>
               ))}
             </select>
@@ -409,8 +403,8 @@ function CompanyForm({ onSubmit, loading, error }) {
               Tamaño de empresa
             </label>
             <select
-              value={form.size}
-              onChange={s("size")}
+              value={form.tamanio}
+              onChange={s("tamanio")}
               className="input-field"
             >
               <option value="">Seleccionar tamaño</option>
@@ -420,9 +414,9 @@ function CompanyForm({ onSubmit, loading, error }) {
                 "51–200 empleados",
                 "201–500 empleados",
                 "500+ empleados",
-              ].map((s) => (
-                <option key={s} value={s}>
-                  {s}
+              ].map((t) => (
+                <option key={t} value={t}>
+                  {t}
                 </option>
               ))}
             </select>
@@ -431,23 +425,55 @@ function CompanyForm({ onSubmit, loading, error }) {
             <label className="block text-sm text-gray-400 mb-1.5">Ciudad</label>
             <input
               type="text"
-              value={form.city}
-              onChange={s("city")}
-              placeholder="Córdoba"
+              value={form.ciudad}
+              onChange={s("ciudad")}
+              placeholder="Madrid"
               className="input-field"
             />
           </div>
           <div>
             <label className="block text-sm text-gray-400 mb-1.5">
+              Teléfono
+            </label>
+            <input
+              type="tel"
+              value={form.telefono}
+              onChange={s("telefono")}
+              placeholder="+34 900 000 000"
+              className="input-field"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-sm text-gray-400 mb-1.5">
               Sitio web
             </label>
             <input
               type="url"
-              value={form.website}
-              onChange={s("website")}
+              value={form.web}
+              onChange={s("web")}
               placeholder="https://miempresa.com"
               className="input-field"
             />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Descripción de la empresa
+            </label>
+            <textarea
+              value={form.descripcion}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  descripcion: e.target.value.slice(0, 500),
+                }))
+              }
+              rows={3}
+              placeholder="Describe tu empresa, cultura y qué tipo de perfiles buscáis..."
+              className="input-field resize-none"
+            />
+            <p className="text-xs text-gray-600 mt-1 text-right">
+              {form.descripcion.length}/500
+            </p>
           </div>
         </div>
         <div className="mt-3 bg-brand/5 border border-brand/15 rounded-xl px-4 py-3">
@@ -724,23 +750,95 @@ export default function RegisterPage() {
 
     const metadata = { full_name: fullName, role, ...extra };
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: metadata },
-    });
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
+      {
+        email,
+        password,
+        options: { data: metadata },
+      },
+    );
+
+    if (signUpError) {
+      setLoading(false);
+      setError(
+        signUpError.message === "User already registered"
+          ? "Este correo ya está registrado. ¿Quieres iniciar sesión?"
+          : signUpError.message,
+      );
+      return;
+    }
+
+    const userId = signUpData?.user?.id;
+
+    // Insertar en tablas de BD para marcar perfil como completado
+    // (evita que aparezca el modal de onboarding)
+    if (userId) {
+      try {
+        // Tabla central usuario
+        await supabase.from("usuario").upsert(
+          {
+            id: userId,
+            email,
+            nombre: fullName,
+            rol: role,
+            is_profile_completed: true,
+          },
+          { onConflict: "id" },
+        );
+
+        // Tabla de extensión por rol
+        if (role === "empresa") {
+          await supabase.from("empresa").upsert(
+            {
+              id_usuario: userId,
+              nombre: extra.companyName,
+              cif: extra.cif,
+              sector: extra.sector || null,
+              tamanio: extra.tamanio || null,
+              ciudad: extra.ciudad || null,
+              web: extra.web || null,
+              telefono: extra.telefono || null,
+              descripcion: extra.descripcion || null,
+            },
+            { onConflict: "id_usuario" },
+          );
+        }
+
+        if (role === "estudiante") {
+          const nameParts = fullName.trim().split(" ");
+          await supabase.from("estudiante").upsert(
+            {
+              id: userId,
+              nombre: nameParts[0] ?? fullName,
+              apellidos: nameParts.slice(1).join(" ") || null,
+              ciudad: extra.city || null,
+            },
+            { onConflict: "id" },
+          );
+        }
+
+        if (role === "centro_educativo") {
+          await supabase.from("centro_educativo").upsert(
+            {
+              id_centro: userId,
+              nombre: extra.centerName,
+              codigo_centro: extra.institutionalCode || null,
+              tipo: extra.centerType || null,
+              ciudad: extra.city || null,
+            },
+            { onConflict: "id_centro" },
+          );
+        }
+      } catch (dbErr) {
+        // No bloqueamos el registro si la BD falla — el onboarding se puede
+        // completar después. Solo lo registramos en consola.
+        console.warn("Error insertando en tablas de perfil:", dbErr);
+      }
+    }
 
     setLoading(false);
-    if (error) {
-      setError(
-        error.message === "User already registered"
-          ? "Este correo ya está registrado. ¿Quieres iniciar sesión?"
-          : error.message,
-      );
-    } else {
-      setRegisteredEmail(email);
-      setSuccess(true);
-    }
+    setRegisteredEmail(email);
+    setSuccess(true);
   };
 
   if (success) {
@@ -748,7 +846,11 @@ export default function RegisterPage() {
       <MainLayout>
         <div className="min-h-screen bg-dark flex items-center justify-center p-4">
           <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-md p-10 text-center">
-            <div className="text-6xl mb-5">🎉</div>
+            <div className="mb-5 flex justify-center">
+              <svg className="w-16 h-16 text-brand" viewBox="0 0 640 640">
+                <use href="/icons.svg#icon-party" />
+              </svg>
+            </div>
             <h2 className="font-display text-2xl font-bold text-white mb-3">
               ¡Cuenta creada!
             </h2>
