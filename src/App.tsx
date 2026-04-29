@@ -14,8 +14,8 @@ import AuthCallback from "./pages/AuthCallback";
 import OnboardingModal from "./components/auth/OnboardingModal";
 
 import { useEffect, useState, useRef } from "react";
-import ProtectedRoute from "./components/routes/ProtectedRoute";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/routes/ProtectedRoute";
 
 // Roles que nunca deben ver el onboarding modal porque ya
 // completan sus datos durante el registro o tienen perfil propio
@@ -26,6 +26,20 @@ const ROLES_SIN_ONBOARDING = ["empresa", "centro_educativo"];
 function AppContent() {
   const { user, loading } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+  const [safeLoading, setSafeLoading] = useState(true);
+
+  // Garantía de seguridad: si loading tarda más de 8s, desbloquear la UI
+  useEffect(() => {
+    if (!loading) {
+      setSafeLoading(false);
+      return;
+    }
+    const fallback = setTimeout(() => {
+      console.warn("Loading timeout: desbloqueando UI");
+      setSafeLoading(false);
+    }, 8000);
+    return () => clearTimeout(fallback);
+  }, [loading]);
 
   const params = new URLSearchParams(window.location.search);
   const isGitHubConnect = params.has("gh");
@@ -89,7 +103,7 @@ function AppContent() {
     }
   }, [user, loading]);
 
-  if (loading) {
+  if (safeLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark">
         <div className="w-20 h-20 text-[#C0FF72]">Loading...</div>
@@ -130,7 +144,9 @@ function AppContent() {
         </Route>
         <Route
           element={
-            <ProtectedRoute requiredRole={["tutor", "tutor_empresa", "tutor_centro"]} />
+            <ProtectedRoute
+              requiredRole={["tutor", "tutor_empresa", "tutor_centro"]}
+            />
           }
         >
           <Route path="/perfil/tutor" element={<TutorProfile />} />

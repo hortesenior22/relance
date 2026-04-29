@@ -7,11 +7,15 @@ import {
 } from "react";
 import { supabase } from "../lib/supabase";
 import { Session, User } from "@supabase/supabase-js";
-import { AccountType } from "../components/auth/AccountType";
 
+/* ============================================================
+   ROLES DEL SISTEMA (UNIFICADO)
+============================================================ */
 export type UserRole =
-  | AccountType
+  | "estudiante"
+  | "empresa"
   | "centro_educativo"
+  | "tutor"
   | "tutor_empresa"
   | "tutor_centro";
 
@@ -20,13 +24,15 @@ export function getRoleRoute(role: UserRole | null): string {
   switch (role) {
     case "empresa":
       return "/perfil/empresa";
-    case "centro":
+
     case "centro_educativo":
       return "/perfil/centro";
+
     case "tutor":
     case "tutor_empresa":
     case "tutor_centro":
       return "/perfil/tutor";
+
     case "estudiante":
     default:
       return "/perfil/estudiante";
@@ -34,16 +40,26 @@ export function getRoleRoute(role: UserRole | null): string {
 }
 
 /** Consulta el rol del usuario en la tabla `usuario` */
-export async function fetchUserRole(
-  userId: string,
-): Promise<UserRole | null> {
-  const { data, error } = await supabase
-    .from("usuario")
-    .select("rol")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error || !data) return null;
-  return data.rol as UserRole;
+export async function fetchUserRole(userId: string): Promise<UserRole | null> {
+  try {
+    const timeout = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), 5000),
+    );
+
+    const query = supabase
+      .from("usuario")
+      .select("rol")
+      .eq("id", userId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error || !data) return null;
+        return data.rol as UserRole;
+      });
+
+    return await Promise.race([query, timeout]);
+  } catch {
+    return null;
+  }
 }
 
 type AuthContextType = {
@@ -66,8 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUserRole(null);
       return;
     }
-    const role = await fetchUserRole(u.id);
-    setUserRole(role);
+    try {
+      const role = await fetchUserRole(u.id);
+      setUserRole(role);
+    } catch {
+      setUserRole(null);
+    }
   };
 
   useEffect(() => {
@@ -75,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data } = await supabase.auth.getSession();
         const u = data.session?.user ?? null;
+
         setUser(u);
         await loadRole(u);
       } catch (err) {
@@ -93,9 +114,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange(
       async (_event, session: Session | null) => {
         const u = session?.user ?? null;
+
         setUser(u);
-        await loadRole(u);
-        setLoading(false);
+        try {
+          await loadRole(u);
+        } finally {
+          setLoading(false);
+        }
       },
     );
 
