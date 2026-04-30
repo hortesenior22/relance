@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import UserMenu from "../auth/UserMenu";
 import logoUrl from "../../assets/logo_relance.jpg";
+import { supabase } from "../../lib/supabase";
 
 type HeaderProps = {
   onLoginClick?: () => void;
@@ -27,7 +28,21 @@ export default function Header({
 
   const fullName: string = user?.user_metadata?.full_name ?? user?.email ?? "";
 
-  const avatarUrl: string | undefined = user?.user_metadata?.avatar_url;
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(
+    user?.user_metadata?.avatar_url,
+  );
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("usuario")
+      .select("avatar_url")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+      });
+  }, [user]);
 
   const initials: string = fullName
     .split(" ")

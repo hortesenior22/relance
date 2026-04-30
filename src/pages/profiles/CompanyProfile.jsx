@@ -10,7 +10,6 @@ function QRModal({ url, entityName, onClose }) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    // API de qrcode-monkey.com
     const generateQR = async () => {
       setLoadingQr(true);
       try {
@@ -52,7 +51,6 @@ function QRModal({ url, entityName, onClose }) {
         const blob = await res.blob();
         setQrUrl(URL.createObjectURL(blob));
       } catch {
-        // Fallback: QR con Google Charts API (sin API key)
         setQrUrl(
           `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}&bgcolor=0A0A0A&color=c0ff72&margin=20`,
         );
@@ -102,7 +100,6 @@ function QRModal({ url, entityName, onClose }) {
           directamente vinculados a tu empresa.
         </p>
 
-        {/* QR */}
         <div className="flex items-center justify-center mb-5">
           {loadingQr ? (
             <div className="w-48 h-48 bg-dark rounded-2xl flex items-center justify-center border border-white/10">
@@ -137,7 +134,6 @@ function QRModal({ url, entityName, onClose }) {
           )}
         </div>
 
-        {/* Enlace */}
         <div className="bg-dark border border-white/10 rounded-xl px-3 py-2 mb-4 flex items-center gap-2">
           <span className="text-gray-500 text-xs truncate flex-1 text-left">
             {url}
@@ -208,64 +204,95 @@ function SectionCard({ title, children }) {
 export default function CompanyProfile() {
   const { user } = useAuth();
   const fileInputRef = useRef(null);
-  const meta = user?.user_metadata ?? {};
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showQR, setShowQR] = useState(false);
   const [inviteUrl, setInviteUrl] = useState("");
   const [generatingToken, setGeneratingToken] = useState(false);
 
-  const [logoUrl, setLogoUrl] = useState(null);
-  const [companyName, setCompanyName] = useState(meta.companyName ?? "");
-  const [cif, setCif] = useState(meta.cif ?? "");
-  const [sector, setSector] = useState(meta.sector ?? "");
-  const [size, setSize] = useState(meta.size ?? "");
-  const [city, setCity] = useState(meta.city ?? "");
-  const [website, setWebsite] = useState(meta.website ?? "");
-  const [description, setDescription] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [socialLinks, setSocialLinks] = useState({
-    linkedin: "",
-    twitter: "",
-    instagram: "",
-  });
+  // ── Campos del formulario (mapeados a columnas de empresa) ──
+  const [logoUrl, setLogoUrl] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [cif, setCif] = useState("");
+  const [sector, setSector] = useState("");
+  const [tamano, setTamano] = useState(""); // columna nueva: tamano
+  const [ciudad, setCiudad] = useState("");
+  const [web, setWeb] = useState(""); // columna: web
+  const [descripcion, setDescripcion] = useState("");
+  const [emailContacto, setEmailContacto] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [linkedin, setLinkedin] = useState(""); // columnas planas
+  const [twitter, setTwitter] = useState("");
+  const [instagram, setInstagram] = useState("");
+  const [verificado, setVerificado] = useState(false);
 
+  // ── Carga de datos desde Supabase ────────────────────────────────────
   useEffect(() => {
     if (!user) return;
-    const load = async () => {
-      const { data } = await supabase
-        .from("profiles")
+
+    const cargarPerfil = async () => {
+      // 1. Datos base del usuario (tabla genérica)
+      const { data: usuarioData, error: usuarioError } = await supabase
+        .from("usuario")
+        .select("id, email, nombre")
+        .eq("id", user.id)
+        .single();
+
+      if (usuarioError) {
+        console.error("Error al cargar usuario:", usuarioError.message);
+        return;
+      }
+
+      // 2. Datos específicos de empresa
+      //    La FK es id → usuario.id
+      const { data: empresa, error: empresaError } = await supabase
+        .from("empresa")
         .select("*")
         .eq("id", user.id)
         .single();
-      if (data) {
-        setLogoUrl(data.logo_url);
-        setCompanyName(data.company_name ?? meta.companyName ?? "");
-        setCif(data.cif ?? meta.cif ?? "");
-        setSector(data.sector ?? meta.sector ?? "");
-        setSize(data.size ?? meta.size ?? "");
-        setCity(data.city ?? meta.city ?? "");
-        setWebsite(data.website ?? meta.website ?? "");
-        setDescription(data.description ?? "");
-        setEmail(data.contact_email ?? user.email ?? "");
-        setPhone(data.phone ?? "");
-        setSocialLinks(
-          data.social_links ?? { linkedin: "", twitter: "", instagram: "" },
+
+      if (empresaError && empresaError.code !== "PGRST116") {
+        console.error("Error al cargar empresa:", empresaError.message);
+        return;
+      }
+
+      if (empresa) {
+        setNombre(empresa.nombre ?? usuarioData?.nombre ?? "");
+        setCif(empresa.cif ?? "");
+        setSector(empresa.sector ?? "");
+        setTamano(empresa.tamano ?? "");
+        setCiudad(empresa.ciudad ?? "");
+        setWeb(empresa.web ?? "");
+        setDescripcion(empresa.descripcion ?? "");
+        setEmailContacto(
+          empresa.email_contacto ?? usuarioData?.email ?? user.email ?? "",
         );
+        setTelefono(empresa.telefono ?? "");
+        setLogoUrl(empresa.logo_url ?? "");
+        setLinkedin(empresa.linkedin ?? "");
+        setTwitter(empresa.twitter ?? "");
+        setInstagram(empresa.instagram ?? "");
+        setVerificado(empresa.verificado ?? false);
+      } else {
+        // Sin fila aún: pre-rellenar con datos de Auth
+        setNombre(usuarioData?.nombre ?? "");
+        setEmailContacto(usuarioData?.email ?? user.email ?? "");
       }
     };
-    load();
+
+    cargarPerfil();
   }, [user]);
 
+  // ── Subida de logo ───────────────────────────────────────────────────
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
     setUploading(true);
     const ext = file.name.split(".").pop();
-    const path = `logos/${user.id}.${ext}`;
+    const path = `logos/empresas/${user.id}.${ext}`;
     const { error } = await supabase.storage
       .from("profiles")
       .upload(path, file, { upsert: true });
@@ -276,56 +303,84 @@ export default function CompanyProfile() {
     setUploading(false);
   };
 
+  // ── Guardar en Supabase ──────────────────────────────────────────────
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    await supabase.from("profiles").upsert({
-      id: user.id,
-      logo_url: logoUrl,
-      company_name: companyName,
-      cif,
-      sector,
-      size,
-      city,
-      website,
-      description,
-      contact_email: email,
-      phone,
-      social_links: socialLinks,
-      updated_at: new Date().toISOString(),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setSaveError(null);
+
+    try {
+      // 1. Actualizar nombre en la tabla genérica "usuario"
+      const { error: usuarioError } = await supabase
+        .from("usuario")
+        .update({
+          nombre: nombre,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (usuarioError) throw usuarioError;
+
+      // 2. Upsert en empresa
+      //    La FK es id (no "id" como en centro_educativo)
+      const { error: empresaError } = await supabase.from("empresa").upsert(
+        {
+          id: user.id,
+          nombre,
+          cif,
+          sector,
+          tamano,
+          ciudad,
+          web,
+          descripcion,
+          email_contacto: emailContacto,
+          telefono,
+          logo_url: logoUrl,
+          linkedin,
+          twitter,
+          instagram,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" },
+      );
+
+      if (empresaError) throw empresaError;
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error("Error al guardar:", err.message);
+      setSaveError("No se pudieron guardar los cambios. Inténtalo de nuevo.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // Generar token de invitación para tutores
+  // ── Generar QR de invitación ─────────────────────────────────────────
   const handleGenerateQR = async () => {
     setGeneratingToken(true);
     const token = crypto.randomUUID();
-    const expiresAt = new Date(
-      Date.now() + 7 * 24 * 60 * 60 * 1000,
-    ).toISOString();
-
     await supabase.from("invite_tokens").insert({
       token,
       entity_id: user.id,
       entity_type: "empresa",
-      expires_at: expiresAt,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       used: false,
     });
-
-    const url = `${window.location.origin}/registro-tutor?token=${token}&entity=${user.id}&type=empresa`;
-    setInviteUrl(url);
+    setInviteUrl(
+      `${window.location.origin}/registro-tutor?token=${token}&entity=${user.id}&type=empresa`,
+    );
     setGeneratingToken(false);
     setShowQR(true);
   };
 
+  // ── Render ───────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-dark">
       <Header onLoginClick={() => {}} onRegisterClick={() => {}} />
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
+        {/* Cabecera */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="font-display text-3xl font-bold text-white">
@@ -371,6 +426,13 @@ export default function CompanyProfile() {
           </button>
         </div>
 
+        {/* Error de guardado */}
+        {saveError && (
+          <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+            {saveError}
+          </div>
+        )}
+
         <div className="space-y-6">
           {/* Logo */}
           <SectionCard title="Logo de empresa">
@@ -379,7 +441,7 @@ export default function CompanyProfile() {
                 {logoUrl ? (
                   <img
                     src={logoUrl}
-                    alt={companyName}
+                    alt={nombre}
                     className="w-20 h-20 rounded-2xl object-cover border border-white/10"
                   />
                 ) : (
@@ -418,9 +480,14 @@ export default function CompanyProfile() {
               </div>
               <div>
                 <p className="text-white font-semibold text-lg font-display">
-                  {companyName || "Tu empresa"}
+                  {nombre || "Tu empresa"}
                 </p>
                 <p className="text-gray-500 text-sm mb-3">{user?.email}</p>
+                {verificado && (
+                  <span className="inline-flex items-center gap-1 text-xs text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full mb-3">
+                    ✓ Empresa verificada
+                  </span>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -447,8 +514,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
                   placeholder="Mi Empresa S.L."
                   className="input-field"
                 />
@@ -497,8 +564,8 @@ export default function CompanyProfile() {
                   Tamaño
                 </label>
                 <select
-                  value={size}
-                  onChange={(e) => setSize(e.target.value)}
+                  value={tamano}
+                  onChange={(e) => setTamano(e.target.value)}
                   className="input-field"
                 >
                   <option value="">Seleccionar</option>
@@ -515,8 +582,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  value={ciudad}
+                  onChange={(e) => setCiudad(e.target.value)}
                   placeholder="Madrid"
                   className="input-field"
                 />
@@ -527,8 +594,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="url"
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
+                  value={web}
+                  onChange={(e) => setWeb(e.target.value)}
                   placeholder="https://miempresa.com"
                   className="input-field"
                 />
@@ -539,14 +606,14 @@ export default function CompanyProfile() {
           {/* Descripción */}
           <SectionCard title="Descripción de la empresa">
             <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value.slice(0, 500))}
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value.slice(0, 500))}
               rows={4}
               placeholder="Describe tu empresa, cultura, tecnologías que usáis y qué tipo de perfiles buscáis..."
               className="input-field resize-none"
             />
             <p className="text-xs text-gray-600 mt-1 text-right">
-              {description.length}/500
+              {descripcion.length}/500
             </p>
           </SectionCard>
 
@@ -559,8 +626,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={emailContacto}
+                  onChange={(e) => setEmailContacto(e.target.value)}
                   placeholder="rrhh@empresa.com"
                   className="input-field"
                 />
@@ -571,8 +638,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value)}
                   placeholder="+34 900 000 000"
                   className="input-field"
                 />
@@ -585,31 +652,31 @@ export default function CompanyProfile() {
             <div className="space-y-3">
               {[
                 {
-                  key: "linkedin",
+                  value: linkedin,
+                  setter: setLinkedin,
                   icon: "icon-linkedin",
                   label: "LinkedIn",
                   placeholder: "https://linkedin.com/company/mi-empresa",
                 },
                 {
-                  key: "twitter",
+                  value: twitter,
+                  setter: setTwitter,
                   icon: "icon-twitter",
                   label: "X / Twitter",
                   placeholder: "https://twitter.com/miempresa",
                 },
                 {
-                  key: "instagram",
+                  value: instagram,
+                  setter: setInstagram,
                   icon: "icon-instagram",
                   label: "Instagram",
                   placeholder: "https://instagram.com/miempresa",
                 },
-              ].map(({ key, icon, label, placeholder }) => (
-                <div key={key} className="flex items-center gap-3">
+              ].map(({ value, setter, icon, label, placeholder }) => (
+                <div key={label} className="flex items-center gap-3">
                   <span className="text-xl w-7 text-center">
                     <svg className="w-5 h-5" viewBox="0 0 640 640">
-                      <use
-                        href={`/icons.svg#${icon}`}
-                        xlinkHref={`/icons.svg#icon-${icon}`}
-                      />
+                      <use href={`/icons.svg#${icon}`} />
                     </svg>
                   </span>
                   <div className="flex-1">
@@ -618,10 +685,8 @@ export default function CompanyProfile() {
                     </label>
                     <input
                       type="url"
-                      value={socialLinks[key]}
-                      onChange={(e) =>
-                        setSocialLinks((l) => ({ ...l, [key]: e.target.value }))
-                      }
+                      value={value}
+                      onChange={(e) => setter(e.target.value)}
                       placeholder={placeholder}
                       className="input-field text-sm"
                     />
@@ -631,15 +696,12 @@ export default function CompanyProfile() {
             </div>
           </SectionCard>
 
-          {/* ── QR de invitación para tutores ── */}
+          {/* QR de invitación */}
           <SectionCard title="Invitar tutores">
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center text-2xl">
-                <svg width="24" height="24" className="text-white">
-                  <use
-                    href={`/icons.svg#icon-qrcode`}
-                    xlinkHref={`/icons.svg#icon-qrcode`}
-                  />
+                <svg className="w-6 h-6 text-brand" viewBox="0 0 640 640">
+                  <use href="/icons.svg#icon-qrcode" />
                 </svg>
               </div>
               <div className="flex-1">
@@ -708,7 +770,7 @@ export default function CompanyProfile() {
       {showQR && (
         <QRModal
           url={inviteUrl}
-          entityName={companyName || "tu empresa"}
+          entityName={nombre || "tu empresa"}
           onClose={() => setShowQR(false)}
         />
       )}

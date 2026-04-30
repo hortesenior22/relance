@@ -5,13 +5,13 @@
 @layer base {
   :root {
     --color-brand: #c0ff72;
-    --color-brand-dark: #A8D010;
-    --color-black: #0A0A0A;
-    --color-white: #FFFFFF;
-    --color-gray-100: #F5F5F5;
-    --color-gray-200: #E5E5E5;
+    --color-brand-dark: #a8d010;
+    --color-black: #0a0a0a;
+    --color-white: #ffffff;
+    --color-gray-100: #f5f5f5;
+    --color-gray-200: #e5e5e5;
     --color-gray-500: #737373;
-    --color-gray-800: #1A1A1A;
+    --color-gray-800: #1a1a1a;
   }
 
   * {
@@ -23,15 +23,20 @@
   }
 
   body {
-    background-color: #0A0A0A;
-    color: #FFFFFF;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: #0a0a0a;
+    color: #ffffff;
+    font-family: "Plus Jakarta Sans", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Syne', sans-serif;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Syne", sans-serif;
   }
 }
 
@@ -63,7 +68,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0A0A0A;
+  background: #0a0a0a;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -74,3 +79,295 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #c0ff72;
 }
+
+/* =======================================
+          Loading Spinner Animation
+==========================================*/
+.box5532 {
+  fill: currentColor;
+  transform-origin: 50% 50%;
+}
+
+@keyframes box5532-1 {
+  9.09% {
+    transform: translate(-12px, 0);
+  }
+  18.18%,
+  27.27% {
+    transform: translate(0, 0);
+  }
+  36.36% {
+    transform: translate(12px, 0);
+  }
+  45.45%,
+  54.54%,
+  63.63% {
+    transform: translate(12px, 12px);
+  }
+  72.72% {
+    transform: translate(12px, 0);
+  }
+  81.81% {
+    transform: translate(0, 0);
+  }
+  90.9% {
+    transform: translate(-12px, 0);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes box5532-2 {
+  9.09% {
+    transform: translate(0, 0);
+  }
+  18.18% {
+    transform: translate(12px, 0);
+  }
+  27.27% {
+    transform: translate(0, 0);
+  }
+  36.36% {
+    transform: translate(12px, 0);
+  }
+  45.45%,
+  54.54%,
+  63.63%,
+  72.72% {
+    transform: translate(12px, 12px);
+  }
+  81.81%,
+  90.9% {
+    transform: translate(0, 12px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes box5532-3 {
+  9.09%,
+  18.18% {
+    transform: translate(-12px, 0);
+  }
+  27.27% {
+    transform: translate(0, 0);
+  }
+  36.36%,
+  45.45%,
+  54.54%,
+  63.63%,
+  72.72% {
+    transform: translate(-12px, 0);
+  }
+  81.81% {
+    transform: translate(-12px, -12px);
+  }
+  90.9% {
+    transform: translate(0, -12px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes box5532-4 {
+  9.09%,
+  18.18% {
+    transform: translate(-12px, 0);
+  }
+  27.27% {
+    transform: translate(-12px, -12px);
+  }
+  36.36% {
+    transform: translate(0, -12px);
+  }
+  45.45% {
+    transform: translate(0, 0);
+  }
+  54.54%,
+  63.63%,
+  72.72% {
+    transform: translate(0, -12px);
+  }
+  81.81% {
+    transform: translate(-12px, -12px);
+  }
+  90.9% {
+    transform: translate(-12px, 0);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes box5532-5 {
+  9.09%,
+  18.18%,
+  27.27% {
+    transform: translate(0, 0);
+  }
+  36.36%,
+  45.45%,
+  54.54%,
+  63.63%,
+  72.72% {
+    transform: translate(12px, 0);
+  }
+  81.81% {
+    transform: translate(12px, -12px);
+  }
+  90.9% {
+    transform: translate(0, -12px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes box5532-6 {
+  9.09% {
+    transform: translate(0, 0);
+  }
+  18.18%,
+  27.27% {
+    transform: translate(-12px, 0);
+  }
+  36.36%,
+  45.45%,
+  54.54%,
+  63.63% {
+    transform: translate(0, 0);
+  }
+  72.72% {
+    transform: translate(0, 12px);
+  }
+  81.81% {
+    transform: translate(-12px, 12px);
+  }
+  90.9% {
+    transform: translate(-12px, 0);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes box5532-7 {
+  9.09%,
+  18.18%,
+  27.27% {
+    transform: translate(12px, 0);
+  }
+  36.36% {
+    transform: translate(0, 0);
+  }
+  45.45% {
+    transform: translate(0, -12px);
+  }
+  54.54% {
+    transform: translate(12px, -12px);
+  }
+  63.63%,
+  72.72% {
+    transform: translate(0, -12px);
+  }
+  81.81% {
+    transform: translate(0, 0);
+  }
+  90.9% {
+    transform: translate(12px, 0);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes box5532-8 {
+  9.09% {
+    transform: translate(0, 0);
+  }
+  18.18% {
+    transform: translate(-12px, 0);
+  }
+  27.27% {
+    transform: translate(-12px, -12px);
+  }
+  36.36%,
+  45.45%,
+  54.54%,
+  63.63%,
+  72.72% {
+    transform: translate(0, -12px);
+  }
+  81.81% {
+    transform: translate(12px, -12px);
+  }
+  90.9% {
+    transform: translate(12px, 0);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes box5532-9 {
+  9.09%,
+  18.18% {
+    transform: translate(-12px, 0);
+  }
+  27.27% {
+    transform: translate(0, 0);
+  }
+  36.36% {
+    transform: translate(-12px, 0);
+  }
+  45.45%,
+  54.54% {
+    transform: translate(0, 0);
+  }
+  63.63%,
+  72.72% {
+    transform: translate(-12px, 0);
+  }
+  81.81% {
+    transform: translate(-24px, 0);
+  }
+  90.9% {
+    transform: translate(-12px, 0);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+.box5532:nth-child(1) {
+  animation: box5532-1 4s infinite;
+}
+.box5532:nth-child(2) {
+  animation: box5532-2 4s infinite;
+}
+.box5532:nth-child(3) {
+  animation: box5532-3 4s infinite;
+}
+.box5532:nth-child(4) {
+  animation: box5532-4 4s infinite;
+}
+.box5532:nth-child(5) {
+  animation: box5532-5 4s infinite;
+}
+.box5532:nth-child(6) {
+  animation: box5532-6 4s infinite;
+}
+.box5532:nth-child(7) {
+  animation: box5532-7 4s infinite;
+}
+.box5532:nth-child(8) {
+  animation: box5532-8 4s infinite;
+}
+.box5532:nth-child(9) {
+  animation: box5532-9 4s infinite;
+}
+
+/* ========================================================= */

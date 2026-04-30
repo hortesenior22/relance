@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabase";
 import Header from "../../components/layout/Header";
 
+/* ─── QR Modal ──────────────────────────────────────────────────────────── */
 function QRModal({ url, entityName, onClose }) {
   const [qrUrl, setQrUrl] = useState(null);
   const [loadingQr, setLoadingQr] = useState(true);
@@ -52,10 +53,11 @@ function QRModal({ url, entityName, onClose }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
   const handleDownload = () => {
     const a = document.createElement("a");
     a.href = qrUrl;
-    a.download = `relance-tutor-qr-${entityName.replace(/\s+/g, "-").toLowerCase()}.png`;
+    a.download = `relance-centro-qr-${entityName.replace(/\s+/g, "-").toLowerCase()}.png`;
     a.click();
   };
 
@@ -146,9 +148,6 @@ function QRModal({ url, entityName, onClose }) {
           </button>
         </div>
         <p className="text-xs text-gray-600 mt-4 flex items-center gap-1">
-          <svg className="w-3.5 h-3.5 inline-block" viewBox="0 0 640 640">
-            <use href="/icons.svg#icon-hourglass" />
-          </svg>{" "}
           Válido durante <strong className="text-gray-500">7 días</strong>.
         </p>
       </div>
@@ -156,6 +155,7 @@ function QRModal({ url, entityName, onClose }) {
   );
 }
 
+/* ─── Section Card ───────────────────────────────────────────────────────── */
 function SectionCard({ title, children }) {
   return (
     <section className="bg-dark-800 border border-white/10 rounded-2xl p-6">
@@ -167,126 +167,188 @@ function SectionCard({ title, children }) {
   );
 }
 
+/* ─── CenterProfile ──────────────────────────────────────────────────────── */
 export default function CenterProfile() {
   const { user } = useAuth();
   const fileInputRef = useRef(null);
-  const meta = user?.user_metadata ?? {};
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showQR, setShowQR] = useState(false);
   const [inviteUrl, setInviteUrl] = useState("");
   const [generatingToken, setGeneratingToken] = useState(false);
 
-  const [logoUrl, setLogoUrl] = useState(null);
-  const [centerName, setCenterName] = useState(meta.centerName ?? "");
-  const [institutionalCode, setInstitutionalCode] = useState(
-    meta.institutionalCode ?? "",
-  );
-  const [centerType, setCenterType] = useState(meta.centerType ?? "");
-  const [city, setCity] = useState(meta.city ?? "");
-  const [province, setProvince] = useState(meta.province ?? "");
-  const [website, setWebsite] = useState(meta.website ?? "");
-  const [description, setDescription] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [studentsCount, setStudentsCount] = useState("");
-  const [degreesOffered, setDegreesOffered] = useState([]);
-  const [degreeInput, setDegreeInput] = useState("");
+  // ── Campos del formulario (mapeados a columnas de centro_educativo) ──
+  const [logoUrl, setLogoUrl] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [codigoInstitucional, setCodigoInstitucional] = useState("");
+  const [tipoCentro, setTipoCentro] = useState("");
+  const [ciudad, setCiudad] = useState("");
+  const [provincia, setProvincia] = useState("");
+  const [sitioWeb, setSitioWeb] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [emailContacto, setEmailContacto] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [numAlumnos, setNumAlumnos] = useState("");
+  const [titulaciones, setTitulaciones] = useState([]);
+  const [titulacionInput, setTitulacionInput] = useState("");
+  const [verificado, setVerificado] = useState(false);
 
+  // ── Carga de datos desde Supabase ────────────────────────────────────
   useEffect(() => {
     if (!user) return;
-    const load = async () => {
-      const { data } = await supabase
-        .from("profiles")
+
+    const cargarPerfil = async () => {
+      // 1. Obtenemos el id de la fila en centro_educativo a través de la
+      //    tabla genérica "usuario" (la FK es usuario.id = centro_educativo.id)
+      const { data: usuarioData, error: usuarioError } = await supabase
+        .from("usuario")
+        .select("id, email, nombre")
+        .eq("id", user.id)
+        .single();
+
+      if (usuarioError) {
+        console.error("Error al cargar usuario:", usuarioError.message);
+        return;
+      }
+
+      // 2. Cargamos los datos específicos del centro
+      const { data: centro, error: centroError } = await supabase
+        .from("centro_educativo")
         .select("*")
         .eq("id", user.id)
         .single();
-      if (data) {
-        setLogoUrl(data.logo_url);
-        setCenterName(data.center_name ?? meta.centerName ?? "");
-        setInstitutionalCode(
-          data.institutional_code ?? meta.institutionalCode ?? "",
+
+      if (centroError && centroError.code !== "PGRST116") {
+        // PGRST116 = no rows → perfil aún no creado, es normal
+        console.error("Error al cargar centro_educativo:", centroError.message);
+        return;
+      }
+
+      if (centro) {
+        setNombre(centro.nombre ?? usuarioData?.nombre ?? "");
+        setCodigoInstitucional(centro.codigo_institucional ?? "");
+        setEmailContacto(
+          centro.email_contacto ?? usuarioData?.email ?? user.email ?? "",
         );
-        setCenterType(data.center_type ?? meta.centerType ?? "");
-        setCity(data.city ?? meta.city ?? "");
-        setProvince(data.province ?? meta.province ?? "");
-        setWebsite(data.website ?? meta.website ?? "");
-        setDescription(data.description ?? "");
-        setEmail(data.contact_email ?? user.email ?? "");
-        setPhone(data.phone ?? "");
-        setStudentsCount(data.students_count ?? "");
-        setDegreesOffered(data.degrees_offered ?? []);
+        setTelefono(centro.telefono ?? "");
+        // Campos nuevos añadidos por la migración
+        setTipoCentro(centro.tipo_centro ?? "");
+        setCiudad(centro.ciudad ?? "");
+        setProvincia(centro.provincia ?? "");
+        setSitioWeb(centro.sitio_web ?? "");
+        setDescripcion(centro.descripcion ?? "");
+        setNumAlumnos(centro.num_alumnos ?? "");
+        setTitulaciones(centro.titulaciones ?? []);
+        setLogoUrl(centro.logo_url ?? "");
+        setVerificado(centro.verificado ?? false);
+      } else {
+        // Sin fila aún: pre-rellenar con datos de Auth
+        setEmailContacto(usuarioData?.email ?? user.email ?? "");
+        setNombre(usuarioData?.nombre ?? "");
       }
     };
-    load();
+
+    cargarPerfil();
   }, [user]);
 
+  // ── Subida de logo ───────────────────────────────────────────────────
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
     setUploading(true);
     const ext = file.name.split(".").pop();
+    const path = `logos/centros/${user.id}.${ext}`;
     const { error } = await supabase.storage
       .from("profiles")
-      .upload(`logos/${user.id}.${ext}`, file, { upsert: true });
+      .upload(path, file, { upsert: true });
     if (!error) {
-      const { data } = supabase.storage
-        .from("profiles")
-        .getPublicUrl(`logos/${user.id}.${ext}`);
+      const { data } = supabase.storage.from("profiles").getPublicUrl(path);
       setLogoUrl(data.publicUrl);
     }
     setUploading(false);
   };
 
-  const handleDegreeKey = (e) => {
-    if (e.key === "Enter" && degreeInput.trim()) {
+  // ── Gestión de titulaciones (tags) ───────────────────────────────────
+  const handleTitulacionKey = (e) => {
+    if (e.key === "Enter" && titulacionInput.trim()) {
       e.preventDefault();
-      if (!degreesOffered.includes(degreeInput.trim()))
-        setDegreesOffered([...degreesOffered, degreeInput.trim()]);
-      setDegreeInput("");
+      const nueva = titulacionInput.trim();
+      if (!titulaciones.includes(nueva))
+        setTitulaciones([...titulaciones, nueva]);
+      setTitulacionInput("");
     }
   };
 
+  // ── Guardar en Supabase ──────────────────────────────────────────────
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    await supabase.from("profiles").upsert({
-      id: user.id,
-      logo_url: logoUrl,
-      center_name: centerName,
-      institutional_code: institutionalCode,
-      center_type: centerType,
-      city,
-      province,
-      website,
-      description,
-      contact_email: email,
-      phone,
-      students_count: studentsCount,
-      degrees_offered: degreesOffered,
-      updated_at: new Date().toISOString(),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setSaveError(null);
+
+    try {
+      // 1. Actualizar la tabla genérica "usuario" (nombre)
+      const { error: usuarioError } = await supabase
+        .from("usuario")
+        .update({
+          nombre: nombre,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (usuarioError) throw usuarioError;
+
+      // 2. Upsert en centro_educativo
+      //    - La columna "id" es la FK que apunta al usuario
+      const { error: centroError } = await supabase
+        .from("centro_educativo")
+        .upsert(
+          {
+            id: user.id,
+            nombre: nombre,
+            codigo_institucional: codigoInstitucional,
+            email_contacto: emailContacto,
+            telefono: telefono,
+            // Campos añadidos por la migración:
+            tipo_centro: tipoCentro,
+            ciudad: ciudad,
+            provincia: provincia,
+            sitio_web: sitioWeb,
+            descripcion: descripcion,
+            num_alumnos: numAlumnos !== "" ? Number(numAlumnos) : null,
+            titulaciones: titulaciones,
+            logo_url: logoUrl,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" },
+        );
+
+      if (centroError) throw centroError;
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      // console.error("Error al guardar:", err.message);
+      console.error("Error completo:", err);
+      setSaveError("No se pudieron guardar los cambios. Inténtalo de nuevo.");
+    } finally {
+      setSaving(false);
+    }
   };
 
+  // ── Generar QR de invitación ─────────────────────────────────────────
   const handleGenerateQR = async () => {
     setGeneratingToken(true);
     const token = crypto.randomUUID();
-    await supabase
-      .from("invite_tokens")
-      .insert({
-        token,
-        entity_id: user.id,
-        entity_type: "centro_educativo",
-        expires_at: new Date(
-          Date.now() + 7 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
-        used: false,
-      });
+    await supabase.from("invite_tokens").insert({
+      token,
+      entity_id: user.id,
+      entity_type: "centro_educativo",
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      used: false,
+    });
     setInviteUrl(
       `${window.location.origin}/registro-tutor?token=${token}&entity=${user.id}&type=centro_educativo`,
     );
@@ -294,10 +356,12 @@ export default function CenterProfile() {
     setShowQR(true);
   };
 
+  // ── Render ───────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-dark">
       <Header onLoginClick={() => {}} onRegisterClick={() => {}} />
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
+        {/* Cabecera */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="font-display text-3xl font-bold text-white">
@@ -343,14 +407,22 @@ export default function CenterProfile() {
           </button>
         </div>
 
+        {/* Error de guardado */}
+        {saveError && (
+          <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+            {saveError}
+          </div>
+        )}
+
         <div className="space-y-6">
+          {/* Logo */}
           <SectionCard title="Logo del centro">
             <div className="flex items-center gap-5">
               <div className="relative flex-shrink-0">
                 {logoUrl ? (
                   <img
                     src={logoUrl}
-                    alt={centerName}
+                    alt={nombre}
                     className="w-20 h-20 rounded-2xl object-cover border border-white/10"
                   />
                 ) : (
@@ -389,9 +461,14 @@ export default function CenterProfile() {
               </div>
               <div>
                 <p className="text-white font-semibold text-lg font-display">
-                  {centerName || "Tu centro"}
+                  {nombre || "Tu centro"}
                 </p>
                 <p className="text-gray-500 text-sm mb-3">{user?.email}</p>
+                {verificado && (
+                  <span className="inline-flex items-center gap-1 text-xs text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full mb-3">
+                    ✓ Centro verificado
+                  </span>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -409,6 +486,7 @@ export default function CenterProfile() {
             </div>
           </SectionCard>
 
+          {/* Información del centro */}
           <SectionCard title="Información del centro">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="sm:col-span-2">
@@ -417,8 +495,8 @@ export default function CenterProfile() {
                 </label>
                 <input
                   type="text"
-                  value={centerName}
-                  onChange={(e) => setCenterName(e.target.value)}
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
                   placeholder="IES Nombre del Centro"
                   className="input-field"
                 />
@@ -429,9 +507,9 @@ export default function CenterProfile() {
                 </label>
                 <input
                   type="text"
-                  value={institutionalCode}
-                  onChange={(e) => setInstitutionalCode(e.target.value)}
-                  placeholder="IES-MAD-2024"
+                  value={codigoInstitucional}
+                  onChange={(e) => setCodigoInstitucional(e.target.value)}
+                  placeholder="IES-COR-2026"
                   className="input-field"
                 />
               </div>
@@ -440,8 +518,8 @@ export default function CenterProfile() {
                   Tipo de centro
                 </label>
                 <select
-                  value={centerType}
-                  onChange={(e) => setCenterType(e.target.value)}
+                  value={tipoCentro}
+                  onChange={(e) => setTipoCentro(e.target.value)}
                   className="input-field"
                 >
                   <option value="">Seleccionar</option>
@@ -465,9 +543,9 @@ export default function CenterProfile() {
                 </label>
                 <input
                   type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Madrid"
+                  value={ciudad}
+                  onChange={(e) => setCiudad(e.target.value)}
+                  placeholder="Córdoba"
                   className="input-field"
                 />
               </div>
@@ -477,9 +555,9 @@ export default function CenterProfile() {
                 </label>
                 <input
                   type="text"
-                  value={province}
-                  onChange={(e) => setProvince(e.target.value)}
-                  placeholder="Madrid"
+                  value={provincia}
+                  onChange={(e) => setProvincia(e.target.value)}
+                  placeholder="Córdoba"
                   className="input-field"
                 />
               </div>
@@ -489,8 +567,8 @@ export default function CenterProfile() {
                 </label>
                 <input
                   type="number"
-                  value={studentsCount}
-                  onChange={(e) => setStudentsCount(e.target.value)}
+                  value={numAlumnos}
+                  onChange={(e) => setNumAlumnos(e.target.value)}
                   placeholder="300"
                   className="input-field"
                 />
@@ -501,8 +579,8 @@ export default function CenterProfile() {
                 </label>
                 <input
                   type="url"
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
+                  value={sitioWeb}
+                  onChange={(e) => setSitioWeb(e.target.value)}
                   placeholder="https://iesejemplo.edu.es"
                   className="input-field"
                 />
@@ -510,25 +588,26 @@ export default function CenterProfile() {
             </div>
           </SectionCard>
 
+          {/* Titulaciones */}
           <SectionCard title="Ciclos / Titulaciones ofertadas">
             <input
               type="text"
-              value={degreeInput}
-              onChange={(e) => setDegreeInput(e.target.value)}
-              onKeyDown={handleDegreeKey}
+              value={titulacionInput}
+              onChange={(e) => setTitulacionInput(e.target.value)}
+              onKeyDown={handleTitulacionKey}
               placeholder="Escribe una titulación y pulsa Enter (DAM, DAW, ASIR...)"
               className="input-field mb-3"
             />
             <div className="flex flex-wrap gap-2">
-              {degreesOffered.map((d) => (
+              {titulaciones.map((t) => (
                 <span
-                  key={d}
+                  key={t}
                   className="flex items-center gap-1.5 bg-brand/10 border border-brand/20 text-brand text-sm px-3 py-1 rounded-full"
                 >
-                  {d}
+                  {t}
                   <button
                     onClick={() =>
-                      setDegreesOffered(degreesOffered.filter((x) => x !== d))
+                      setTitulaciones(titulaciones.filter((x) => x !== t))
                     }
                     className="text-brand/60 hover:text-brand"
                   >
@@ -536,7 +615,7 @@ export default function CenterProfile() {
                   </button>
                 </span>
               ))}
-              {degreesOffered.length === 0 && (
+              {titulaciones.length === 0 && (
                 <p className="text-gray-600 text-sm">
                   Aún no has añadido titulaciones
                 </p>
@@ -544,19 +623,21 @@ export default function CenterProfile() {
             </div>
           </SectionCard>
 
+          {/* Descripción */}
           <SectionCard title="Descripción del centro">
             <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value.slice(0, 500))}
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value.slice(0, 500))}
               rows={4}
               placeholder="Describe el centro, su especialización, proyectos destacados y qué tipo de empresas suelen colaborar..."
               className="input-field resize-none"
             />
             <p className="text-xs text-gray-600 mt-1 text-right">
-              {description.length}/500
+              {descripcion.length}/500
             </p>
           </SectionCard>
 
+          {/* Datos de contacto */}
           <SectionCard title="Datos de contacto">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -565,8 +646,8 @@ export default function CenterProfile() {
                 </label>
                 <input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={emailContacto}
+                  onChange={(e) => setEmailContacto(e.target.value)}
                   placeholder="secretaria@centro.edu.es"
                   className="input-field"
                 />
@@ -577,8 +658,8 @@ export default function CenterProfile() {
                 </label>
                 <input
                   type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value)}
                   placeholder="+34 900 000 000"
                   className="input-field"
                 />
@@ -586,7 +667,7 @@ export default function CenterProfile() {
             </div>
           </SectionCard>
 
-          {/* QR de invitación para tutores */}
+          {/* QR de invitación */}
           <SectionCard title="Invitar tutores de centro">
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center">
@@ -655,10 +736,11 @@ export default function CenterProfile() {
           </SectionCard>
         </div>
       </main>
+
       {showQR && (
         <QRModal
           url={inviteUrl}
-          entityName={centerName || "tu centro"}
+          entityName={nombre || "tu centro"}
           onClose={() => setShowQR(false)}
         />
       )}

@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../context/AuthContext";
 import logoUrl from "../../assets/logo_relance.jpg";
 
+// ── Password field con indicador de fortaleza ────────────────────────────────
 function PasswordField({ value, onChange }) {
   const [show, setShow] = useState(false);
   const score = !value
@@ -83,16 +85,126 @@ function PasswordField({ value, onChange }) {
   );
 }
 
+function Spinner({ className = "w-8 h-8" }) {
+  return (
+    <svg
+      className={`animate-spin text-brand ${className}`}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
+    </svg>
+  );
+}
+
+// ── Pantalla: sesión activa ──────────────────────────────────────────────────
+function AlreadyLoggedIn({ userName, onSignOut }) {
+  return (
+    <div className="min-h-screen bg-dark flex items-center justify-center p-4">
+      <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-md p-10 text-center">
+        <div className="mb-4 flex justify-center">
+          <svg className="w-14 h-14 text-brand" viewBox="0 0 640 640">
+            <use href="/icons.svg#icon-user-check" />
+          </svg>
+        </div>
+        <h2 className="font-display text-xl font-bold text-white mb-2">
+          Ya tienes sesión iniciada
+        </h2>
+        <p className="text-gray-400 text-sm mb-6">
+          Estás conectado como{" "}
+          <strong className="text-white">{userName}</strong>. Para registrarte
+          con esta invitación, cierra tu sesión primero.
+        </p>
+        <button onClick={onSignOut} className="btn-primary w-full mb-3">
+          Cerrar sesión y continuar
+        </button>
+        <a href="/" className="btn-secondary block w-full text-center">
+          Volver al inicio
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ── Pantalla: token inválido ─────────────────────────────────────────────────
+function InvalidToken() {
+  return (
+    <div className="min-h-screen bg-dark flex items-center justify-center p-4">
+      <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-md p-10 text-center">
+        <div className="mb-4 flex justify-center">
+          <svg className="w-14 h-14 text-yellow-400" viewBox="0 0 640 640">
+            <use href="/icons.svg#icon-warning" />
+          </svg>
+        </div>
+        <h2 className="font-display text-xl font-bold text-white mb-2">
+          Enlace inválido o caducado
+        </h2>
+        <p className="text-gray-400 text-sm mb-6">
+          Este enlace de invitación no es válido, ya ha sido usado o ha caducado
+          (validez: 7 días). Pide a tu empresa o centro que genere un nuevo
+          código QR desde su perfil.
+        </p>
+        <a href="/" className="btn-secondary block w-full text-center">
+          Volver al inicio
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ── Pantalla: éxito ──────────────────────────────────────────────────────────
+function SuccessScreen({ entityName, navigate }) {
+  return (
+    <div className="min-h-screen bg-dark flex items-center justify-center p-4">
+      <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-md p-10 text-center">
+        <div className="mb-5 flex justify-center">
+          <svg className="w-16 h-16 text-brand" viewBox="0 0 640 640">
+            <use href="/icons.svg#icon-party" />
+          </svg>
+        </div>
+        <h2 className="font-display text-2xl font-bold text-white mb-3">
+          ¡Ya eres parte del equipo!
+        </h2>
+        <p className="text-gray-400 text-sm mb-2">
+          Tu cuenta de tutor ha sido creada y vinculada a:
+        </p>
+        <p className="text-brand font-semibold text-lg mb-4">{entityName}</p>
+        <p className="text-gray-500 text-xs mb-8">
+          Revisa tu correo para verificar tu cuenta antes de iniciar sesión.
+        </p>
+        <button onClick={() => navigate("/")} className="btn-primary w-full">
+          Ir al inicio
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Página principal ─────────────────────────────────────────────────────────
 export default function TutorRegisterPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const { user, loading: authLoading, signOut } = useAuth();
+
   const token = params.get("token");
-  const entityId = params.get("entity"); // ID de empresa o centro
+  const entityId = params.get("entity");
   const entityType = params.get("type"); // 'empresa' | 'centro_educativo'
 
+  // pageState: "loading" | "logged_in" | "invalid" | "form" | "success"
+  const [pageState, setPageState] = useState("loading");
   const [entityInfo, setEntityInfo] = useState(null);
-  const [loadingEntity, setLoadingEntity] = useState(true);
-  const [invalidToken, setInvalidToken] = useState(false);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -103,177 +215,211 @@ export default function TutorRegisterPage() {
     specialty: "",
   });
   const s = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
+  // ── Validar token ────────────────────────────────────────────────────
+  // La tabla invite_tokens necesita una política RLS de SELECT para "anon":
+  //   Supabase Dashboard → Authentication → Policies → invite_tokens
+  //   → New Policy → "Enable read access for all users" → USING (true)
+  const validateToken = async () => {
+    if (!token || !entityId || !entityType) return null;
 
-  // Cargar información de la entidad invitante
+    const { data, error } = await supabase
+      .from("invite_tokens")
+      .select("id, entity_id, entity_type, used, expires_at")
+      .eq("token", token)
+      .eq("entity_id", entityId)
+      .eq("used", false)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle(); // No lanza error si 0 filas, a diferencia de .single()
+
+    if (error) {
+      console.error("Error al validar token:", error.message);
+      return null;
+    }
+    return data; // null si no existe/expiró
+  };
+
+  const fetchEntityName = async () => {
+    try {
+      if (entityType === "empresa") {
+        const { data } = await supabase
+          .from("empresa")
+          .select("nombre")
+          .eq("id_usuario", entityId)
+          .maybeSingle();
+        return data?.nombre || null;
+      }
+      if (entityType === "centro_educativo") {
+        const { data } = await supabase
+          .from("centro_educativo")
+          .select("nombre")
+          .eq("id", entityId)
+          .maybeSingle();
+        return data?.nombre || null;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  // ── Efecto: esperar a Auth, luego validar ────────────────────────────
   useEffect(() => {
-    const loadEntity = async () => {
-      if (!token || !entityId || !entityType) {
-        setInvalidToken(true);
-        setLoadingEntity(false);
+    if (authLoading) return; // Esperar a que AuthContext resuelva
+
+    const init = async () => {
+      // Si hay sesión activa, mostrar aviso
+      if (user) {
+        setPageState("logged_in");
         return;
       }
 
-      // Verificar que el token es válido en la tabla invite_tokens
-      const { data: tokenData, error: tokenError } = await supabase
-        .from("invite_tokens")
-        .select("*, profiles(*)")
-        .eq("token", token)
-        .eq("entity_id", entityId)
-        .eq("used", false)
-        .gt("expires_at", new Date().toISOString())
-        .single();
-
-      if (tokenError || !tokenData) {
-        setInvalidToken(true);
-        setLoadingEntity(false);
+      // Validar token
+      const tokenData = await validateToken();
+      if (!tokenData) {
+        setPageState("invalid");
         return;
       }
+
+      // Obtener nombre de la entidad (best effort)
+      const entityName = await fetchEntityName();
 
       setEntityInfo({
         name:
-          tokenData.profiles?.company_name ||
-          tokenData.profiles?.center_name ||
-          "Entidad",
+          entityName || (entityType === "empresa" ? "la empresa" : "el centro"),
         type: entityType,
         id: entityId,
+        tokenId: tokenData.id,
       });
-      setLoadingEntity(false);
-    };
-    loadEntity();
-  }, [token, entityId, entityType]);
 
+      setPageState("form");
+    };
+
+    init();
+  }, [authLoading, user]);
+
+  // ── Cerrar sesión → AuthContext actualiza user → useEffect re-ejecuta ─
+  const handleSignOut = async () => {
+    setPageState("loading");
+    await signOut();
+  };
+
+  // ── Submit: crear cuenta + insertar en BD ────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.password !== form.confirmPassword) {
-      setError("Las contraseñas no coinciden.");
+      setSubmitError("Las contraseñas no coinciden.");
       return;
     }
     if (form.password.length < 8) {
-      setError("Mínimo 8 caracteres.");
+      setSubmitError("La contraseña debe tener mínimo 8 caracteres.");
       return;
     }
-    setLoading(true);
-    setError(null);
+
+    setSubmitting(true);
+    setSubmitError(null);
 
     const role = entityType === "empresa" ? "tutor_empresa" : "tutor_centro";
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: {
-        data: {
-          full_name: form.fullName,
-          role,
-          phone: form.phone,
-          specialty: form.specialty,
-          entity_id: entityId,
-          entity_type: entityType,
-          invite_token: token,
+    try {
+      // 1. Crear cuenta en Supabase Auth
+      const { data: authData, error: signUpError } = await supabase.auth.signUp(
+        {
+          email: form.email,
+          password: form.password,
+          options: { data: { full_name: form.fullName, role } },
         },
-      },
-    });
+      );
+      if (signUpError) throw signUpError;
 
-    if (signUpError) {
-      setError(signUpError.message);
-      setLoading(false);
-      return;
+      const newUserId = authData.user?.id;
+      if (!newUserId)
+        throw new Error("No se pudo obtener el ID del nuevo usuario.");
+
+      // 2. Insertar en tabla genérica "usuario"
+      const { error: usuarioError } = await supabase.from("usuario").upsert(
+        {
+          id: newUserId,
+          email: form.email,
+          nombre: form.fullName,
+          rol: role,
+          is_profile_completed: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" },
+      );
+      console.log("usuario insert error:", usuarioError);
+
+      if (usuarioError && !usuarioError.message?.includes("duplicate")) {
+        throw usuarioError;
+      }
+
+      // 3. Insertar en tabla de tutor y vincular a la entidad
+      //    Ajusta los nombres de tabla y columnas según tu esquema real
+      if (entityType === "empresa") {
+        const { error: tutorError } = await supabase
+          .from("tutor_empresa")
+          .insert({
+            id: newUserId, // PK = id del usuario
+            empresa_id: entityId,
+            nombre: form.fullName,
+            telefono: form.phone || null,
+            cargo: form.specialty || null, // specialty → cargo
+          });
+        if (tutorError)
+          console.warn("tutor_empresa insert:", tutorError.message);
+      } else {
+        const { error: tutorError } = await supabase
+          .from("tutor_centro")
+          .insert({
+            id: newUserId, // PK = id del usuario
+            centro_id: entityId,
+            nombre: form.fullName,
+            telefono: form.phone || null,
+            departamento: form.specialty || null, // specialty → departamento
+          });
+        if (tutorError)
+          console.warn("tutor_centro insert:", tutorError.message);
+      }
+
+      // 4. Marcar token como usado
+      await supabase
+        .from("invite_tokens")
+        .update({ used: true, used_at: new Date().toISOString() })
+        .eq("token", token);
+
+      setPageState("success");
+    } catch (err) {
+      console.error("Error en registro de tutor:", err);
+      setSubmitError(
+        err.message || "Error al crear la cuenta. Inténtalo de nuevo.",
+      );
+    } finally {
+      setSubmitting(false);
     }
-
-    // Marcar token como usado
-    await supabase
-      .from("invite_tokens")
-      .update({ used: true, used_at: new Date().toISOString() })
-      .eq("token", token);
-
-    setLoading(false);
-    setSuccess(true);
   };
 
-  // ── Estados de carga / error ──────────────────────────────────────────────
-  if (loadingEntity) {
+  // ── Renders condicionales ────────────────────────────────────────────
+  if (pageState === "loading") {
     return (
       <div className="min-h-screen bg-dark flex items-center justify-center">
-        <svg
-          className="animate-spin w-8 h-8 text-brand"
-          viewBox="0 0 24 24"
-          fill="none"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-          />
-        </svg>
+        <Spinner />
       </div>
     );
   }
-
-  if (invalidToken) {
-    return (
-      <div className="min-h-screen bg-dark flex items-center justify-center p-4">
-        <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-md p-10 text-center">
-          <div className="mb-4 flex justify-center">
-            <svg className="w-14 h-14 text-yellow-400" viewBox="0 0 640 640">
-              <use href="/icons.svg#icon-warning" />
-            </svg>
-          </div>
-          <h2 className="font-display text-xl font-bold text-white mb-2">
-            Enlace inválido o caducado
-          </h2>
-          <p className="text-gray-400 text-sm mb-6">
-            Este enlace de invitación no es válido, ya ha sido usado o ha
-            caducado (validez: 7 días). Pide a tu empresa o centro que genere un
-            nuevo código QR desde su panel de configuración.
-          </p>
-          <a href="/" className="btn-secondary block w-full text-center">
-            Volver al inicio
-          </a>
-        </div>
-      </div>
-    );
+  if (pageState === "logged_in") {
+    const displayName =
+      user?.user_metadata?.full_name || user?.email || "tu cuenta actual";
+    return <AlreadyLoggedIn userName={displayName} onSignOut={handleSignOut} />;
+  }
+  if (pageState === "invalid") return <InvalidToken />;
+  if (pageState === "success") {
+    return <SuccessScreen entityName={entityInfo?.name} navigate={navigate} />;
   }
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-dark flex items-center justify-center p-4">
-        <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-md p-10 text-center">
-          <div className="mb-5 flex justify-center">
-            <svg className="w-16 h-16 text-brand" viewBox="0 0 640 640">
-              <use href="/icons.svg#icon-party" />
-            </svg>
-          </div>
-          <h2 className="font-display text-2xl font-bold text-white mb-3">
-            ¡Ya eres parte del equipo!
-          </h2>
-          <p className="text-gray-400 text-sm mb-2">
-            Tu cuenta de tutor ha sido creada y enlazada con:
-          </p>
-          <p className="text-brand font-semibold text-lg mb-6">
-            {entityInfo?.name}
-          </p>
-          <p className="text-gray-500 text-xs mb-8">
-            Revisa tu correo para verificar tu cuenta.
-          </p>
-          <button onClick={() => navigate("/")} className="btn-primary w-full">
-            Ir al inicio
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  // ── Formulario ───────────────────────────────────────────────────────
   const entityLabel = entityType === "empresa" ? "empresa" : "centro educativo";
   const roleLabel =
     entityType === "empresa" ? "tutor de empresa" : "tutor de centro educativo";
@@ -391,13 +537,17 @@ export default function TutorRegisterPage() {
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-1.5">
-                    Especialidad / Área
+                    {entityType === "empresa" ? "Cargo" : "Departamento"}
                   </label>
                   <input
                     type="text"
                     value={form.specialty}
                     onChange={s("specialty")}
-                    placeholder="Ej: Desarrollo Web"
+                    placeholder={
+                      entityType === "empresa"
+                        ? "Ej: Responsable de RRHH"
+                        : "Ej: Informática"
+                    }
                     className="input-field"
                   />
                 </div>
@@ -406,13 +556,13 @@ export default function TutorRegisterPage() {
 
             {/* Entidad vinculada (solo lectura) */}
             <div className="bg-dark border border-white/8 rounded-xl p-3 flex items-center gap-3">
-              <span className="text-xl">
+              <span>
                 {entityType === "empresa" ? (
-                  <svg className="w-5 h-5" viewBox="0 0 640 640">
+                  <svg className="w-5 h-5 text-gray-400" viewBox="0 0 640 640">
                     <use href="/icons.svg#icon-building" />
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5" viewBox="0 0 640 640">
+                  <svg className="w-5 h-5 text-gray-400" viewBox="0 0 640 640">
                     <use href="/icons.svg#icon-school" />
                   </svg>
                 )}
@@ -425,43 +575,25 @@ export default function TutorRegisterPage() {
               </div>
               <div className="ml-auto">
                 <span className="text-xs bg-brand/20 text-brand px-2 py-0.5 rounded-full">
-                  Verificado
+                  Invitación válida
                 </span>
               </div>
             </div>
 
-            {error && (
+            {submitError && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
-                {error}
+                {submitError}
               </div>
             )}
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={submitting}
               className="btn-primary w-full flex justify-center items-center gap-2 py-3.5 text-base disabled:opacity-50"
             >
-              {loading ? (
+              {submitting ? (
                 <>
-                  <svg
-                    className="animate-spin w-4 h-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
+                  <Spinner className="w-4 h-4" />
                   Creando cuenta...
                 </>
               ) : (
@@ -470,6 +602,16 @@ export default function TutorRegisterPage() {
             </button>
           </form>
         </div>
+
+        <p className="text-center text-xs text-gray-600 mt-4">
+          ¿Ya tienes cuenta?{" "}
+          <a
+            href="/"
+            className="text-gray-400 hover:text-white underline transition-colors"
+          >
+            Inicia sesión desde el inicio
+          </a>
+        </p>
       </div>
     </div>
   );

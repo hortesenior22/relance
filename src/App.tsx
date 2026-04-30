@@ -19,7 +19,14 @@ import ProtectedRoute from "./components/routes/ProtectedRoute";
 
 // Roles que nunca deben ver el onboarding modal porque ya
 // completan sus datos durante el registro o tienen perfil propio
-const ROLES_SIN_ONBOARDING = ["empresa", "centro_educativo"];
+const ROLES_SIN_ONBOARDING = [
+  "estudiante",
+  "empresa",
+  "centro_educativo",
+  "tutor_empresa",
+  "tutor_centro",
+  "tutor",
+];
 
 /* ───────── App Content ───────── */
 
@@ -41,30 +48,42 @@ function AppContent() {
     return () => clearTimeout(fallback);
   }, [loading]);
 
-  const params = new URLSearchParams(window.location.search);
-  const isGitHubConnect = params.has("gh");
+  // const params = new URLSearchParams(window.location.search);
+  // const isGitHubConnect = params.has("gh");
 
   // No mostrar onboarding si el usuario acaba de registrarse desde /registro
   // ya que en esa página ya se recogen todos los datos necesarios
-  const isFromRegisterPage = window.location.pathname === "/registro";
+  // const isFromRegisterPage =
+  //   window.location.pathname === "/registro" ||
+  //   window.location.pathname === "/registro-tutor";
 
   const lastCheckedUserId = useRef<string | null>(null);
+  const retryTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const checkOnboarding = async (currentUser: typeof user) => {
+  // const ROLES_SIN_ONBOARDING = [
+  //   "empresa",
+  //   "centro_educativo",
+  //   "tutor_empresa",
+  //   "tutor_centro",
+  //   "tutor",
+  // ];
+
+  const checkOnboarding = async (currentUser: typeof user, attempt = 0) => {
+    if (retryTimeout.current) clearTimeout(retryTimeout.current);
+
     if (!currentUser) {
       setShowOnboarding(false);
       lastCheckedUserId.current = null;
       return;
     }
 
-    // Si viene de la página de registro, nunca mostrar onboarding
-    if (isFromRegisterPage) {
+    if (["/registro", "/registro-tutor"].includes(window.location.pathname)) {
       setShowOnboarding(false);
       return;
     }
 
-    if (lastCheckedUserId.current === currentUser.id) return;
-    lastCheckedUserId.current = currentUser.id;
+    if (attempt === 0 && lastCheckedUserId.current === currentUser.id) return;
+    if (attempt === 0) lastCheckedUserId.current = currentUser.id;
 
     try {
       const { data, error } = await supabase
@@ -75,14 +94,24 @@ function AppContent() {
 
       if (error) throw error;
 
-      // Empresa y centro educativo nunca ven el modal de onboarding:
-      // ya rellenan sus datos en el registro o tienen página de perfil propia
-      if (data?.rol && ROLES_SIN_ONBOARDING.includes(data.rol)) {
+      if (!data) {
+        if (attempt < 4) {
+          retryTimeout.current = setTimeout(
+            () => checkOnboarding(currentUser, attempt + 1),
+            1000 * (attempt + 1),
+          );
+        } else {
+          setShowOnboarding(false);
+        }
+        return;
+      }
+
+      if (ROLES_SIN_ONBOARDING.includes(data.rol)) {
         setShowOnboarding(false);
         return;
       }
 
-      setShowOnboarding(!data || data.is_profile_completed !== true);
+      setShowOnboarding(data.is_profile_completed !== true);
     } catch (err) {
       console.warn("checkOnboarding error:", err);
       setShowOnboarding(false);
@@ -93,7 +122,8 @@ function AppContent() {
     if (!loading) {
       checkOnboarding(user);
 
-      if (isGitHubConnect) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("gh")) {
         window.history.replaceState(
           {},
           document.title,
@@ -101,12 +131,93 @@ function AppContent() {
         );
       }
     }
+
+    return () => {
+      if (retryTimeout.current) clearTimeout(retryTimeout.current);
+    };
   }, [user, loading]);
 
   if (safeLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark">
-        <div className="w-20 h-20 text-[#C0FF72]">Loading...</div>
+        <div className="w-20 h-20 text-[#C0FF72]">
+          <svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+            <g>
+              <rect
+                className="box5532"
+                x="13"
+                y="1"
+                rx="1"
+                width="10"
+                height="10"
+              />
+              <rect
+                className="box5532"
+                x="13"
+                y="1"
+                rx="1"
+                width="10"
+                height="10"
+              />
+              <rect
+                className="box5532"
+                x="25"
+                y="25"
+                rx="1"
+                width="10"
+                height="10"
+              />
+              <rect
+                className="box5532"
+                x="13"
+                y="13"
+                rx="1"
+                width="10"
+                height="10"
+              />
+              <rect
+                className="box5532"
+                x="13"
+                y="13"
+                rx="1"
+                width="10"
+                height="10"
+              />
+              <rect
+                className="box5532"
+                x="25"
+                y="13"
+                rx="1"
+                width="10"
+                height="10"
+              />
+              <rect
+                className="box5532"
+                x="1"
+                y="25"
+                rx="1"
+                width="10"
+                height="10"
+              />
+              <rect
+                className="box5532"
+                x="13"
+                y="25"
+                rx="1"
+                width="10"
+                height="10"
+              />
+              <rect
+                className="box5532"
+                x="25"
+                y="25"
+                rx="1"
+                width="10"
+                height="10"
+              />
+            </g>
+          </svg>
+        </div>
       </div>
     );
   }
