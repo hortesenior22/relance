@@ -22,6 +22,7 @@ function PasswordField({ value, onChange }) {
     "bg-brand",
   ];
   const labels = ["", "Muy débil", "Débil", "Media", "Fuerte"];
+
   return (
     <div>
       <div className="relative">
@@ -71,7 +72,9 @@ function PasswordField({ value, onChange }) {
           {[1, 2, 3, 4].map((lvl) => (
             <div
               key={lvl}
-              className={`h-1 flex-1 rounded-full transition-all duration-300 ${score >= lvl ? colors[score] : "bg-white/10"}`}
+              className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                score >= lvl ? colors[score] : "bg-white/10"
+              }`}
             />
           ))}
           <span className="text-xs text-gray-500 w-16 text-right">
@@ -100,7 +103,7 @@ export default function TutorRegisterPage() {
     password: "",
     confirmPassword: "",
     phone: "",
-    specialty: "",
+    extra: "", // cargo (empresa) | departamento (centro)
   });
   const s = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -108,6 +111,7 @@ export default function TutorRegisterPage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
+  // ── Validar token y cargar entidad ───────────────────────────────────────
   useEffect(() => {
     const loadEntity = async () => {
       if (!token || !entityId || !entityType) {
@@ -116,7 +120,6 @@ export default function TutorRegisterPage() {
         return;
       }
 
-      // 1. Validar token
       const { data: tokenData, error: tokenError } = await supabase
         .from("invite_tokens")
         .select("id, token, entity_id, entity_type, expires_at, used")
@@ -127,13 +130,11 @@ export default function TutorRegisterPage() {
         .maybeSingle();
 
       if (tokenError || !tokenData) {
-        console.error("[TutorRegister] Token inválido:", tokenError);
         setInvalidToken(true);
         setLoadingEntity(false);
         return;
       }
 
-      // 2. Buscar nombre de la entidad en la tabla correcta
       let entityName = "Entidad";
 
       if (entityType === "empresa") {
@@ -144,14 +145,11 @@ export default function TutorRegisterPage() {
           .maybeSingle();
         if (data?.nombre) entityName = data.nombre;
       } else if (entityType === "centro_educativo") {
-        // ✅ FIX: usar "id" en vez de "id_centro"
-        const { data, error: centroError } = await supabase
+        const { data } = await supabase
           .from("centro_educativo")
           .select("nombre")
           .eq("id", entityId)
           .maybeSingle();
-        if (centroError)
-          console.error("[TutorRegister] Error buscando centro:", centroError);
         if (data?.nombre) entityName = data.nombre;
       }
 
@@ -162,8 +160,10 @@ export default function TutorRegisterPage() {
     loadEntity();
   }, [token, entityId, entityType]);
 
+  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (form.password !== form.confirmPassword) {
       setError("Las contraseñas no coinciden.");
       return;
@@ -172,26 +172,30 @@ export default function TutorRegisterPage() {
       setError("Mínimo 8 caracteres.");
       return;
     }
+
     setLoading(true);
     setError(null);
 
     const role = entityType === "empresa" ? "tutor_empresa" : "tutor_centro";
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: {
-        data: {
-          full_name: form.fullName,
-          role,
-          phone: form.phone,
-          specialty: form.specialty,
-          entity_id: entityId,
-          entity_type: entityType,
-          invite_token: token,
+    // 1. Crear usuario en Supabase Auth
+    //    El trigger handle_new_user se encarga de insertar en `usuario`
+    //    y en `tutor_empresa` / `tutor_centro` automáticamente
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
+      {
+        email: form.email,
+        password: form.password,
+        options: {
+          data: {
+            full_name: form.fullName,
+            role, // leído por el trigger
+            entity_id: entityId, // leído por el trigger
+            entity_type: entityType,
+            invite_token: token,
+          },
         },
       },
-    });
+    );
 
     if (signUpError) {
       setError(signUpError.message);
@@ -199,7 +203,47 @@ export default function TutorRegisterPage() {
       return;
     }
 
-    // Marcar token como usado
+    const uid = signUpData?.user?.id;
+
+    if (uid) {
+      // 2. Actualizar telefono y cargo/departamento por usuario_id
+      //    El trigger ya creó la fila; aquí solo completamos los campos extra
+      if (role === "tutor_empresa") {
+        const { error: tutorError } = await supabase
+          .from("tutor_empresa")
+          .update({
+            cargo: form.extra || null,
+            telefono: form.phone || null,
+          })
+          .eq("usuario_id", uid);
+
+        if (tutorError) {
+          console.error(
+            "[TutorRegister] Error actualizando tutor_empresa:",
+            tutorError,
+          );
+        }
+      }
+
+      if (role === "tutor_centro") {
+        const { error: tutorError } = await supabase
+          .from("tutor_centro")
+          .update({
+            departamento: form.extra || null,
+            telefono: form.phone || null,
+          })
+          .eq("usuario_id", uid);
+
+        if (tutorError) {
+          console.error(
+            "[TutorRegister] Error actualizando tutor_centro:",
+            tutorError,
+          );
+        }
+      }
+    }
+
+    // 3. Marcar token como usado
     await supabase
       .from("invite_tokens")
       .update({ used: true, used_at: new Date().toISOString() })
@@ -209,7 +253,15 @@ export default function TutorRegisterPage() {
     setSuccess(true);
   };
 
-  // ── Estados de carga / error ──────────────────────────────────────────────
+  // ── Labels dinámicos ─────────────────────────────────────────────────────
+  const extraLabel = entityType === "empresa" ? "Cargo" : "Departamento / Área";
+  const extraPlaceholder =
+    entityType === "empresa" ? "Ej: Responsable RRHH" : "Ej: Desarrollo Web";
+  const entityLabel = entityType === "empresa" ? "empresa" : "centro educativo";
+  const roleLabel =
+    entityType === "empresa" ? "tutor de empresa" : "tutor de centro educativo";
+
+  // ── Estados de carga / error / éxito ─────────────────────────────────────
   if (loadingEntity) {
     return (
       <div className="min-h-screen bg-dark flex items-center justify-center">
@@ -290,10 +342,6 @@ export default function TutorRegisterPage() {
     );
   }
 
-  const entityLabel = entityType === "empresa" ? "empresa" : "centro educativo";
-  const roleLabel =
-    entityType === "empresa" ? "tutor de empresa" : "tutor de centro educativo";
-
   return (
     <div className="min-h-screen bg-dark py-12 px-4">
       <div className="max-w-lg mx-auto">
@@ -346,6 +394,7 @@ export default function TutorRegisterPage() {
                 className="input-field"
               />
             </div>
+
             <div>
               <label className="block text-sm text-gray-400 mb-1.5">
                 Correo electrónico *
@@ -359,12 +408,14 @@ export default function TutorRegisterPage() {
                 className="input-field"
               />
             </div>
+
             <div>
               <label className="block text-sm text-gray-400 mb-1.5">
                 Contraseña *
               </label>
               <PasswordField value={form.password} onChange={s("password")} />
             </div>
+
             <div>
               <label className="block text-sm text-gray-400 mb-1.5">
                 Confirmar contraseña *
@@ -388,6 +439,7 @@ export default function TutorRegisterPage() {
                 )}
             </div>
 
+            {/* Información adicional */}
             <div className="pt-2 border-t border-white/10">
               <p className="text-xs text-gray-500 mb-3 uppercase tracking-wider font-semibold">
                 Información adicional
@@ -407,13 +459,13 @@ export default function TutorRegisterPage() {
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-1.5">
-                    Especialidad / Área
+                    {extraLabel}
                   </label>
                   <input
                     type="text"
-                    value={form.specialty}
-                    onChange={s("specialty")}
-                    placeholder="Ej: Desarrollo Web"
+                    value={form.extra}
+                    onChange={s("extra")}
+                    placeholder={extraPlaceholder}
                     className="input-field"
                   />
                 </div>
@@ -422,7 +474,7 @@ export default function TutorRegisterPage() {
 
             {/* Entidad vinculada (solo lectura) */}
             <div className="bg-dark border border-white/8 rounded-xl p-3 flex items-center gap-3">
-              <span className="text-xl">
+              <span>
                 {entityType === "empresa" ? (
                   <svg className="w-5 h-5" viewBox="0 0 640 640">
                     <use href="/icons.svg#icon-building" />
