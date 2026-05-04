@@ -15,181 +15,175 @@ function SectionCard({ title, children }) {
 }
 
 export default function TutorProfile() {
-  const { user, userRole } = useAuth();
+  const { user, userRole, avatarUrl, refreshAvatar } = useAuth();
   const fileInputRef = useRef(null);
+  const meta = user?.user_metadata ?? {};
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [saveError, setSaveError] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  // Campos comunes
-  const [nombre, setNombre] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [fullName, setFullName] = useState(meta.full_name ?? "");
+  const role = userRole ?? meta.role ?? "";
+  const [bio, setBio] = useState("");
+  const [phone, setPhone] = useState("");
+  const [specialty, setSpecialty] = useState(meta.specialty ?? "");
+  const [skills, setSkills] = useState([]);
+  const [skillInput, setSkillInput] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
 
-  // Campo específico por rol
-  const [cargoODepartamento, setCargoODepartamento] = useState("");
-
-  // Info de la entidad vinculada
+  // Entidad a la que pertenece el tutor
   const [entityInfo, setEntityInfo] = useState(null);
 
-  const isCompanyTutor = userRole === "tutor_empresa";
-  const roleLabel = isCompanyTutor
-    ? "Tutor de empresa"
-    : "Tutor de centro educativo";
-  const roleIcon = isCompanyTutor ? "icon-building" : "icon-school";
-  const fieldLabel = isCompanyTutor ? "Cargo" : "Departamento";
-  const fieldPlaceholder = isCompanyTutor
-    ? "Ej: Responsable de RRHH"
-    : "Ej: Informática";
-
-  const initials = nombre
+  const initials = fullName
     .split(" ")
     .slice(0, 2)
     .map((n) => n[0]?.toUpperCase())
     .join("");
+  const isCompanyTutor = role === "tutor_empresa";
+  const roleLabel = isCompanyTutor
+    ? "Tutor de empresa"
+    : "Tutor de centro educativo";
+  const roleIcon = isCompanyTutor ? "icon-building" : "icon-school";
 
-  // ── Carga de datos ───────────────────────────────────────────────────
   useEffect(() => {
-    if (!user || !userRole) return;
+    if (!user) return;
+    const currentRole = userRole ?? meta.role ?? "";
+    const isEmpresa = currentRole === "tutor_empresa";
+    const tutorTable = isEmpresa ? "tutor_empresa" : "tutor_centro";
+    const entityFk = isEmpresa ? "empresa_id" : "centro_id";
 
     const load = async () => {
-      const { data: usuarioData } = await supabase
-        .from("usuario")
-        .select("avatar_url")
+      // Leer desde la tabla de tutor correcta (misma que el registro)
+      const { data } = await supabase
+        .from(tutorTable)
+        .select("*")
         .eq("id", user.id)
         .maybeSingle();
 
-      if (usuarioData?.avatar_url) setAvatarUrl(usuarioData.avatar_url);
-
-      if (isCompanyTutor) {
-        const { data } = await supabase
-          .from("tutor_empresa")
-          .select("nombre, telefono, cargo, empresa_id")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (data) {
-          setNombre(data.nombre ?? "");
-          setTelefono(data.telefono ?? "");
-          setCargoODepartamento(data.cargo ?? "");
-
-          // Cargar nombre de la empresa
-          if (data.empresa_id) {
-            const { data: emp } = await supabase
-              .from("empresa")
-              .select("nombre, logo_url")
-              .eq("id", data.empresa_id)
-              .maybeSingle();
-            if (emp) setEntityInfo({ name: emp.nombre, logo: emp.logo_url });
-          }
-        }
+      if (data) {
+        setFullName(data.nombre ?? meta.full_name ?? "");
+        setBio(data.bio ?? "");
+        setPhone(data.telefono ?? "");
+        setSpecialty(
+          isEmpresa ? (data.cargo ?? "") : (data.departamento ?? ""),
+        );
+        setSkills(data.habilidades ?? []);
+        setLinkedinUrl(data.linkedin ?? "");
       } else {
-        const { data } = await supabase
-          .from("tutor_centro")
-          .select("nombre, telefono, departamento, centro_id")
-          .eq("id", user.id)
-          .maybeSingle();
+        setFullName(meta.full_name ?? "");
+        setSpecialty(meta.specialty ?? "");
+      }
 
-        if (data) {
-          setNombre(data.nombre ?? "");
-          setTelefono(data.telefono ?? "");
-          setCargoODepartamento(data.departamento ?? "");
-
-          // Cargar nombre del centro
-          if (data.centro_id) {
-            const { data: centro } = await supabase
-              .from("centro_educativo")
-              .select("nombre, logo_url")
-              .eq("id", data.centro_id)
-              .maybeSingle();
-            if (centro)
-              setEntityInfo({ name: centro.nombre, logo: centro.logo_url });
-          }
+      // Cargar info de la entidad vinculada
+      const entityId = data?.[entityFk] ?? meta.entity_id;
+      if (entityId) {
+        if (isEmpresa) {
+          const { data: emp } = await supabase
+            .from("empresa")
+            .select("nombre")
+            .eq("id_usuario", entityId)
+            .maybeSingle();
+          if (emp) setEntityInfo({ name: emp.nombre || "Empresa" });
+        } else {
+          const { data: cen } = await supabase
+            .from("centro_educativo")
+            .select("nombre")
+            .eq("id_centro", entityId)
+            .maybeSingle();
+          if (cen) setEntityInfo({ name: cen.nombre || "Centro" });
         }
       }
     };
-
     load();
   }, [user, userRole]);
 
-  // ── Subida de avatar ─────────────────────────────────────────────────
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
     setUploading(true);
     const ext = file.name.split(".").pop();
-    const path = `avatars/tutores/${user.id}.${ext}`;
+    const path = `avatars/${user.id}.${ext}`;
     const { error } = await supabase.storage
       .from("profiles")
       .upload(path, file, { upsert: true });
     if (!error) {
       const { data } = supabase.storage.from("profiles").getPublicUrl(path);
-      setAvatarUrl(data.publicUrl);
+      await supabase
+        .from("usuario")
+        .update({
+          avatar_url: data.publicUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+      await refreshAvatar();
     }
     setUploading(false);
   };
 
-  // ── Guardar ──────────────────────────────────────────────────────────
+  const handleSkillKey = (e) => {
+    if (e.key === "Enter" && skillInput.trim()) {
+      e.preventDefault();
+      if (!skills.includes(skillInput.trim()))
+        setSkills([...skills, skillInput.trim()]);
+      setSkillInput("");
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    setSaveError(null);
+    const currentRole = userRole ?? meta.role ?? "";
+    const isEmpresa = currentRole === "tutor_empresa";
+    const tutorTable = isEmpresa ? "tutor_empresa" : "tutor_centro";
 
-    try {
-      // 1. Actualizar nombre en tabla usuario
-      const { error: usuarioError } = await supabase
-        .from("usuario")
-        .update({
-          nombre,
-          avatar_url: avatarUrl,
+    // Guardar en tabla de tutor correcta (misma que el registro)
+    const payload = isEmpresa
+      ? {
+          id: user.id,
+          nombre: fullName,
+          bio,
+          telefono: phone,
+          cargo: specialty,
+          habilidades: skills,
+          linkedin: linkedinUrl,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-      if (usuarioError) throw usuarioError;
+        }
+      : {
+          id: user.id,
+          nombre: fullName,
+          bio,
+          telefono: phone,
+          departamento: specialty,
+          habilidades: skills,
+          linkedin: linkedinUrl,
+          updated_at: new Date().toISOString(),
+        };
 
-      // 2. Upsert en la tabla de tutor correspondiente
-      if (isCompanyTutor) {
-        const { error } = await supabase
-          .from("tutor_empresa")
-          .upsert(
-            { id: user.id, nombre, telefono, cargo: cargoODepartamento },
-            { onConflict: "id" },
-          );
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("tutor_centro")
-          .upsert(
-            { id: user.id, nombre, telefono, departamento: cargoODepartamento },
-            { onConflict: "id" },
-          );
-        if (error) throw error;
-      }
+    await supabase.from(tutorTable).upsert(payload, { onConflict: "id" });
 
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      console.error("Error al guardar tutor:", err);
-      setSaveError("No se pudieron guardar los cambios. Inténtalo de nuevo.");
-    } finally {
-      setSaving(false);
-    }
+    // Nombre también en usuario
+    await supabase
+      .from("usuario")
+      .update({ nombre: fullName, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
+
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
   };
 
   return (
     <div className="min-h-screen bg-dark">
       <Header onLoginClick={() => {}} onRegisterClick={() => {}} />
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
-        {/* Cabecera */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="font-display text-3xl font-bold text-white">
               Mi perfil
             </h1>
             <div className="flex items-center gap-2 mt-1">
-              <svg className="w-4 h-4 text-gray-500" viewBox="0 0 640 640">
+              <svg className="w-4 h-4" viewBox="0 0 640 640">
                 <use href={`/icons.svg#${roleIcon}`} />
               </svg>
               <p className="text-gray-500 text-sm">{roleLabel}</p>
@@ -231,29 +225,15 @@ export default function TutorProfile() {
           </button>
         </div>
 
-        {saveError && (
-          <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
-            {saveError}
-          </div>
-        )}
-
         <div className="space-y-6">
           {/* Entidad vinculada */}
           {entityInfo && (
             <div className="bg-brand/5 border border-brand/20 rounded-2xl p-4 flex items-center gap-4">
-              {entityInfo.logo ? (
-                <img
-                  src={entityInfo.logo}
-                  alt={entityInfo.name}
-                  className="w-12 h-12 rounded-xl object-cover"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-xl bg-dark flex items-center justify-center border border-white/10">
-                  <svg className="w-5 h-5 text-gray-400" viewBox="0 0 640 640">
-                    <use href={`/icons.svg#${roleIcon}`} />
-                  </svg>
-                </div>
-              )}
+              <div className="w-12 h-12 rounded-xl bg-dark flex items-center justify-center border border-white/10">
+                <svg className="w-5 h-5 text-brand" viewBox="0 0 640 640">
+                  <use href={`/icons.svg#${roleIcon}`} />
+                </svg>
+              </div>
               <div>
                 <p className="text-xs text-gray-500 mb-0.5">Vinculado a</p>
                 <p className="text-white font-semibold font-display">
@@ -264,19 +244,18 @@ export default function TutorProfile() {
             </div>
           )}
 
-          {/* Foto */}
           <SectionCard title="Foto de perfil">
             <div className="flex items-center gap-5">
               <div className="relative flex-shrink-0">
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
-                    alt={nombre}
+                    alt={fullName}
                     className="w-20 h-20 rounded-2xl object-cover border border-white/10"
                   />
                 ) : (
                   <div className="w-20 h-20 rounded-2xl bg-brand flex items-center justify-center text-dark font-display font-bold text-2xl">
-                    {initials || "?"}
+                    {initials}
                   </div>
                 )}
                 {uploading && (
@@ -305,7 +284,7 @@ export default function TutorProfile() {
               </div>
               <div>
                 <p className="text-white font-semibold text-lg font-display">
-                  {nombre || "Tu nombre"}
+                  {fullName}
                 </p>
                 <p className="text-gray-500 text-sm mb-3">{user?.email}</p>
                 <input
@@ -325,7 +304,6 @@ export default function TutorProfile() {
             </div>
           </SectionCard>
 
-          {/* Información personal */}
           <SectionCard title="Información personal">
             <div className="space-y-3">
               <div>
@@ -334,22 +312,37 @@ export default function TutorProfile() {
                 </label>
                 <input
                   type="text"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   placeholder="Tu nombre y apellidos"
                   className="input-field"
                 />
               </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5">
+                  Sobre mí
+                </label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value.slice(0, 300))}
+                  rows={3}
+                  placeholder="Describe tu experiencia como tutor, áreas en las que puedes orientar a los estudiantes..."
+                  className="input-field resize-none"
+                />
+                <p className="text-xs text-gray-600 mt-1 text-right">
+                  {bio.length}/300
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1.5">
-                    {fieldLabel}
+                    Especialidad / Área
                   </label>
                   <input
                     type="text"
-                    value={cargoODepartamento}
-                    onChange={(e) => setCargoODepartamento(e.target.value)}
-                    placeholder={fieldPlaceholder}
+                    value={specialty}
+                    onChange={(e) => setSpecialty(e.target.value)}
+                    placeholder="Desarrollo Web, Diseño..."
                     className="input-field"
                   />
                 </div>
@@ -359,12 +352,66 @@ export default function TutorProfile() {
                   </label>
                   <input
                     type="tel"
-                    value={telefono}
-                    onChange={(e) => setTelefono(e.target.value)}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                     placeholder="+34 600 000 000"
                     className="input-field"
                   />
                 </div>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Habilidades técnicas">
+            <input
+              type="text"
+              value={skillInput}
+              onChange={(e) => setSkillInput(e.target.value)}
+              onKeyDown={handleSkillKey}
+              placeholder="Añade áreas de conocimiento y pulsa Enter..."
+              className="input-field mb-3"
+            />
+            <div className="flex flex-wrap gap-2">
+              {skills.map((s) => (
+                <span
+                  key={s}
+                  className="flex items-center gap-1.5 bg-brand/10 border border-brand/20 text-brand text-sm px-3 py-1 rounded-full"
+                >
+                  {s}
+                  <button
+                    onClick={() => setSkills(skills.filter((x) => x !== s))}
+                    className="text-brand/60 hover:text-brand"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {skills.length === 0 && (
+                <p className="text-gray-600 text-sm">
+                  Aún no has añadido áreas de conocimiento
+                </p>
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Perfil profesional">
+            <div className="flex items-center gap-3">
+              <span className="w-7 flex justify-center">
+                <svg className="w-5 h-5" viewBox="0 0 640 640">
+                  <use href="/icons.svg#icon-briefcase" />
+                </svg>
+              </span>
+              <div className="flex-1">
+                <label className="block text-xs text-gray-500 mb-1">
+                  LinkedIn
+                </label>
+                <input
+                  type="url"
+                  value={linkedinUrl}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
+                  placeholder="https://linkedin.com/in/tuusuario"
+                  className="input-field text-sm"
+                />
               </div>
             </div>
           </SectionCard>

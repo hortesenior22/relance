@@ -3,11 +3,12 @@ import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabase";
 import Header from "../../components/layout/Header";
 
-// ── Componente QR Modal ─────────────────────────────────────────────────────
-function QRModal({ url, entityName, onClose }) {
+// ── Modal QR ────────────────────────────────────────────────────────────────
+function QRModal({ url, entityName, entityId, onClose }) {
   const [qrUrl, setQrUrl] = useState(null);
   const [loadingQr, setLoadingQr] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   useEffect(() => {
     const generateQR = async () => {
@@ -77,11 +78,201 @@ function QRModal({ url, entityName, onClose }) {
   };
 
   return (
+    <>
+      <div
+        className="modal-overlay"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <div className="modal-card text-center">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+            </svg>
+          </button>
+
+          <h2 className="font-display text-xl font-bold text-white mb-1">
+            Código QR de invitación
+          </h2>
+          <p className="text-gray-500 text-sm mb-5">
+            Comparte este QR para que los tutores de{" "}
+            <strong className="text-white">{entityName}</strong> se registren
+            directamente vinculados a tu empresa.
+          </p>
+
+          <div className="flex items-center justify-center mb-5">
+            {loadingQr ? (
+              <div className="w-48 h-48 bg-dark rounded-2xl flex items-center justify-center border border-white/10">
+                <svg
+                  className="animate-spin w-8 h-8 text-brand"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+              </div>
+            ) : (
+              <div className="p-3 bg-dark rounded-2xl border border-brand/20">
+                <img
+                  src={qrUrl}
+                  alt="QR de invitación"
+                  className="w-48 h-48 rounded-xl"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="bg-dark border border-white/10 rounded-xl px-3 py-2 mb-4 flex items-center gap-2">
+            <span className="text-gray-500 text-xs truncate flex-1 text-left">
+              {url}
+            </span>
+            <button
+              onClick={handleCopy}
+              className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-lg transition-all font-medium ${
+                copied
+                  ? "bg-brand/20 text-brand"
+                  : "bg-white/10 text-gray-400 hover:text-white hover:bg-white/15"
+              }`}
+            >
+              {copied ? "✓ Copiado" : "Copiar"}
+            </button>
+          </div>
+
+          <div className="flex gap-3 mb-3">
+            <button
+              onClick={handleDownload}
+              disabled={loadingQr}
+              className="btn-secondary flex-1 flex items-center justify-center gap-2 disabled:opacity-40"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Descargar QR
+            </button>
+            <button
+              onClick={() => setShowEmailModal(true)}
+              className="btn-secondary flex-1 flex items-center justify-center gap-2"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+              Enviar por correo
+            </button>
+          </div>
+
+          <button onClick={onClose} className="btn-primary w-full">
+            Cerrar
+          </button>
+
+          <p className="text-xs text-gray-600 mt-4">
+            Los enlaces de invitación caducan a los{" "}
+            <strong className="text-gray-500">7 días</strong>. Genera uno nuevo
+            cuando sea necesario.
+          </p>
+        </div>
+      </div>
+
+      {showEmailModal && (
+        <SendInviteEmailModal
+          inviteUrl={url}
+          inviterName={entityName}
+          inviterType="empresa"
+          onClose={() => setShowEmailModal(false)}
+        />
+      )}
+    </>
+  );
+}
+
+// ── Modal envío de invitación por correo ────────────────────────────────────
+function SendInviteEmailModal({
+  inviteUrl,
+  inviterName,
+  inviterType,
+  onClose,
+}) {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const roleLabel =
+    inviterType === "empresa"
+      ? "tutor de empresa"
+      : "tutor de centro educativo";
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    // Llama a la Edge Function de Supabase que envía el email de invitación
+    const { error: fnError } = await supabase.functions.invoke(
+      "send-invite-email",
+      {
+        body: {
+          to: email,
+          inviterName,
+          inviterType,
+          inviteUrl,
+        },
+      },
+    );
+
+    setLoading(false);
+    if (fnError) {
+      setError("No se pudo enviar el correo. Inténtalo de nuevo.");
+    } else {
+      setSent(true);
+    }
+  };
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
     <div
       className="modal-overlay"
+      style={{ zIndex: 60 }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="modal-card text-center">
+      <div className="modal-card">
+        {/* Cabecera */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
@@ -91,98 +282,203 @@ function QRModal({ url, entityName, onClose }) {
           </svg>
         </button>
 
-        <h2 className="font-display text-xl font-bold text-white mb-1">
-          Código QR de invitación
-        </h2>
-        <p className="text-gray-500 text-sm mb-5">
-          Comparte este QR para que los tutores de{" "}
-          <strong className="text-white">{entityName}</strong> se registren
-          directamente vinculados a tu empresa.
-        </p>
-
-        <div className="flex items-center justify-center mb-5">
-          {loadingQr ? (
-            <div className="w-48 h-48 bg-dark rounded-2xl flex items-center justify-center border border-white/10">
-              <svg
-                className="animate-spin w-8 h-8 text-brand"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-            </div>
-          ) : (
-            <div className="p-3 bg-dark rounded-2xl border border-brand/20">
-              <img
-                src={qrUrl}
-                alt="QR de invitación"
-                className="w-48 h-48 rounded-xl"
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="bg-dark border border-white/10 rounded-xl px-3 py-2 mb-4 flex items-center gap-2">
-          <span className="text-gray-500 text-xs truncate flex-1 text-left">
-            {url}
-          </span>
-          <button
-            onClick={handleCopy}
-            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-lg transition-all font-medium ${
-              copied
-                ? "bg-brand/20 text-brand"
-                : "bg-white/10 text-gray-400 hover:text-white hover:bg-white/15"
-            }`}
+        {/* Logo Relance */}
+        <div className="flex justify-center mb-6">
+          <div
+            style={{
+              display: "inline-block",
+              background: "#c0ff72",
+              borderRadius: "10px",
+              padding: "6px 18px",
+            }}
           >
-            {copied ? "✓ Copiado" : "Copiar"}
-          </button>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={handleDownload}
-            disabled={loadingQr}
-            className="btn-secondary flex-1 flex items-center justify-center gap-2 disabled:opacity-40"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+            <span
+              style={{
+                color: "#0A0A0A",
+                fontWeight: 800,
+                fontSize: "18px",
+                letterSpacing: "-0.5px",
+              }}
             >
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Descargar QR
-          </button>
-          <button onClick={onClose} className="btn-primary flex-1">
-            Cerrar
-          </button>
+              Relance
+            </span>
+          </div>
         </div>
 
-        <p className="text-xs text-gray-600 mt-4">
-          <svg className="w-3.5 h-3.5 inline-block mr-1" viewBox="0 0 640 640">
-            <use href="/icons.svg#icon-hourglass" />
-          </svg>{" "}
-          Los enlaces de invitación caducan a los{" "}
-          <strong className="text-gray-500">7 días</strong>. Genera uno nuevo
-          cuando sea necesario.
-        </p>
+        {!sent ? (
+          <>
+            {/* Icono */}
+            <div className="flex justify-center mb-4">
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 14,
+                  background: "rgba(192,255,114,0.12)",
+                  border: "1px solid rgba(192,255,114,0.25)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 26,
+                }}
+              >
+                👋
+              </div>
+            </div>
+
+            <h2 className="font-display text-2xl font-bold text-white text-center mb-1">
+              Enviar invitación por correo
+            </h2>
+            <p className="text-gray-500 text-sm text-center mb-6">
+              Escribe el correo del tutor al que quieres invitar a unirse a{" "}
+              <strong style={{ color: "#c0ff72" }}>{inviterName}</strong> como{" "}
+              <strong className="text-white">{roleLabel}</strong>.
+            </p>
+
+            <form onSubmit={handleSend} className="space-y-4">
+              <div>
+                <label
+                  className="block text-sm text-gray-400 mb-1.5"
+                  htmlFor="invite-email"
+                >
+                  Correo electrónico del tutor
+                </label>
+                <input
+                  id="invite-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tutor@empresa.com"
+                  className="input-field"
+                />
+              </div>
+
+              {/* Enlace copiable */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">
+                  Enlace de invitación
+                </label>
+                <div className="bg-dark border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2">
+                  <span className="text-gray-500 text-xs truncate flex-1">
+                    {inviteUrl}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-lg transition-all font-medium ${
+                      copied
+                        ? "bg-brand/20 text-brand"
+                        : "bg-white/10 text-gray-400 hover:text-white hover:bg-white/15"
+                    }`}
+                  >
+                    {copied ? "✓ Copiado" : "Copiar"}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <svg
+                      className="animate-spin w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                      <polyline points="22,6 12,13 2,6" />
+                    </svg>
+                    Enviar invitación →
+                  </>
+                )}
+              </button>
+            </form>
+
+            <p className="text-xs text-gray-600 text-center mt-4">
+              El enlace caduca en{" "}
+              <strong className="text-gray-500">7 días</strong>.
+            </p>
+          </>
+        ) : (
+          /* Estado: enviado */
+          <div className="text-center">
+            <div className="flex justify-center mb-4">
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 16,
+                  background: "rgba(192,255,114,0.12)",
+                  border: "1px solid rgba(192,255,114,0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#c0ff72"
+                  strokeWidth="2.5"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+            </div>
+            <h2 className="font-display text-xl font-bold text-white mb-2">
+              ¡Invitación enviada!
+            </h2>
+            <p className="text-gray-400 text-sm mb-1">
+              Se ha enviado la invitación a{" "}
+              <span style={{ color: "#c0ff72" }}>{email}</span>.
+            </p>
+            <p className="text-gray-500 text-xs mb-6">
+              El tutor recibirá un correo con el enlace para registrarse
+              vinculado a tu empresa.
+            </p>
+            <button onClick={onClose} className="btn-primary w-full">
+              Cerrar
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -202,185 +498,145 @@ function SectionCard({ title, children }) {
 
 // ── Página principal ────────────────────────────────────────────────────────
 export default function CompanyProfile() {
-  const { user } = useAuth();
+  const { user, avatarUrl, refreshAvatar } = useAuth();
   const fileInputRef = useRef(null);
+  const meta = user?.user_metadata ?? {};
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [saveError, setSaveError] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showQR, setShowQR] = useState(false);
   const [inviteUrl, setInviteUrl] = useState("");
   const [generatingToken, setGeneratingToken] = useState(false);
 
-  // ── Campos del formulario (mapeados a columnas de empresa) ──
-  const [logoUrl, setLogoUrl] = useState("");
-  const [nombre, setNombre] = useState("");
-  const [cif, setCif] = useState("");
-  const [sector, setSector] = useState("");
-  const [tamano, setTamano] = useState(""); // columna nueva: tamano
-  const [ciudad, setCiudad] = useState("");
-  const [web, setWeb] = useState(""); // columna: web
-  const [descripcion, setDescripcion] = useState("");
-  const [emailContacto, setEmailContacto] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [linkedin, setLinkedin] = useState(""); // columnas planas
-  const [twitter, setTwitter] = useState("");
-  const [instagram, setInstagram] = useState("");
-  const [verificado, setVerificado] = useState(false);
+  const [companyName, setCompanyName] = useState(meta.companyName ?? "");
+  const [cif, setCif] = useState(meta.cif ?? "");
+  const [sector, setSector] = useState(meta.sector ?? "");
+  const [size, setSize] = useState(meta.size ?? "");
+  const [city, setCity] = useState(meta.city ?? "");
+  const [website, setWebsite] = useState(meta.website ?? "");
+  const [description, setDescription] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [socialLinks, setSocialLinks] = useState({
+    linkedin: "",
+    twitter: "",
+    instagram: "",
+  });
 
-  // ── Carga de datos desde Supabase ────────────────────────────────────
   useEffect(() => {
     if (!user) return;
-
-    const cargarPerfil = async () => {
-      // 1. Datos base del usuario (tabla genérica)
-      const { data: usuarioData, error: usuarioError } = await supabase
-        .from("usuario")
-        .select("id, email, nombre")
-        .eq("id", user.id)
-        .single();
-
-      if (usuarioError) {
-        console.error("Error al cargar usuario:", usuarioError.message);
-        return;
-      }
-
-      // 2. Datos específicos de empresa
-      //    La FK es id → usuario.id
-      const { data: empresa, error: empresaError } = await supabase
+    const load = async () => {
+      const { data } = await supabase
         .from("empresa")
         .select("*")
-        .eq("id", user.id)
-        .single();
-
-      if (empresaError && empresaError.code !== "PGRST116") {
-        console.error("Error al cargar empresa:", empresaError.message);
-        return;
-      }
-
-      if (empresa) {
-        setNombre(empresa.nombre ?? usuarioData?.nombre ?? "");
-        setCif(empresa.cif ?? "");
-        setSector(empresa.sector ?? "");
-        setTamano(empresa.tamano ?? "");
-        setCiudad(empresa.ciudad ?? "");
-        setWeb(empresa.web ?? "");
-        setDescripcion(empresa.descripcion ?? "");
-        setEmailContacto(
-          empresa.email_contacto ?? usuarioData?.email ?? user.email ?? "",
-        );
-        setTelefono(empresa.telefono ?? "");
-        setLogoUrl(empresa.logo_url ?? "");
-        setLinkedin(empresa.linkedin ?? "");
-        setTwitter(empresa.twitter ?? "");
-        setInstagram(empresa.instagram ?? "");
-        setVerificado(empresa.verificado ?? false);
+        .eq("id_usuario", user.id)
+        .maybeSingle();
+      if (data) {
+        setCompanyName(data.nombre ?? meta.companyName ?? "");
+        setCif(data.cif ?? meta.cif ?? "");
+        setSector(data.sector ?? meta.sector ?? "");
+        setSize(data.tamanio ?? meta.tamanio ?? "");
+        setCity(data.ciudad ?? meta.ciudad ?? "");
+        setWebsite(data.web ?? meta.web ?? "");
+        setDescription(data.descripcion ?? "");
+        setEmail(data.email_contacto ?? user.email ?? "");
+        setPhone(data.telefono ?? "");
+        setSocialLinks({
+          linkedin: data.linkedin ?? "",
+          twitter: data.twitter ?? "",
+          instagram: data.instagram ?? "",
+        });
       } else {
-        // Sin fila aún: pre-rellenar con datos de Auth
-        setNombre(usuarioData?.nombre ?? "");
-        setEmailContacto(usuarioData?.email ?? user.email ?? "");
+        setCompanyName(meta.companyName ?? "");
+        setCif(meta.cif ?? "");
+        setSector(meta.sector ?? "");
+        setSize(meta.tamanio ?? "");
+        setCity(meta.ciudad ?? "");
+        setEmail(user.email ?? "");
       }
     };
-
-    cargarPerfil();
+    load();
   }, [user]);
 
-  // ── Subida de logo ───────────────────────────────────────────────────
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
     setUploading(true);
     const ext = file.name.split(".").pop();
-    const path = `logos/empresas/${user.id}.${ext}`;
+    const path = `avatars/${user.id}.${ext}`;
     const { error } = await supabase.storage
       .from("profiles")
       .upload(path, file, { upsert: true });
     if (!error) {
       const { data } = supabase.storage.from("profiles").getPublicUrl(path);
-      setLogoUrl(data.publicUrl);
+      await supabase
+        .from("usuario")
+        .update({
+          avatar_url: data.publicUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+      await refreshAvatar();
     }
     setUploading(false);
   };
 
-  // ── Guardar en Supabase ──────────────────────────────────────────────
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    setSaveError(null);
-
-    try {
-      // 1. Actualizar nombre en la tabla genérica "usuario"
-      const { error: usuarioError } = await supabase
-        .from("usuario")
-        .update({
-          nombre: nombre,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-
-      if (usuarioError) throw usuarioError;
-
-      // 2. Upsert en empresa
-      //    La FK es id (no "id" como en centro_educativo)
-      const { error: empresaError } = await supabase.from("empresa").upsert(
-        {
-          id: user.id,
-          nombre,
-          cif,
-          sector,
-          tamano,
-          ciudad,
-          web,
-          descripcion,
-          email_contacto: emailContacto,
-          telefono,
-          logo_url: logoUrl,
-          linkedin,
-          twitter,
-          instagram,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" },
-      );
-
-      if (empresaError) throw empresaError;
-
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      console.error("Error al guardar:", err.message);
-      setSaveError("No se pudieron guardar los cambios. Inténtalo de nuevo.");
-    } finally {
-      setSaving(false);
-    }
+    await supabase.from("empresa").upsert(
+      {
+        id_usuario: user.id,
+        nombre: companyName,
+        cif,
+        sector,
+        tamanio: size,
+        ciudad: city,
+        web: website,
+        descripcion: description,
+        email_contacto: email,
+        telefono: phone,
+        linkedin: socialLinks.linkedin,
+        twitter: socialLinks.twitter,
+        instagram: socialLinks.instagram,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id_usuario" },
+    );
+    await supabase
+      .from("usuario")
+      .update({ nombre: companyName, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
   };
 
-  // ── Generar QR de invitación ─────────────────────────────────────────
   const handleGenerateQR = async () => {
     setGeneratingToken(true);
     const token = crypto.randomUUID();
+    const expiresAt = new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
     await supabase.from("invite_tokens").insert({
       token,
       entity_id: user.id,
       entity_type: "empresa",
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      expires_at: expiresAt,
       used: false,
     });
-    setInviteUrl(
-      `${window.location.origin}/registro-tutor?token=${token}&entity=${user.id}&type=empresa`,
-    );
+    const url = `${window.location.origin}/registro-tutor?token=${token}&entity=${user.id}&type=empresa`;
+    setInviteUrl(url);
     setGeneratingToken(false);
     setShowQR(true);
   };
 
-  // ── Render ───────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-dark">
       <Header onLoginClick={() => {}} onRegisterClick={() => {}} />
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-12">
-        {/* Cabecera */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="font-display text-3xl font-bold text-white">
@@ -426,22 +682,15 @@ export default function CompanyProfile() {
           </button>
         </div>
 
-        {/* Error de guardado */}
-        {saveError && (
-          <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
-            {saveError}
-          </div>
-        )}
-
         <div className="space-y-6">
           {/* Logo */}
           <SectionCard title="Logo de empresa">
             <div className="flex items-center gap-5">
               <div className="relative flex-shrink-0">
-                {logoUrl ? (
+                {avatarUrl ? (
                   <img
-                    src={logoUrl}
-                    alt={nombre}
+                    src={avatarUrl}
+                    alt={companyName}
                     className="w-20 h-20 rounded-2xl object-cover border border-white/10"
                   />
                 ) : (
@@ -480,14 +729,9 @@ export default function CompanyProfile() {
               </div>
               <div>
                 <p className="text-white font-semibold text-lg font-display">
-                  {nombre || "Tu empresa"}
+                  {companyName || "Tu empresa"}
                 </p>
                 <p className="text-gray-500 text-sm mb-3">{user?.email}</p>
-                {verificado && (
-                  <span className="inline-flex items-center gap-1 text-xs text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full mb-3">
-                    ✓ Empresa verificada
-                  </span>
-                )}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -514,8 +758,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="text"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="Mi Empresa S.L."
                   className="input-field"
                 />
@@ -564,8 +808,8 @@ export default function CompanyProfile() {
                   Tamaño
                 </label>
                 <select
-                  value={tamano}
-                  onChange={(e) => setTamano(e.target.value)}
+                  value={size}
+                  onChange={(e) => setSize(e.target.value)}
                   className="input-field"
                 >
                   <option value="">Seleccionar</option>
@@ -582,8 +826,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="text"
-                  value={ciudad}
-                  onChange={(e) => setCiudad(e.target.value)}
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
                   placeholder="Madrid"
                   className="input-field"
                 />
@@ -594,8 +838,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="url"
-                  value={web}
-                  onChange={(e) => setWeb(e.target.value)}
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
                   placeholder="https://miempresa.com"
                   className="input-field"
                 />
@@ -606,14 +850,14 @@ export default function CompanyProfile() {
           {/* Descripción */}
           <SectionCard title="Descripción de la empresa">
             <textarea
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value.slice(0, 500))}
+              value={description}
+              onChange={(e) => setDescription(e.target.value.slice(0, 500))}
               rows={4}
               placeholder="Describe tu empresa, cultura, tecnologías que usáis y qué tipo de perfiles buscáis..."
               className="input-field resize-none"
             />
             <p className="text-xs text-gray-600 mt-1 text-right">
-              {descripcion.length}/500
+              {description.length}/500
             </p>
           </SectionCard>
 
@@ -626,8 +870,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="email"
-                  value={emailContacto}
-                  onChange={(e) => setEmailContacto(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="rrhh@empresa.com"
                   className="input-field"
                 />
@@ -638,8 +882,8 @@ export default function CompanyProfile() {
                 </label>
                 <input
                   type="tel"
-                  value={telefono}
-                  onChange={(e) => setTelefono(e.target.value)}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   placeholder="+34 900 000 000"
                   className="input-field"
                 />
@@ -652,31 +896,31 @@ export default function CompanyProfile() {
             <div className="space-y-3">
               {[
                 {
-                  value: linkedin,
-                  setter: setLinkedin,
+                  key: "linkedin",
                   icon: "icon-linkedin",
                   label: "LinkedIn",
                   placeholder: "https://linkedin.com/company/mi-empresa",
                 },
                 {
-                  value: twitter,
-                  setter: setTwitter,
+                  key: "twitter",
                   icon: "icon-twitter",
                   label: "X / Twitter",
                   placeholder: "https://twitter.com/miempresa",
                 },
                 {
-                  value: instagram,
-                  setter: setInstagram,
+                  key: "instagram",
                   icon: "icon-instagram",
                   label: "Instagram",
                   placeholder: "https://instagram.com/miempresa",
                 },
-              ].map(({ value, setter, icon, label, placeholder }) => (
-                <div key={label} className="flex items-center gap-3">
+              ].map(({ key, icon, label, placeholder }) => (
+                <div key={key} className="flex items-center gap-3">
                   <span className="text-xl w-7 text-center">
                     <svg className="w-5 h-5" viewBox="0 0 640 640">
-                      <use href={`/icons.svg#${icon}`} />
+                      <use
+                        href={`/icons.svg#${icon}`}
+                        xlinkHref={`/icons.svg#icon-${icon}`}
+                      />
                     </svg>
                   </span>
                   <div className="flex-1">
@@ -685,8 +929,10 @@ export default function CompanyProfile() {
                     </label>
                     <input
                       type="url"
-                      value={value}
-                      onChange={(e) => setter(e.target.value)}
+                      value={socialLinks[key]}
+                      onChange={(e) =>
+                        setSocialLinks((l) => ({ ...l, [key]: e.target.value }))
+                      }
                       placeholder={placeholder}
                       className="input-field text-sm"
                     />
@@ -700,8 +946,11 @@ export default function CompanyProfile() {
           <SectionCard title="Invitar tutores">
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center text-2xl">
-                <svg className="w-6 h-6 text-brand" viewBox="0 0 640 640">
-                  <use href="/icons.svg#icon-qrcode" />
+                <svg width="24" height="24" className="text-white">
+                  <use
+                    href="/icons.svg#icon-qrcode"
+                    xlinkHref="/icons.svg#icon-qrcode"
+                  />
                 </svg>
               </div>
               <div className="flex-1">
@@ -711,8 +960,8 @@ export default function CompanyProfile() {
                 <p className="text-gray-500 text-xs leading-relaxed mb-4">
                   Genera un código QR único para que los tutores de tu empresa
                   se registren en Relance directamente vinculados a tu cuenta.
-                  El enlace también se puede compartir manualmente. Caduca a los
-                  7 días.
+                  El enlace también se puede enviar por correo o compartir
+                  manualmente. Caduca a los 7 días.
                 </p>
                 <button
                   onClick={handleGenerateQR}
@@ -770,7 +1019,8 @@ export default function CompanyProfile() {
       {showQR && (
         <QRModal
           url={inviteUrl}
-          entityName={nombre || "tu empresa"}
+          entityName={companyName || "tu empresa"}
+          entityId={user?.id}
           onClose={() => setShowQR(false)}
         />
       )}

@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabase";
-import Header from "../../components/layout/Header";
+// import Header from "../components/layout/Header";
+import GitHubReposSection from "../GitHubIntegration";
 import MainLayout from "../../components/layout/MainLayout";
 
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTES
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 const TIPO_BUSQUEDA = [
   {
     id: "practicas",
@@ -18,7 +18,7 @@ const TIPO_BUSQUEDA = [
   {
     id: "practicas_contratacion",
     label: "Prácticas + contratación",
-    icon: "icon-rocket",
+    icon: "icon-handshake",
     desc: "Prácticas con posibilidad de incorporación",
   },
   {
@@ -95,9 +95,9 @@ const REDES_SOCIALES = [
   },
 ];
 
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 // ICONOS SVG INLINE
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 function IconLinkedIn({ size = 16 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -279,9 +279,9 @@ function Spinner({ className = "w-4 h-4" }) {
   );
 }
 
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 // COMPONENTES UI
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 function SectionCard({ title, subtitle, children }) {
   return (
     <section className="bg-dark-800 border border-white/10 rounded-2xl p-6">
@@ -296,9 +296,9 @@ function SectionCard({ title, subtitle, children }) {
   );
 }
 
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 // FORMACIÓN ACADÉMICA — subcomponente
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 function FormacionItem({ item, onEdit, onDelete }) {
   const mesInicio = item.mes_inicio ? MESES[parseInt(item.mes_inicio) - 1] : "";
   const mesFin = item.mes_fin ? MESES[parseInt(item.mes_fin) - 1] : "";
@@ -306,7 +306,6 @@ function FormacionItem({ item, onEdit, onDelete }) {
 
   return (
     <div className="group flex items-start gap-3 p-4 bg-dark border border-white/8 rounded-xl relative">
-      {/* Línea de tiempo */}
       <div className="flex flex-col items-center flex-shrink-0 pt-1">
         <div className="w-2.5 h-2.5 rounded-full border-2 border-brand bg-dark" />
         <div className="w-px flex-1 bg-white/10 mt-1 min-h-[32px]" />
@@ -321,7 +320,6 @@ function FormacionItem({ item, onEdit, onDelete }) {
           <span className={item.en_curso ? "text-brand" : ""}>{finLabel}</span>
         </p>
       </div>
-      {/* Acciones hover */}
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <button
           onClick={() => onEdit(item)}
@@ -365,7 +363,6 @@ function FormacionModal({ item, onSave, onClose }) {
     (_, i) => anioActual - i,
   );
 
-  // Buscar centros en Supabase mientras se escribe
   const buscarCentros = useCallback(async (q) => {
     if (q.length < 2) {
       setCentroSugerencias([]);
@@ -377,7 +374,6 @@ function FormacionModal({ item, onSave, onClose }) {
       .select("center_name")
       .ilike("center_name", `%${q}%`)
       .limit(8);
-    // También busca en tabla específica si existe
     const { data: data2 } = await supabase
       .from("centros_educativos")
       .select("nombre")
@@ -413,6 +409,7 @@ function FormacionModal({ item, onSave, onClose }) {
     (form.en_curso || (form.mes_fin && form.anio_fin));
 
   return (
+    // <MainLayout>
     <div
       className="modal-overlay"
       onClick={(e) => e.target === e.currentTarget && onClose()}
@@ -426,13 +423,10 @@ function FormacionModal({ item, onSave, onClose }) {
             <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
           </svg>
         </button>
-
         <h2 className="font-display text-xl font-bold text-white mb-6">
           {item ? "Editar formación" : "Añadir formación"}
         </h2>
-
         <div className="space-y-4">
-          {/* Título */}
           <div>
             <label className="block text-sm text-gray-400 mb-1.5">
               Título / Grado <span className="text-brand">*</span>
@@ -445,8 +439,6 @@ function FormacionModal({ item, onSave, onClose }) {
               className="input-field"
             />
           </div>
-
-          {/* Centro con autocompletado */}
           <div className="relative">
             <label className="block text-sm text-gray-400 mb-1.5">
               Centro educativo <span className="text-brand">*</span>
@@ -480,8 +472,6 @@ function FormacionModal({ item, onSave, onClose }) {
               </div>
             )}
           </div>
-
-          {/* Fecha de inicio */}
           <div>
             <label className="block text-sm text-gray-400 mb-1.5">
               Fecha de inicio <span className="text-brand">*</span>
@@ -513,8 +503,6 @@ function FormacionModal({ item, onSave, onClose }) {
               </select>
             </div>
           </div>
-
-          {/* En curso toggle */}
           <div className="flex items-center gap-3 p-3 bg-dark border border-white/8 rounded-xl">
             <button
               type="button"
@@ -526,14 +514,10 @@ function FormacionModal({ item, onSave, onClose }) {
                   anio_fin: "",
                 }))
               }
-              className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${
-                form.en_curso ? "bg-brand" : "bg-white/15"
-              }`}
+              className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${form.en_curso ? "bg-brand" : "bg-white/15"}`}
             >
               <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                  form.en_curso ? "translate-x-5" : ""
-                }`}
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${form.en_curso ? "translate-x-5" : ""}`}
               />
             </button>
             <div>
@@ -543,8 +527,6 @@ function FormacionModal({ item, onSave, onClose }) {
               </p>
             </div>
           </div>
-
-          {/* Fecha de fin (solo si no está en curso) */}
           {!form.en_curso && (
             <div className="animate-fade-in">
               <label className="block text-sm text-gray-400 mb-1.5">
@@ -579,7 +561,6 @@ function FormacionModal({ item, onSave, onClose }) {
             </div>
           )}
         </div>
-
         <div className="flex gap-3 mt-6">
           <button onClick={onClose} className="btn-secondary flex-1">
             Cancelar
@@ -596,12 +577,13 @@ function FormacionModal({ item, onSave, onClose }) {
         </div>
       </div>
     </div>
+    // </MainLayout>
   );
 }
 
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 // PORTFOLIO — subcomponente con IA via Anthropic API
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 function ProyectoModal({ proyecto, onSave, onClose }) {
   const [form, setForm] = useState(
     proyecto || {
@@ -630,13 +612,10 @@ function ProyectoModal({ proyecto, onSave, onClose }) {
     }
   };
 
-  // Analizar repo de GitHub con IA (Anthropic API desde el cliente)
   const analizarConIA = async () => {
     if (!githubUrl.trim()) return;
     setAnalizando(true);
     setErrorAnalisis(null);
-
-    // Extraer owner/repo de la URL
     const match = githubUrl.match(/github\.com\/([^/]+)\/([^/?\s]+)/);
     if (!match) {
       setErrorAnalisis(
@@ -646,15 +625,12 @@ function ProyectoModal({ proyecto, onSave, onClose }) {
       return;
     }
     const [, owner, repo] = match;
-
     try {
-      // Obtener datos del repo desde la GitHub API pública (sin auth)
       const [repoRes, readmeRes, langsRes] = await Promise.allSettled([
         fetch(`https://api.github.com/repos/${owner}/${repo}`),
         fetch(`https://api.github.com/repos/${owner}/${repo}/readme`),
         fetch(`https://api.github.com/repos/${owner}/${repo}/languages`),
       ]);
-
       const repoData =
         repoRes.status === "fulfilled" && repoRes.value.ok
           ? await repoRes.value.json()
@@ -668,10 +644,7 @@ function ProyectoModal({ proyecto, onSave, onClose }) {
         const rd = await readmeRes.value.json();
         readmeText = atob(rd.content?.replace(/\n/g, "") || "").slice(0, 2000);
       }
-
       const tecnologiasDetectadas = Object.keys(langsData).slice(0, 8);
-
-      // Llamar a la Anthropic API para generar descripción
       const prompt = `Eres un asistente que genera descripciones profesionales y concisas de proyectos de GitHub para un currículum digital de desarrollador.
 
 Datos del repositorio:
@@ -692,11 +665,9 @@ Genera UNA descripción en español de máximo 200 caracteres, directa, sin ador
           messages: [{ role: "user", content: prompt }],
         }),
       });
-
       const aiData = await response.json();
       const descripcionIA =
         aiData.content?.[0]?.text?.trim() || repoData.description || "";
-
       setForm((f) => ({
         ...f,
         titulo: repoData.name || repo,
@@ -719,6 +690,7 @@ Genera UNA descripción en español de máximo 200 caracteres, directa, sin ador
   const isValid = form.titulo.trim();
 
   return (
+    // <MainLayout>
     <div
       className="modal-overlay"
       onClick={(e) => e.target === e.currentTarget && onClose()}
@@ -732,12 +704,9 @@ Genera UNA descripción en español de máximo 200 caracteres, directa, sin ador
             <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
           </svg>
         </button>
-
         <h2 className="font-display text-xl font-bold text-white mb-6">
           {proyecto ? "Editar proyecto" : "Añadir proyecto"}
         </h2>
-
-        {/* Análisis IA desde GitHub */}
         <div className="mb-5 p-4 bg-brand/5 border border-brand/20 rounded-xl">
           <p className="text-brand text-xs font-semibold uppercase tracking-wider mb-2">
             <svg className="w-3.5 h-3.5" viewBox="0 0 640 640">
@@ -775,7 +744,6 @@ Genera UNA descripción en español de máximo 200 caracteres, directa, sin ador
             <p className="text-red-400 text-xs mt-2">{errorAnalisis}</p>
           )}
         </div>
-
         <div className="space-y-4">
           <div>
             <label className="block text-sm text-gray-400 mb-1.5">
@@ -875,7 +843,6 @@ Genera UNA descripción en español de máximo 200 caracteres, directa, sin ador
             />
           </div>
         </div>
-
         <div className="flex gap-3 mt-6">
           <button onClick={onClose} className="btn-secondary flex-1">
             Cancelar
@@ -892,11 +859,13 @@ Genera UNA descripción en español de máximo 200 caracteres, directa, sin ador
         </div>
       </div>
     </div>
+    // </MainLayout>
   );
 }
 
 function ProyectoCard({ proyecto, onEdit, onDelete }) {
   return (
+    // <MainLayout>
     <div className="group bg-dark border border-white/8 rounded-xl p-4 hover:border-white/15 transition-all duration-200">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -964,31 +933,28 @@ function ProyectoCard({ proyecto, onEdit, onDelete }) {
         </div>
       </div>
     </div>
+    // </MainLayout>
   );
 }
 
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 // PÁGINA PRINCIPAL
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
 export default function StudentProfile() {
-  const { user } = useAuth();
+  const { user, avatarUrl, refreshAvatar } = useAuth();
   const fileInputRef = useRef(null);
 
-  // Estado general
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
 
-  // Modales
-  const [formacionModal, setFormacionModal] = useState(null); // null | 'new' | item
-  const [proyectoModal, setProyectoModal] = useState(null); // null | 'new' | proyecto
+  const [formacionModal, setFormacionModal] = useState(null);
+  const [proyectoModal, setProyectoModal] = useState(null);
 
-  // === Campos del perfil =============================================================================
   const [nombre, setNombre] = useState("");
   const [apellidos, setApellidos] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState(null);
   const [sobreMi, setSobreMi] = useState("");
   const [formaciones, setFormaciones] = useState([]);
   const [habilidades, setHabilidades] = useState([]);
@@ -1006,27 +972,19 @@ export default function StudentProfile() {
     dribbble: "",
   });
 
-  // === GitHub vinculado =============================================================================
+  // Estado GitHub ──────────────────────────────────────────────────
   const [githubUsername, setGithubUsername] = useState(null);
-  const [githubConnecting, setGithubConnecting] = useState(false);
-  const [githubError, setGithubError] = useState(null);
-  const navigate = useNavigate();
-  const location = useLocation();
+  const [githubReposVinculados, setGithubReposVinculados] = useState([]);
 
   const fullName = user?.user_metadata?.full_name ?? user?.email ?? "Tu perfil";
   const displayName = nombre && apellidos ? `${nombre} ${apellidos}` : fullName;
-  const initials = displayName
-    .split(" ")
-    .slice(0, 2)
-    .map((n) => n[0]?.toUpperCase())
-    .join("");
 
-  // === Cargar perfil desde Supabase =============================================================================
+  // ── Cargar perfil desde Supabase ───────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     const load = async () => {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("estudiante")
         .select("*")
         .eq("id", user.id)
         .single();
@@ -1038,7 +996,6 @@ export default function StudentProfile() {
       if (data) {
         setNombre(data.nombre ?? "");
         setApellidos(data.apellidos ?? "");
-        setAvatarUrl(data.avatar_url ?? null);
         setSobreMi(data.sobre_mi ?? "");
         setFormaciones(data.formaciones ?? []);
         setHabilidades(data.habilidades ?? []);
@@ -1056,109 +1013,18 @@ export default function StudentProfile() {
             dribbble: "",
           },
         );
+        // GitHub
         setGithubUsername(data.github_username ?? null);
+        setGithubReposVinculados(data.github_repos_vinculados ?? []);
       }
     };
     load();
   }, [user]);
 
-  // === Detectar vuelta desde GitHub OAuth (callback) ===================================================================
-  // Si venimos de /auth/callback y hay un parámetro ?github_connected=1,
-  // recargamos el perfil para mostrar el username vinculado.
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get("github_connected") === "1") {
-      // Limpiar la URL
-      navigate("/perfil/estudiante", { replace: true });
-      // Recargar datos del perfil
-      if (user) {
-        supabase
-          .from("profiles")
-          .select("github_username, redes_sociales")
-          .eq("id", user.id)
-          .single()
-          .then(({ data }) => {
-            if (data) {
-              setGithubUsername(data.github_username ?? null);
-              if (data.redes_sociales) setRedesSociales(data.redes_sociales);
-            }
-          });
-      }
-    }
-  }, [location.search, user, navigate]);
-
-  // === Vincular GitHub con la cuenta actual (NO crea usuario nuevo) ===================================================================
-  // Usa linkIdentity que añade el proveedor a la sesión existente.
-  const handleLinkGitHub = async () => {
-    if (!user) return;
-    setGithubConnecting(true);
-    setGithubError(null);
-
-    try {
-      // linkIdentity vincula GitHub a la cuenta ya autenticada
-      // SIN crear un usuario nuevo. Requiere que el usuario esté logueado.
-      const { error } = await supabase.auth.linkIdentity({
-        provider: "github",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          // Scopes mínimos: leer perfil público y repos
-          scopes: "read:user,repo",
-        },
-      });
-
-      if (error) {
-        // Si linkIdentity no está disponible (plan free de Supabase),
-        // fallback a signInWithOAuth con el mismo usuario
-        if (
-          error.message?.includes("not enabled") ||
-          error.message?.includes("linking")
-        ) {
-          // Guardar en sessionStorage que venimos de un link (no login nuevo)
-          sessionStorage.setItem("github_link_intent", user.id);
-          const { error: oauthError } = await supabase.auth.signInWithOAuth({
-            provider: "github",
-            options: {
-              redirectTo: `${window.location.origin}/auth/callback`,
-              scopes: "read:user,repo",
-              skipBrowserRedirect: false,
-            },
-          });
-          if (oauthError) throw oauthError;
-        } else {
-          throw error;
-        }
-      }
-      // Si no hay error, el browser redirige automáticamente a GitHub
-      // y luego a /auth/callback
-    } catch (err) {
-      setGithubError(err.message || "Error al conectar con GitHub.");
-      setGithubConnecting(false);
-    }
-  };
-
-  // === Desconectar GitHub ===================================================================
-  const handleUnlinkGitHub = async () => {
-    if (!user || !githubUsername) return;
-    const confirmar = window.confirm(
-      `¿Desconectar la cuenta de GitHub @${githubUsername}? Los proyectos importados no se eliminarán.`,
-    );
-    if (!confirmar) return;
-
-    await supabase.from("profiles").upsert({
-      id: user.id,
-      github_username: null,
-      redes_sociales: { ...redesSociales, github: "" },
-      updated_at: new Date().toISOString(),
-    });
-    setGithubUsername(null);
-    setRedesSociales((r) => ({ ...r, github: "" }));
-  };
-
-  // === Subir avatar a Supabase Storage ===================================================================
+  // ── Subir avatar ───────────────────────────────────────────────────────────
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
-
     if (file.size > 2 * 1024 * 1024) {
       setUploadError("La imagen no puede superar 2 MB.");
       return;
@@ -1167,38 +1033,31 @@ export default function StudentProfile() {
       setUploadError("Formato no válido. Usa JPG, PNG o WebP.");
       return;
     }
-
     setUploading(true);
     setUploadError(null);
     const ext = file.name.split(".").pop().toLowerCase();
     const storagePath = `avatars/${user.id}.${ext}`;
-
     const { error: uploadErr } = await supabase.storage
       .from("profiles")
       .upload(storagePath, file, { upsert: true, contentType: file.type });
-
     if (uploadErr) {
       setUploadError("Error al subir la imagen: " + uploadErr.message);
       setUploading(false);
       return;
     }
-
     const { data: urlData } = supabase.storage
       .from("profiles")
       .getPublicUrl(storagePath);
     const freshUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-    setAvatarUrl(freshUrl);
-
-    // Persistir inmediatamente
-    await supabase.from("profiles").upsert({
-      id: user.id,
-      avatar_url: freshUrl,
-      updated_at: new Date().toISOString(),
-    });
+    // Guardar avatar en usuario (fuente única para todos los roles)
+    await supabase
+      .from("usuario")
+      .update({ avatar_url: freshUrl, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
+    await refreshAvatar();
     setUploading(false);
   };
 
-  // === Habilidades ===================================================================
   const handleHabilidadKey = (e) => {
     if (e.key === "Enter" && habilidadInput.trim()) {
       e.preventDefault();
@@ -1208,7 +1067,6 @@ export default function StudentProfile() {
     }
   };
 
-  // === Formaciones CRUD ===================================================================
   const handleGuardarFormacion = (item) => {
     if (formacionModal === "new") {
       setFormaciones((fs) => [...fs, item]);
@@ -1218,7 +1076,6 @@ export default function StudentProfile() {
     setFormacionModal(null);
   };
 
-  // === Proyectos CRUD ===================================================================
   const handleGuardarProyecto = (p) => {
     if (proyectoModal === "new") {
       setProyectos((ps) => [...ps, p]);
@@ -1228,7 +1085,7 @@ export default function StudentProfile() {
     setProyectoModal(null);
   };
 
-  // === Guardar perfil completo en Supabase ===================================================================
+  // ── Guardar perfil completo ────────────────────────────────────────────────
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
@@ -1238,7 +1095,6 @@ export default function StudentProfile() {
       id: user.id,
       nombre: nombre.trim() || null,
       apellidos: apellidos.trim() || null,
-      avatar_url: avatarUrl,
       sobre_mi: sobreMi.trim() || null,
       formaciones,
       habilidades,
@@ -1247,12 +1103,24 @@ export default function StudentProfile() {
       modalidad,
       proyectos,
       redes_sociales: redesSociales,
+      // GitHub
+      github_username: githubUsername,
+      github_repos_vinculados: githubReposVinculados,
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("profiles").upsert(payload);
+    const { error } = await supabase.from("estudiante").upsert(payload);
+    if (!error) {
+      // Sync nombre completo en usuario
+      await supabase
+        .from("usuario")
+        .update({
+          nombre: [nombre.trim(), apellidos.trim()].filter(Boolean).join(" "),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+    }
     setSaving(false);
-
     if (error) {
       setSaveError("Error al guardar: " + error.message);
     } else {
@@ -1261,9 +1129,9 @@ export default function StudentProfile() {
     }
   };
 
-  // =============================================================================
+  // ─────────────────────────────────────────────────────────────────────────
   // RENDER
-  // =============================================================================
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <MainLayout>
       <div className="min-h-screen bg-dark">
@@ -1306,10 +1174,9 @@ export default function StudentProfile() {
           )}
 
           <div className="space-y-6">
-            {/* ── 1. FOTO DE PERFIL + NOMBRE ── */}
+            {/* ── 1. INFORMACIÓN PERSONAL ── */}
             <SectionCard title="Información personal">
               <div className="flex items-center gap-5 mb-5">
-                {/* Avatar */}
                 <div className="relative flex-shrink-0">
                   {avatarUrl ? (
                     <img
@@ -1327,7 +1194,6 @@ export default function StudentProfile() {
                       <Spinner className="w-6 h-6 text-brand" />
                     </div>
                   )}
-                  {/* Botón de cámara superpuesto */}
                   <button
                     onClick={() => {
                       setUploadError(null);
@@ -1335,7 +1201,6 @@ export default function StudentProfile() {
                     }}
                     disabled={uploading}
                     className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-brand flex items-center justify-center text-dark shadow-lg hover:bg-brand-dark transition-colors disabled:opacity-50"
-                    aria-label="Cambiar foto"
                   >
                     <IconCamera size={14} />
                   </button>
@@ -1347,7 +1212,6 @@ export default function StudentProfile() {
                     onChange={handleAvatarUpload}
                   />
                 </div>
-
                 <div className="flex-1">
                   <p className="text-gray-500 text-xs mb-1">Foto de perfil</p>
                   <p className="text-gray-600 text-xs">
@@ -1358,8 +1222,6 @@ export default function StudentProfile() {
                   )}
                 </div>
               </div>
-
-              {/* Nombre y apellidos */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1.5">
@@ -1388,7 +1250,7 @@ export default function StudentProfile() {
               </div>
             </SectionCard>
 
-            {/* === 2. SOBRE MÍ === */}
+            {/* ── 2. SOBRE MÍ ── */}
             <SectionCard
               title="Sobre mí"
               subtitle="Cuéntale a las empresas quién eres y qué buscas"
@@ -1412,7 +1274,7 @@ export default function StudentProfile() {
               </div>
             </SectionCard>
 
-            {/* === 3. FORMACIÓN ACADÉMICA === */}
+            {/* ── 3. FORMACIÓN ACADÉMICA ── */}
             <SectionCard
               title="Formación académica"
               subtitle="Añade tus estudios. Si sigues en curso aparecerá como «Actualidad»"
@@ -1428,7 +1290,6 @@ export default function StudentProfile() {
                     </p>
                   </div>
                 )}
-                {/* Ordenar: en_curso primero, luego por año desc */}
                 {[...formaciones]
                   .sort((a, b) => {
                     if (a.en_curso && !b.en_curso) return -1;
@@ -1454,7 +1315,7 @@ export default function StudentProfile() {
               </button>
             </SectionCard>
 
-            {/* === 4. HABILIDADES TÉCNICAS === */}
+            {/* ── 4. HABILIDADES TÉCNICAS ── */}
             <SectionCard title="Habilidades técnicas">
               <input
                 type="text"
@@ -1489,7 +1350,7 @@ export default function StudentProfile() {
               </div>
             </SectionCard>
 
-            {/* === 5. TIPO DE BÚSQUEDA === */}
+            {/* ── 5. TIPO DE BÚSQUEDA ── */}
             <SectionCard title="Tipo de búsqueda">
               <div className="space-y-2">
                 {TIPO_BUSQUEDA.map((t) => (
@@ -1526,7 +1387,7 @@ export default function StudentProfile() {
               </div>
             </SectionCard>
 
-            {/* === 6. DISPONIBILIDAD === */}
+            {/* ── 6. DISPONIBILIDAD ── */}
             <SectionCard title="Disponibilidad y modalidad">
               <div className="space-y-4">
                 <div>
@@ -1572,7 +1433,7 @@ export default function StudentProfile() {
               </div>
             </SectionCard>
 
-            {/* === 7. PORTFOLIO Y PROYECTOS === */}
+            {/* ── 7. PORTFOLIO Y PROYECTOS ── */}
             <SectionCard
               title="Portfolio y proyectos"
               subtitle="Muestra tu trabajo. Pega una URL de GitHub y la IA rellenará los datos automáticamente"
@@ -1607,95 +1468,20 @@ export default function StudentProfile() {
               </button>
             </SectionCard>
 
-            {/* === 8. GITHUB VINCULADO === */}
+            {/* ── 8. REPOSITORIOS DE GITHUB (NUEVO) ── */}
             <SectionCard
-              title="Cuenta de GitHub"
-              subtitle="Vincula tu GitHub para importar repositorios automáticamente con IA"
+              title="Repositorios de GitHub"
+              subtitle="Conecta tu cuenta para mostrar tus repos directamente en tu perfil"
             >
-              {githubUsername ? (
-                /* - Estado: GitHub conectado - */
-                <div className="flex items-center gap-4 p-4 bg-dark border border-white/10 rounded-xl">
-                  <div className="w-12 h-12 rounded-xl bg-[#24292e] border border-white/10 flex items-center justify-center flex-shrink-0">
-                    <IconGitHub size={22} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-white font-semibold text-sm">
-                        @{githubUsername}
-                      </p>
-                      <span className="inline-flex items-center gap-1 text-xs bg-brand/15 border border-brand/25 text-brand px-2 py-0.5 rounded-full">
-                        <svg
-                          width="10"
-                          height="10"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        Conectado
-                      </span>
-                    </div>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      Tus repositorios están disponibles al añadir proyectos
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleUnlinkGitHub}
-                    className="flex-shrink-0 text-xs text-gray-600 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-500/10"
-                  >
-                    Desconectar
-                  </button>
-                </div>
-              ) : (
-                /* - Estado: GitHub no conectado - */
-                <div>
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-[#24292e]/60 border border-white/10 flex items-center justify-center flex-shrink-0">
-                      <IconGitHub size={22} className="text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="text-white text-sm font-medium mb-0.5">
-                        Conecta tu cuenta de GitHub
-                      </p>
-                      <p className="text-gray-500 text-xs leading-relaxed">
-                        Al conectar GitHub, podrás importar repositorios
-                        directamente. La IA analizará el código y generará
-                        título, descripción y tecnologías automáticamente.
-                        <strong className="text-gray-400 block mt-1">
-                          Tu sesión actual no se verá afectada.
-                        </strong>
-                      </p>
-                    </div>
-                  </div>
-
-                  {githubError && (
-                    <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-red-400 text-xs">
-                      {githubError}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleLinkGitHub}
-                    disabled={githubConnecting}
-                    className="flex items-center gap-2.5 bg-[#24292e] hover:bg-[#2f363d] border border-white/15 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {githubConnecting ? (
-                      <>
-                        <Spinner className="w-4 h-4" /> Conectando...
-                      </>
-                    ) : (
-                      <>
-                        <IconGitHub size={16} /> Conectarse a GitHub
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
+              <GitHubReposSection
+                reposVinculados={githubReposVinculados}
+                onReposChange={setGithubReposVinculados}
+                githubUsername={githubUsername}
+                onUsernameChange={setGithubUsername}
+              />
             </SectionCard>
 
-            {/* === 9. REDES SOCIALES === */}
+            {/* ── 9. REDES SOCIALES ── */}
             <SectionCard
               title="Redes sociales y enlaces"
               subtitle="Enlaza tus perfiles profesionales para que las empresas puedan conocerte mejor"

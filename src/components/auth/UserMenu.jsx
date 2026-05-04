@@ -5,12 +5,11 @@ import { supabase } from "../../lib/supabase";
 import { showAlert } from "../../lib/swal";
 
 export default function UserMenu({ onClose }) {
-  const { user, userRole } = useAuth();
+  const { user, userRole, avatarUrl } = useAuth();
   const ref = useRef(null);
   const navigate = useNavigate();
 
   const fullName = user?.user_metadata?.full_name ?? user?.email ?? "Usuario";
-  const avatarUrl = user?.user_metadata?.avatar_url;
   const role = userRole ?? user?.user_metadata?.role;
   const initials = fullName
     .split(" ")
@@ -27,14 +26,12 @@ export default function UserMenu({ onClose }) {
   }, [onClose]);
 
   const handleSignOut = async () => {
-    // Detectamos qué proveedores OAuth tiene vinculados el usuario
     const identities = user?.identities ?? [];
     const hasGoogle = identities.some((i) => i.provider === "google");
     const hasGitHub = identities.some((i) => i.provider === "github");
     const hasOAuth = hasGoogle || hasGitHub;
 
     if (hasOAuth) {
-      // Construimos los botones según los proveedores activos
       const googleBtn = hasGoogle
         ? `<a href="https://accounts.google.com/Logout"
             target="_blank" rel="noopener noreferrer"
@@ -87,24 +84,22 @@ export default function UserMenu({ onClose }) {
       if (!result.isConfirmed) return;
     }
 
-    // Logout de Supabase
     await supabase.auth.signOut();
     onClose();
     navigate("/", { replace: true });
   };
-
-  // Items del menú con control por roles
 
   const profilePath =
     role === "empresa"
       ? "/perfil/empresa"
       : role === "centro_educativo" || role === "centro"
         ? "/perfil/centro"
-        : role === "tutor_empresa" || role === "tutor_centro" || role === "tutor"
+        : role === "tutor_empresa" ||
+            role === "tutor_centro" ||
+            role === "tutor"
           ? "/perfil/tutor"
           : "/perfil/estudiante";
 
-  // Items estáticos + condicionales por rol
   const menuItems = [
     {
       icon: "icon-user",
@@ -113,16 +108,10 @@ export default function UserMenu({ onClose }) {
       roles: null,
     },
     {
-      icon: "icon-settings",
-      label: "Configuración",
-      href: profilePath,
-      roles: null,
-    },
-    {
-      icon: "icon-candidacy",
-      label: "Mis candidaturas",
-      href: "/candidaturas",
-      roles: ["estudiante"],
+      icon: "icon-briefcase",
+      label: "Ofertas de prácticas",
+      href: "/ofertas",
+      roles: ["estudiante", "tutor_empresa", "tutor_centro"],
     },
     {
       icon: "icon-briefcase",
@@ -131,16 +120,28 @@ export default function UserMenu({ onClose }) {
       roles: ["empresa"],
     },
     {
+      icon: "icon-candidacy",
+      label: "Mis candidaturas",
+      href: "/candidaturas",
+      roles: ["estudiante"],
+    },
+    {
       icon: "icon-educativeCenter",
       label: "Panel del centro",
       href: "/panel-centro",
       roles: ["centro_educativo"],
     },
     {
-      icon: "icon-tutor",
+      icon: "icon-student",
       label: "Mis estudiantes",
       href: "/mis-estudiantes",
       roles: ["tutor_empresa", "tutor_centro"],
+    },
+    {
+      icon: "icon-settings",
+      label: "Configuración",
+      href: profilePath,
+      roles: null,
     },
   ];
 
@@ -148,7 +149,6 @@ export default function UserMenu({ onClose }) {
     (item) => item.roles === null || item.roles.includes(role),
   );
 
-  // Badge de rol
   const roleBadges = {
     estudiante: { label: "Estudiante", color: "bg-blue-500/20 text-blue-400" },
     empresa: { label: "Empresa", color: "bg-purple-500/20 text-purple-400" },
@@ -164,6 +164,10 @@ export default function UserMenu({ onClose }) {
       label: "Tutor de centro",
       color: "bg-teal-500/20 text-teal-400",
     },
+    tutor: {
+      label: "Tutor",
+      color: "bg-green-500/20 text-green-400",
+    },
   };
   const badge = roleBadges[role];
 
@@ -174,6 +178,7 @@ export default function UserMenu({ onClose }) {
     >
       {/* Header del dropdown */}
       <div className="flex items-center gap-3 p-4 border-b border-white/10">
+        {/* avatarUrl viene de AuthContext (usuario.avatar_url) — fuente única para todos los roles */}
         {avatarUrl ? (
           <img
             src={avatarUrl}
@@ -231,8 +236,8 @@ export default function UserMenu({ onClose }) {
           <span>
             <svg className="size-5 text-red-400" viewBox="0 0 640 640">
               <use
-                href={`/icons.svg#icon-exit`}
-                xlinkHref={`/icons.svg#icon-exit`}
+                href="/icons.svg#icon-exit"
+                xlinkHref="/icons.svg#icon-exit"
               />
             </svg>
           </span>

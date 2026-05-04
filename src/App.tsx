@@ -12,6 +12,7 @@ import TutorRegisterPage from "./pages/register/TutorRegisterPage";
 import ResetPassword from "./pages/ResetPassword";
 import AuthCallback from "./pages/AuthCallback";
 import OnboardingModal from "./components/auth/OnboardingModal";
+import OfferPage from "./pages/offer";
 
 import { useEffect, useState, useRef } from "react";
 import NotFound from "./pages/NotFound";
@@ -260,6 +261,10 @@ function AppContent() {
             />
           }
         >
+          {/* Ofertas — visible para todos los roles autenticados */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/ofertas" element={<OfferPage />} />
+          </Route>
           <Route path="/perfil/tutor" element={<TutorProfile />} />
         </Route>
 

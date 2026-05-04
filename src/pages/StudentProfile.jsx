@@ -409,77 +409,133 @@ function FormacionModal({ item, onSave, onClose }) {
     (form.en_curso || (form.mes_fin && form.anio_fin));
 
   return (
-    <MainLayout>
-      <div
-        className="modal-overlay"
-        onClick={(e) => e.target === e.currentTarget && onClose()}
-      >
-        <div className="modal-card max-h-[90vh] overflow-y-auto">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-500 hover:text-white"
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
-            </svg>
-          </button>
-          <h2 className="font-display text-xl font-bold text-white mb-6">
-            {item ? "Editar formación" : "Añadir formación"}
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">
-                Título / Grado <span className="text-brand">*</span>
-              </label>
+    // <MainLayout>
+    <div
+      className="modal-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="modal-card max-h-[90vh] overflow-y-auto">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-white"
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+          </svg>
+        </button>
+        <h2 className="font-display text-xl font-bold text-white mb-6">
+          {item ? "Editar formación" : "Añadir formación"}
+        </h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Título / Grado <span className="text-brand">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.titulo}
+              onChange={s("titulo")}
+              placeholder="Ej: Técnico Superior en DAM"
+              className="input-field"
+            />
+          </div>
+          <div className="relative">
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Centro educativo <span className="text-brand">*</span>
+            </label>
+            <div className="relative">
               <input
                 type="text"
-                value={form.titulo}
-                onChange={s("titulo")}
-                placeholder="Ej: Técnico Superior en DAM"
-                className="input-field"
+                value={centroQuery}
+                onChange={handleCentroChange}
+                placeholder="Escribe para buscar centros..."
+                className="input-field pr-8"
+                autoComplete="off"
               />
-            </div>
-            <div className="relative">
-              <label className="block text-sm text-gray-400 mb-1.5">
-                Centro educativo <span className="text-brand">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={centroQuery}
-                  onChange={handleCentroChange}
-                  placeholder="Escribe para buscar centros..."
-                  className="input-field pr-8"
-                  autoComplete="off"
-                />
-                {loadingSugerencias && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <Spinner className="w-4 h-4 text-brand" />
-                  </div>
-                )}
-              </div>
-              {centroSugerencias.length > 0 && (
-                <div className="absolute z-30 top-full mt-1 w-full bg-dark-800 border border-white/15 rounded-xl overflow-hidden shadow-xl">
-                  {centroSugerencias.map((s, i) => (
-                    <button
-                      key={i}
-                      onClick={() => seleccionarCentro(s)}
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-white/8 hover:text-white transition-colors border-b border-white/5 last:border-0"
-                    >
-                      {s}
-                    </button>
-                  ))}
+              {loadingSugerencias && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Spinner className="w-4 h-4 text-brand" />
                 </div>
               )}
             </div>
+            {centroSugerencias.length > 0 && (
+              <div className="absolute z-30 top-full mt-1 w-full bg-dark-800 border border-white/15 rounded-xl overflow-hidden shadow-xl">
+                {centroSugerencias.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => seleccionarCentro(s)}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-white/8 hover:text-white transition-colors border-b border-white/5 last:border-0"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Fecha de inicio <span className="text-brand">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={form.mes_inicio}
+                onChange={s("mes_inicio")}
+                className="input-field"
+              >
+                <option value="">Mes</option>
+                {MESES.map((m, i) => (
+                  <option key={m} value={String(i + 1).padStart(2, "0")}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={form.anio_inicio}
+                onChange={s("anio_inicio")}
+                className="input-field"
+              >
+                <option value="">Año</option>
+                {anios.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-dark border border-white/8 rounded-xl">
+            <button
+              type="button"
+              onClick={() =>
+                setForm((f) => ({
+                  ...f,
+                  en_curso: !f.en_curso,
+                  mes_fin: "",
+                  anio_fin: "",
+                }))
+              }
+              className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${form.en_curso ? "bg-brand" : "bg-white/15"}`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${form.en_curso ? "translate-x-5" : ""}`}
+              />
+            </button>
             <div>
+              <p className="text-sm text-white font-medium">Todavía en curso</p>
+              <p className="text-xs text-gray-500">
+                Aparecerá como "Actualidad" en tu perfil
+              </p>
+            </div>
+          </div>
+          {!form.en_curso && (
+            <div className="animate-fade-in">
               <label className="block text-sm text-gray-400 mb-1.5">
-                Fecha de inicio <span className="text-brand">*</span>
+                Fecha de finalización <span className="text-brand">*</span>
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <select
-                  value={form.mes_inicio}
-                  onChange={s("mes_inicio")}
+                  value={form.mes_fin}
+                  onChange={s("mes_fin")}
                   className="input-field"
                 >
                   <option value="">Mes</option>
@@ -490,8 +546,8 @@ function FormacionModal({ item, onSave, onClose }) {
                   ))}
                 </select>
                 <select
-                  value={form.anio_inicio}
-                  onChange={s("anio_inicio")}
+                  value={form.anio_fin}
+                  onChange={s("anio_fin")}
                   className="input-field"
                 >
                   <option value="">Año</option>
@@ -503,83 +559,25 @@ function FormacionModal({ item, onSave, onClose }) {
                 </select>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-3 bg-dark border border-white/8 rounded-xl">
-              <button
-                type="button"
-                onClick={() =>
-                  setForm((f) => ({
-                    ...f,
-                    en_curso: !f.en_curso,
-                    mes_fin: "",
-                    anio_fin: "",
-                  }))
-                }
-                className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${form.en_curso ? "bg-brand" : "bg-white/15"}`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${form.en_curso ? "translate-x-5" : ""}`}
-                />
-              </button>
-              <div>
-                <p className="text-sm text-white font-medium">
-                  Todavía en curso
-                </p>
-                <p className="text-xs text-gray-500">
-                  Aparecerá como "Actualidad" en tu perfil
-                </p>
-              </div>
-            </div>
-            {!form.en_curso && (
-              <div className="animate-fade-in">
-                <label className="block text-sm text-gray-400 mb-1.5">
-                  Fecha de finalización <span className="text-brand">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={form.mes_fin}
-                    onChange={s("mes_fin")}
-                    className="input-field"
-                  >
-                    <option value="">Mes</option>
-                    {MESES.map((m, i) => (
-                      <option key={m} value={String(i + 1).padStart(2, "0")}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={form.anio_fin}
-                    onChange={s("anio_fin")}
-                    className="input-field"
-                  >
-                    <option value="">Año</option>
-                    {anios.map((a) => (
-                      <option key={a} value={a}>
-                        {a}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="flex gap-3 mt-6">
-            <button onClick={onClose} className="btn-secondary flex-1">
-              Cancelar
-            </button>
-            <button
-              onClick={() =>
-                isValid && onSave({ ...form, id: form.id || Date.now() })
-              }
-              disabled={!isValid}
-              className="btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {item ? "Guardar cambios" : "Añadir formación"}
-            </button>
-          </div>
+          )}
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="btn-secondary flex-1">
+            Cancelar
+          </button>
+          <button
+            onClick={() =>
+              isValid && onSave({ ...form, id: form.id || Date.now() })
+            }
+            disabled={!isValid}
+            className="btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {item ? "Guardar cambios" : "Añadir formación"}
+          </button>
         </div>
       </div>
-    </MainLayout>
+    </div>
+    // </MainLayout>
   );
 }
 
@@ -692,250 +690,250 @@ Genera UNA descripción en español de máximo 200 caracteres, directa, sin ador
   const isValid = form.titulo.trim();
 
   return (
-    <MainLayout>
-      <div
-        className="modal-overlay"
-        onClick={(e) => e.target === e.currentTarget && onClose()}
-      >
-        <div className="modal-card max-h-[90vh] overflow-y-auto">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-500 hover:text-white"
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
-            </svg>
-          </button>
-          <h2 className="font-display text-xl font-bold text-white mb-6">
-            {proyecto ? "Editar proyecto" : "Añadir proyecto"}
-          </h2>
-          <div className="mb-5 p-4 bg-brand/5 border border-brand/20 rounded-xl">
-            <p className="text-brand text-xs font-semibold uppercase tracking-wider mb-2">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 640 640">
-                <use href="/icons.svg#icon-sparkles" />
-              </svg>{" "}
-              Rellena automáticamente con IA
-            </p>
-            <p className="text-gray-500 text-xs mb-3">
-              Pega la URL de un repositorio de GitHub y la IA generará título,
-              descripción y tecnologías automáticamente.
-            </p>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={githubUrl}
-                onChange={(e) => setGithubUrl(e.target.value)}
-                placeholder="https://github.com/usuario/repositorio"
-                className="input-field flex-1 text-sm"
-              />
-              <button
-                onClick={analizarConIA}
-                disabled={analizando || !githubUrl.trim()}
-                className="btn-primary flex-shrink-0 flex items-center gap-2 text-sm disabled:opacity-40"
-              >
-                {analizando ? (
-                  <>
-                    <Spinner className="w-3.5 h-3.5" /> Analizando...
-                  </>
-                ) : (
-                  "Analizar"
-                )}
-              </button>
-            </div>
-            {errorAnalisis && (
-              <p className="text-red-400 text-xs mt-2">{errorAnalisis}</p>
-            )}
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">
-                Título del proyecto <span className="text-brand">*</span>
-              </label>
-              <input
-                type="text"
-                value={form.titulo}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, titulo: e.target.value }))
-                }
-                placeholder="Mi proyecto"
-                className="input-field"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">
-                Descripción
-              </label>
-              <textarea
-                rows={3}
-                value={form.descripcion}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    descripcion: e.target.value.slice(0, 300),
-                  }))
-                }
-                placeholder="¿Qué hace este proyecto? ¿Qué problema resuelve?"
-                className="input-field resize-none"
-              />
-              <p className="text-xs text-gray-600 mt-1 text-right">
-                {form.descripcion.length}/300
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">
-                Tecnologías
-              </label>
-              <input
-                type="text"
-                value={techInput}
-                onChange={(e) => setTechInput(e.target.value)}
-                onKeyDown={handleTechKey}
-                placeholder="Escribe y pulsa Enter (React, Node.js...)"
-                className="input-field mb-2"
-              />
-              <div className="flex flex-wrap gap-1.5">
-                {form.tecnologias.map((t) => (
-                  <span
-                    key={t}
-                    className="flex items-center gap-1 bg-brand/10 border border-brand/20 text-brand text-xs px-2.5 py-1 rounded-full"
-                  >
-                    {t}
-                    <button
-                      onClick={() =>
-                        setForm((f) => ({
-                          ...f,
-                          tecnologias: f.tecnologias.filter((x) => x !== t),
-                        }))
-                      }
-                      className="text-brand/60 hover:text-brand"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">
-                URL del repositorio
-              </label>
-              <input
-                type="url"
-                value={form.url_repo}
-                onChange={(e) => {
-                  setForm((f) => ({ ...f, url_repo: e.target.value }));
-                  setGithubUrl(e.target.value);
-                }}
-                placeholder="https://github.com/usuario/repo"
-                className="input-field"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">
-                URL de la demo
-              </label>
-              <input
-                type="url"
-                value={form.url_demo}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, url_demo: e.target.value }))
-                }
-                placeholder="https://miproyecto.vercel.app"
-                className="input-field"
-              />
-            </div>
-          </div>
-          <div className="flex gap-3 mt-6">
-            <button onClick={onClose} className="btn-secondary flex-1">
-              Cancelar
-            </button>
+    // <MainLayout>
+    <div
+      className="modal-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="modal-card max-h-[90vh] overflow-y-auto">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-white"
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+          </svg>
+        </button>
+        <h2 className="font-display text-xl font-bold text-white mb-6">
+          {proyecto ? "Editar proyecto" : "Añadir proyecto"}
+        </h2>
+        <div className="mb-5 p-4 bg-brand/5 border border-brand/20 rounded-xl">
+          <p className="text-brand text-xs font-semibold uppercase tracking-wider mb-2">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 640 640">
+              <use href="/icons.svg#icon-sparkles" />
+            </svg>{" "}
+            Rellena automáticamente con IA
+          </p>
+          <p className="text-gray-500 text-xs mb-3">
+            Pega la URL de un repositorio de GitHub y la IA generará título,
+            descripción y tecnologías automáticamente.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={githubUrl}
+              onChange={(e) => setGithubUrl(e.target.value)}
+              placeholder="https://github.com/usuario/repositorio"
+              className="input-field flex-1 text-sm"
+            />
             <button
-              onClick={() =>
-                isValid && onSave({ ...form, id: form.id || Date.now() })
-              }
-              disabled={!isValid}
-              className="btn-primary flex-1 disabled:opacity-40"
+              onClick={analizarConIA}
+              disabled={analizando || !githubUrl.trim()}
+              className="btn-primary flex-shrink-0 flex items-center gap-2 text-sm disabled:opacity-40"
             >
-              {proyecto ? "Guardar cambios" : "Añadir proyecto"}
+              {analizando ? (
+                <>
+                  <Spinner className="w-3.5 h-3.5" /> Analizando...
+                </>
+              ) : (
+                "Analizar"
+              )}
             </button>
+          </div>
+          {errorAnalisis && (
+            <p className="text-red-400 text-xs mt-2">{errorAnalisis}</p>
+          )}
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Título del proyecto <span className="text-brand">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.titulo}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, titulo: e.target.value }))
+              }
+              placeholder="Mi proyecto"
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Descripción
+            </label>
+            <textarea
+              rows={3}
+              value={form.descripcion}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  descripcion: e.target.value.slice(0, 300),
+                }))
+              }
+              placeholder="¿Qué hace este proyecto? ¿Qué problema resuelve?"
+              className="input-field resize-none"
+            />
+            <p className="text-xs text-gray-600 mt-1 text-right">
+              {form.descripcion.length}/300
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              Tecnologías
+            </label>
+            <input
+              type="text"
+              value={techInput}
+              onChange={(e) => setTechInput(e.target.value)}
+              onKeyDown={handleTechKey}
+              placeholder="Escribe y pulsa Enter (React, Node.js...)"
+              className="input-field mb-2"
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {form.tecnologias.map((t) => (
+                <span
+                  key={t}
+                  className="flex items-center gap-1 bg-brand/10 border border-brand/20 text-brand text-xs px-2.5 py-1 rounded-full"
+                >
+                  {t}
+                  <button
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        tecnologias: f.tecnologias.filter((x) => x !== t),
+                      }))
+                    }
+                    className="text-brand/60 hover:text-brand"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              URL del repositorio
+            </label>
+            <input
+              type="url"
+              value={form.url_repo}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, url_repo: e.target.value }));
+                setGithubUrl(e.target.value);
+              }}
+              placeholder="https://github.com/usuario/repo"
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">
+              URL de la demo
+            </label>
+            <input
+              type="url"
+              value={form.url_demo}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, url_demo: e.target.value }))
+              }
+              placeholder="https://miproyecto.vercel.app"
+              className="input-field"
+            />
           </div>
         </div>
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="btn-secondary flex-1">
+            Cancelar
+          </button>
+          <button
+            onClick={() =>
+              isValid && onSave({ ...form, id: form.id || Date.now() })
+            }
+            disabled={!isValid}
+            className="btn-primary flex-1 disabled:opacity-40"
+          >
+            {proyecto ? "Guardar cambios" : "Añadir proyecto"}
+          </button>
+        </div>
       </div>
-    </MainLayout>
+    </div>
+    // </MainLayout>
   );
 }
 
 function ProyectoCard({ proyecto, onEdit, onDelete }) {
   return (
-    <MainLayout>
-      <div className="group bg-dark border border-white/8 rounded-xl p-4 hover:border-white/15 transition-all duration-200">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-display font-semibold text-white text-sm truncate">
-              {proyecto.titulo}
-            </h3>
-            {proyecto.descripcion && (
-              <p className="text-gray-500 text-xs mt-1 line-clamp-2">
-                {proyecto.descripcion}
-              </p>
-            )}
-            {proyecto.tecnologias?.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {proyecto.tecnologias.slice(0, 5).map((t) => (
-                  <span
-                    key={t}
-                    className="bg-brand/10 border border-brand/20 text-brand text-xs px-2 py-0.5 rounded-full"
-                  >
-                    {t}
-                  </span>
-                ))}
-                {proyecto.tecnologias.length > 5 && (
-                  <span className="text-gray-600 text-xs px-2 py-0.5">
-                    +{proyecto.tecnologias.length - 5}
-                  </span>
-                )}
-              </div>
-            )}
-            <div className="flex flex-wrap gap-3 mt-2">
-              {proyecto.url_repo && (
-                <a
-                  href={proyecto.url_repo}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand transition-colors"
+    // <MainLayout>
+    <div className="group bg-dark border border-white/8 rounded-xl p-4 hover:border-white/15 transition-all duration-200">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-display font-semibold text-white text-sm truncate">
+            {proyecto.titulo}
+          </h3>
+          {proyecto.descripcion && (
+            <p className="text-gray-500 text-xs mt-1 line-clamp-2">
+              {proyecto.descripcion}
+            </p>
+          )}
+          {proyecto.tecnologias?.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {proyecto.tecnologias.slice(0, 5).map((t) => (
+                <span
+                  key={t}
+                  className="bg-brand/10 border border-brand/20 text-brand text-xs px-2 py-0.5 rounded-full"
                 >
-                  <IconGitHub size={12} /> Repositorio
-                </a>
-              )}
-              {proyecto.url_demo && (
-                <a
-                  href={proyecto.url_demo}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand transition-colors"
-                >
-                  <IconGlobe size={12} /> Demo
-                </a>
+                  {t}
+                </span>
+              ))}
+              {proyecto.tecnologias.length > 5 && (
+                <span className="text-gray-600 text-xs px-2 py-0.5">
+                  +{proyecto.tecnologias.length - 5}
+                </span>
               )}
             </div>
-          </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => onEdit(proyecto)}
-              className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-            >
-              <IconEdit />
-            </button>
-            <button
-              onClick={() => onDelete(proyecto.id)}
-              className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-            >
-              <IconTrash />
-            </button>
+          )}
+          <div className="flex flex-wrap gap-3 mt-2">
+            {proyecto.url_repo && (
+              <a
+                href={proyecto.url_repo}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand transition-colors"
+              >
+                <IconGitHub size={12} /> Repositorio
+              </a>
+            )}
+            {proyecto.url_demo && (
+              <a
+                href={proyecto.url_demo}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand transition-colors"
+              >
+                <IconGlobe size={12} /> Demo
+              </a>
+            )}
           </div>
         </div>
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => onEdit(proyecto)}
+            className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+          >
+            <IconEdit />
+          </button>
+          <button
+            onClick={() => onDelete(proyecto.id)}
+            className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+          >
+            <IconTrash />
+          </button>
+        </div>
       </div>
-    </MainLayout>
+    </div>
+    // </MainLayout>
   );
 }
 
