@@ -72,9 +72,7 @@ function PasswordField({ value, onChange }) {
           {[1, 2, 3, 4].map((lvl) => (
             <div
               key={lvl}
-              className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                score >= lvl ? colors[score] : "bg-white/10"
-              }`}
+              className={`h-1 flex-1 rounded-full transition-all duration-300 ${score >= lvl ? colors[score] : "bg-white/10"}`}
             />
           ))}
           <span className="text-xs text-gray-500 w-16 text-right">
@@ -138,10 +136,11 @@ export default function TutorRegisterPage() {
       let entityName = "Entidad";
 
       if (entityType === "empresa") {
+        // empresa.id = uuid (= usuario.id), no id_usuario
         const { data } = await supabase
           .from("empresa")
           .select("nombre")
-          .eq("id_usuario", entityId)
+          .eq("id", entityId)
           .maybeSingle();
         if (data?.nombre) entityName = data.nombre;
       } else if (entityType === "centro_educativo") {
@@ -179,8 +178,6 @@ export default function TutorRegisterPage() {
     const role = entityType === "empresa" ? "tutor_empresa" : "tutor_centro";
 
     // 1. Crear usuario en Supabase Auth
-    //    El trigger handle_new_user se encarga de insertar en `usuario`
-    //    y en `tutor_empresa` / `tutor_centro` automáticamente
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
       {
         email: form.email,
@@ -188,8 +185,8 @@ export default function TutorRegisterPage() {
         options: {
           data: {
             full_name: form.fullName,
-            role, // leído por el trigger
-            entity_id: entityId, // leído por el trigger
+            role,
+            entity_id: entityId,
             entity_type: entityType,
             invite_token: token,
           },
@@ -206,44 +203,49 @@ export default function TutorRegisterPage() {
     const uid = signUpData?.user?.id;
 
     if (uid) {
-      // 2. Actualizar telefono y cargo/departamento por usuario_id
-      //    El trigger ya creó la fila; aquí solo completamos los campos extra
+      // 2. Escribir en tabla usuario con is_profile_completed = true
+      //    Esto evita que el OnboardingModal aparezca al iniciar sesión
+      await supabase.from("usuario").upsert(
+        {
+          id: uid,
+          email: form.email,
+          nombre: form.fullName,
+          rol: role,
+          is_profile_completed: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" },
+      );
+
+      // 3. Crear fila en la tabla de tutor correspondiente
       if (role === "tutor_empresa") {
-        const { error: tutorError } = await supabase
-          .from("tutor_empresa")
-          .update({
+        await supabase.from("tutor_empresa").upsert(
+          {
+            id: uid,
+            empresa_id: entityId,
+            nombre: form.fullName,
+            telefono: form.phone || null,
             cargo: form.extra || null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" },
+        );
+      } else {
+        await supabase.from("tutor_centro").upsert(
+          {
+            id: uid,
+            centro_id: entityId,
+            nombre: form.fullName,
             telefono: form.phone || null,
-          })
-          .eq("usuario_id", uid);
-
-        if (tutorError) {
-          console.error(
-            "[TutorRegister] Error actualizando tutor_empresa:",
-            tutorError,
-          );
-        }
-      }
-
-      if (role === "tutor_centro") {
-        const { error: tutorError } = await supabase
-          .from("tutor_centro")
-          .update({
             departamento: form.extra || null,
-            telefono: form.phone || null,
-          })
-          .eq("usuario_id", uid);
-
-        if (tutorError) {
-          console.error(
-            "[TutorRegister] Error actualizando tutor_centro:",
-            tutorError,
-          );
-        }
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" },
+        );
       }
     }
 
-    // 3. Marcar token como usado
+    // 4. Marcar token como usado
     await supabase
       .from("invite_tokens")
       .update({ used: true, used_at: new Date().toISOString() })

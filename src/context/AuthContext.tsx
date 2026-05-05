@@ -9,7 +9,7 @@ import { supabase } from "../lib/supabase";
 import { Session, User } from "@supabase/supabase-js";
 
 /* ============================================================
-   ROLES DEL SISTEMA (UNIFICADO)
+   ROLES DEL SISTEMA
 ============================================================ */
 export type UserRole =
   | "estudiante"
@@ -24,15 +24,12 @@ export function getRoleRoute(role: UserRole | null): string {
   switch (role) {
     case "empresa":
       return "/perfil/empresa";
-
     case "centro_educativo":
       return "/perfil/centro";
-
     case "tutor":
     case "tutor_empresa":
     case "tutor_centro":
       return "/perfil/tutor";
-
     case "estudiante":
     default:
       return "/perfil/estudiante";
@@ -45,7 +42,6 @@ export async function fetchUserRole(userId: string): Promise<UserRole | null> {
     const timeout = new Promise<null>((resolve) =>
       setTimeout(() => resolve(null), 5000),
     );
-
     const query = supabase
       .from("usuario")
       .select("rol")
@@ -55,7 +51,6 @@ export async function fetchUserRole(userId: string): Promise<UserRole | null> {
         if (error || !data) return null;
         return data.rol as UserRole;
       });
-
     return await Promise.race([query, timeout]);
   } catch {
     return null;
@@ -65,7 +60,9 @@ export async function fetchUserRole(userId: string): Promise<UserRole | null> {
 type AuthContextType = {
   user: User | null;
   userRole: UserRole | null;
+  avatarUrl: string | null;
   loading: boolean;
+  refreshAvatar: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -74,20 +71,53 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Carga el rol desde la BD cada vez que cambia el usuario
-  const loadRole = async (u: User | null) => {
+  /**
+   * Carga rol Y avatar desde `usuario` en una sola query.
+   * Se llama cada vez que cambia la sesión.
+   */
+  const loadUserData = async (u: User | null) => {
     if (!u) {
       setUserRole(null);
+      setAvatarUrl(null);
       return;
     }
     try {
-      const role = await fetchUserRole(u.id);
-      setUserRole(role);
+      const timeout = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), 5000),
+      );
+      const query = supabase
+        .from("usuario")
+        .select("rol, avatar_url")
+        .eq("id", u.id)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error || !data) return null;
+          return data;
+        });
+      const data = await Promise.race([query, timeout]);
+      setUserRole((data?.rol as UserRole) ?? null);
+      setAvatarUrl(data?.avatar_url ?? null);
     } catch {
       setUserRole(null);
+      setAvatarUrl(null);
     }
+  };
+
+  /**
+   * Refresca solo el avatar desde `usuario.avatar_url`.
+   * Llamar tras subir una nueva foto en cualquier perfil.
+   */
+  const refreshAvatar = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("usuario")
+      .select("avatar_url")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (data?.avatar_url !== undefined) setAvatarUrl(data.avatar_url);
   };
 
   useEffect(() => {
@@ -95,13 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data } = await supabase.auth.getSession();
         const u = data.session?.user ?? null;
-
         setUser(u);
-        await loadRole(u);
+        await loadUserData(u);
       } catch (err) {
         console.warn("Error al obtener sesión:", err);
         setUser(null);
         setUserRole(null);
+        setAvatarUrl(null);
       } finally {
         setLoading(false);
       }
@@ -114,10 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange(
       async (_event, session: Session | null) => {
         const u = session?.user ?? null;
-
         setUser(u);
         try {
-          await loadRole(u);
+          await loadUserData(u);
         } finally {
           setLoading(false);
         }
@@ -131,10 +160,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setUserRole(null);
+    setAvatarUrl(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, userRole, loading, signOut }}>
+    <AuthContext.Provider
+      value={{ user, userRole, avatarUrl, loading, refreshAvatar, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );

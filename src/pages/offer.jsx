@@ -329,13 +329,7 @@ function OfertaModal({ oferta, onClose, onSaved }) {
     setError(null);
 
     try {
-      // Obtener id_empresa
-      const { data: emp } = await supabase
-        .from("empresa")
-        .select("id_empresa")
-        .eq("id_usuario", user.id)
-        .maybeSingle();
-
+      // empresa.id === usuario.id (uuid), directo sin query intermedia
       const payload = {
         titulo: form.titulo.trim(),
         descripcion: form.descripcion.trim() || null,
@@ -358,7 +352,7 @@ function OfertaModal({ oferta, onClose, onSaved }) {
         fecha_fin_solicitud: form.fecha_fin_solicitud || null,
         estado: "pendiente",
         fecha_modificacion: new Date().toISOString(),
-        id_empresa: emp?.id_empresa ?? null,
+        id_empresa: user.id, // empresa.id = usuario.id (uuid)
       };
 
       let idOferta;
@@ -1107,52 +1101,79 @@ export default function OfertasPage() {
 
   const cargarOfertas = useCallback(async () => {
     setLoading(true);
+    try {
+      // 1. Query de ofertas sin join a empresa
+      //    (no hay FK entre oferta.id_empresa y empresa.id en el schema)
+      let query = supabase
+        .from("oferta")
+        .select(
+          `
+          id_oferta, titulo, descripcion, modalidad, ubicacion,
+          duracion_semanas, horas_semanales, num_plazas, num_plazas_restantes,
+          opcion_contrato, estado, fecha_publicacion, fecha_fin_solicitud,
+          tipo_oferta, salario_mensual, requisitos_adicionales, beneficios, id_empresa,
+          oferta_tecnologia(tecnologia(id_tecnologia, nombre))
+        `,
+        )
+        .order("fecha_publicacion", { ascending: false });
 
-    let query = supabase
-      .from("oferta")
-      .select(
-        `
-        id_oferta, titulo, descripcion, modalidad, ubicacion,
-        duracion_semanas, horas_semanales, num_plazas, num_plazas_restantes,
-        opcion_contrato, estado, fecha_publicacion, fecha_fin_solicitud,
-        tipo_oferta, salario_mensual, requisitos_adicionales, beneficios, id_empresa,
-        empresa:empresa(id_empresa, nombre, id_usuario,
-          usuario:id_usuario(avatar_url)
+      if (isEmpresa) {
+        // empresa.id === usuario.id (uuid), filtrar directamente
+        query = query.eq("id_empresa", user.id);
+      } else {
+        query = query.eq("estado", "activa");
+      }
+
+      const { data: ofertasData, error: ofertasError } = await query;
+      if (ofertasError) throw ofertasError;
+
+      // 2. Enriquecer con nombre y avatar de empresa usando los id únicos
+      const empresaIds = [
+        ...new Set(
+          (ofertasData ?? []).map((o) => o.id_empresa).filter(Boolean),
         ),
-        oferta_tecnologia(tecnologia(id_tecnologia, nombre))
-      `,
-      )
-      .order("fecha_publicacion", { ascending: false });
+      ];
 
-    // Las empresas ven sus propias (todos los estados); el resto solo activas
-    if (isEmpresa) {
-      const { data: emp } = await supabase
-        .from("empresa")
-        .select("id_empresa")
-        .eq("id_usuario", user.id)
-        .maybeSingle();
-      if (emp) query = query.eq("id_empresa", emp.id_empresa);
-    } else {
-      query = query.eq("estado", "activa");
-    }
+      let empresaMap = {};
+      if (empresaIds.length > 0) {
+        const { data: empresas } = await supabase
+          .from("empresa")
+          .select("id, nombre")
+          .in("id", empresaIds);
 
-    const { data, error } = await query;
-    if (error) {
-      console.error(error);
+        const { data: usuarios } = await supabase
+          .from("usuario")
+          .select("id, avatar_url")
+          .in("id", empresaIds);
+
+        const avatarMap = Object.fromEntries(
+          (usuarios ?? []).map((u) => [u.id, u.avatar_url]),
+        );
+        empresaMap = Object.fromEntries(
+          (empresas ?? []).map((e) => [
+            e.id,
+            {
+              nombre: e.nombre,
+              avatar: avatarMap[e.id] ?? null,
+            },
+          ]),
+        );
+      }
+
+      const normalizadas = (ofertasData ?? []).map((o) => ({
+        ...o,
+        empresa_nombre: empresaMap[o.id_empresa]?.nombre ?? "Empresa",
+        empresa_avatar: empresaMap[o.id_empresa]?.avatar ?? null,
+        tecnologias:
+          o.oferta_tecnologia?.map((ot) => ot.tecnologia).filter(Boolean) ?? [],
+      }));
+
+      setOfertas(normalizadas);
+    } catch (err) {
+      console.error("Error cargando ofertas:", err);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const normalizadas = (data ?? []).map((o) => ({
-      ...o,
-      empresa_nombre: o.empresa?.nombre ?? "Empresa",
-      empresa_avatar: o.empresa?.usuario?.avatar_url ?? null,
-      tecnologias:
-        o.oferta_tecnologia?.map((ot) => ot.tecnologia).filter(Boolean) ?? [],
-    }));
-
-    setOfertas(normalizadas);
-    setLoading(false);
   }, [user, isEmpresa]);
 
   // Cargar postulaciones del estudiante
