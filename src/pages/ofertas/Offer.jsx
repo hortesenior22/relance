@@ -4,6 +4,9 @@ import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import MainLayout from "../../components/layout/MainLayout";
 
+// ── Importa el componente OfertaCard externo ──────────────────────────────
+import OfertaCard from "./CardOffer";
+
 // ─── Constantes ────────────────────────────────────────────────────────────
 const MODALIDADES = ["Presencial", "Remoto", "Híbrido"];
 const TIPOS = [
@@ -20,29 +23,11 @@ const DURACIONES = [
   { val: 48, label: "12 meses" },
 ];
 
-// ─── Helpers UI ────────────────────────────────────────────────────────────
-function Badge({ children, color = "brand" }) {
-  const cls = {
-    brand: "bg-brand/10 text-brand border-brand/20",
-    blue: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    purple: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-    orange: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-    gray: "bg-white/5 text-gray-400 border-white/10",
-    green: "bg-green-500/10 text-green-400 border-green-500/20",
-  }[color];
-  return (
-    <span
-      className={`inline-flex items-center border rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}
-    >
-      {children}
-    </span>
-  );
-}
-
+// ─── Helpers UI locales ────────────────────────────────────────────────────
 function Spinner({ className = "w-5 h-5" }) {
   return (
     <svg
-      className={`animate-spin text-brand ${className}`}
+      className={`animate-spin text-[#C0FF72] ${className}`}
       viewBox="0 0 24 24"
       fill="none"
     >
@@ -60,166 +45,6 @@ function Spinner({ className = "w-5 h-5" }) {
         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
       />
     </svg>
-  );
-}
-
-const tipoMeta = {
-  practicas: { label: "Prácticas", color: "blue" },
-  practicas_contratacion: { label: "Prácticas + contratación", color: "green" },
-  empleo_junior: { label: "Empleo junior", color: "purple" },
-};
-const modalidadIcon = { Presencial: "🏢", Remoto: "🌐", Híbrido: "⚡" };
-
-// ─── Tarjeta de oferta ─────────────────────────────────────────────────────
-function OfertaCard({ oferta, onVerDetalle, isEmpresa, onEdit, onDelete }) {
-  const meta = tipoMeta[oferta.tipo_oferta] ?? {
-    label: "Oferta",
-    color: "gray",
-  };
-  const empresa = oferta.empresa_nombre ?? "Empresa";
-  const tecnologias = oferta.tecnologias ?? [];
-
-  return (
-    <article className="group relative bg-dark-800 border border-white/10 rounded-2xl p-5 hover:border-brand/30 transition-all duration-300 hover:shadow-lg hover:shadow-brand/5 cursor-pointer flex flex-col gap-4">
-      {isEmpresa && oferta.estado && (
-        <div className="absolute top-4 right-4">
-          {oferta.estado === "activa" && <Badge color="green">✓ Activa</Badge>}
-          {oferta.estado === "pendiente" && (
-            <Badge color="orange">⏳ Pendiente</Badge>
-          )}
-          {oferta.estado === "rechazada" && (
-            <Badge color="gray">✗ Rechazada</Badge>
-          )}
-          {oferta.estado === "cerrada" && <Badge color="gray">Cerrada</Badge>}
-        </div>
-      )}
-
-      <div onClick={() => onVerDetalle(oferta)} className="flex-1">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center flex-shrink-0">
-            {oferta.empresa_avatar ? (
-              <img
-                src={oferta.empresa_avatar}
-                alt={empresa}
-                className="w-full h-full object-cover rounded-xl"
-              />
-            ) : (
-              <svg className="w-5 h-5 text-brand" viewBox="0 0 640 640">
-                <use href="/icons.svg#icon-building" />
-              </svg>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="font-display font-bold text-white text-base leading-tight truncate pr-16">
-              {oferta.titulo}
-            </h3>
-            <p className="text-gray-400 text-sm truncate">{empresa}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          <Badge color={meta.color}>{meta.label}</Badge>
-          {oferta.modalidad && (
-            <Badge color="gray">
-              {modalidadIcon[oferta.modalidad]} {oferta.modalidad}
-            </Badge>
-          )}
-          {oferta.ubicacion && (
-            <Badge color="gray">📍 {oferta.ubicacion}</Badge>
-          )}
-          {oferta.opcion_contrato && (
-            <Badge color="green">💼 Opción de contratación</Badge>
-          )}
-        </div>
-
-        {oferta.descripcion && (
-          <p className="text-gray-500 text-sm line-clamp-2 mb-3">
-            {oferta.descripcion}
-          </p>
-        )}
-
-        {tecnologias.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {tecnologias.slice(0, 5).map((t) => (
-              <span
-                key={t.id_tecnologia ?? t}
-                className="bg-white/5 border border-white/10 text-gray-300 text-xs px-2 py-0.5 rounded-full"
-              >
-                {t.nombre ?? t}
-              </span>
-            ))}
-            {tecnologias.length > 5 && (
-              <span className="text-gray-600 text-xs px-2 py-0.5">
-                +{tecnologias.length - 5}
-              </span>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-3 text-xs text-gray-600">
-          {oferta.duracion_semanas && (
-            <span>⏱ {oferta.duracion_semanas} semanas</span>
-          )}
-          {oferta.horas_semanales && (
-            <span>🕐 {oferta.horas_semanales} h/semana</span>
-          )}
-          {oferta.num_plazas_restantes != null && (
-            <span>
-              👥 {oferta.num_plazas_restantes} plaza
-              {oferta.num_plazas_restantes !== 1 ? "s" : ""} disponible
-              {oferta.num_plazas_restantes !== 1 ? "s" : ""}
-            </span>
-          )}
-          {oferta.salario_mensual && (
-            <span>💶 {oferta.salario_mensual} €/mes</span>
-          )}
-        </div>
-      </div>
-
-      {isEmpresa && (
-        <div className="flex gap-2 pt-3 border-t border-white/5">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(oferta);
-            }}
-            className="flex-1 text-xs py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all flex items-center justify-center gap-1.5"
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-            Editar
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(oferta.id_oferta);
-            }}
-            className="flex-1 text-xs py-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/10 text-red-500/70 hover:text-red-400 transition-all flex items-center justify-center gap-1.5"
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14H6L5 6" />
-              <path d="M10 11v6M14 11v6M9 6V4h6v2" />
-            </svg>
-            Eliminar
-          </button>
-        </div>
-      )}
-    </article>
   );
 }
 
@@ -311,7 +136,6 @@ function OfertaModal({ oferta, onClose, onSaved }) {
     setError(null);
 
     try {
-      // ✅ empresa.id === usuario.id (son el mismo uuid), no hace falta query
       const payload = {
         titulo: form.titulo.trim(),
         descripcion: form.descripcion.trim() || null,
@@ -334,7 +158,7 @@ function OfertaModal({ oferta, onClose, onSaved }) {
         fecha_fin_solicitud: form.fecha_fin_solicitud || null,
         estado: "pendiente",
         fecha_modificacion: new Date().toISOString(),
-        id_empresa: user.id, // ✅ empresa.id = usuario.id (uuid), directo
+        id_empresa: user.id,
       };
 
       let idOferta;
@@ -384,6 +208,7 @@ function OfertaModal({ oferta, onClose, onSaved }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+        {/* Header sticky */}
         <div className="sticky top-0 bg-dark-800 border-b border-white/10 px-6 py-4 flex items-center justify-between z-10">
           <h2 className="font-display text-xl font-bold text-white">
             {esEdicion ? "Editar oferta" : "Crear nueva oferta"}
@@ -406,9 +231,9 @@ function OfertaModal({ oferta, onClose, onSaved }) {
           )}
 
           {!esEdicion && (
-            <div className="bg-brand/5 border border-brand/20 rounded-xl px-4 py-3 flex gap-3">
+            <div className="bg-[#C0FF72]/5 border border-[#C0FF72]/20 rounded-xl px-4 py-3 flex gap-3">
               <svg
-                className="w-4 h-4 text-brand flex-shrink-0 mt-0.5"
+                className="w-4 h-4 text-[#C0FF72] flex-shrink-0 mt-0.5"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -437,7 +262,11 @@ function OfertaModal({ oferta, onClose, onSaved }) {
                   key={t.id}
                   type="button"
                   onClick={() => setForm((f) => ({ ...f, tipo_oferta: t.id }))}
-                  className={`py-2.5 px-3 rounded-xl border text-xs font-medium transition-all ${form.tipo_oferta === t.id ? "border-brand bg-brand/10 text-brand" : "border-white/10 text-gray-400 hover:border-white/20"}`}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-medium transition-all ${
+                    form.tipo_oferta === t.id
+                      ? "border-[#C0FF72] bg-[#C0FF72]/10 text-[#C0FF72]"
+                      : "border-white/10 text-gray-400 hover:border-white/20"
+                  }`}
                 >
                   {t.label}
                 </button>
@@ -473,7 +302,7 @@ function OfertaModal({ oferta, onClose, onSaved }) {
                 }))
               }
               rows={4}
-              placeholder="Describe las tareas, responsabilidades y el equipo con el que trabajará el candidato..."
+              placeholder="Describe las tareas, responsabilidades y el equipo..."
               className="input-field resize-none"
             />
             <p className="text-xs text-gray-600 mt-1 text-right">
@@ -608,7 +437,7 @@ function OfertaModal({ oferta, onClose, onSaved }) {
               onClick={() =>
                 setForm((f) => ({ ...f, opcion_contrato: !f.opcion_contrato }))
               }
-              className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${form.opcion_contrato ? "bg-brand" : "bg-white/15"}`}
+              className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${form.opcion_contrato ? "bg-[#C0FF72]" : "bg-white/15"}`}
             >
               <span
                 className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${form.opcion_contrato ? "translate-x-5" : ""}`}
@@ -658,7 +487,7 @@ function OfertaModal({ oferta, onClose, onSaved }) {
               {form.tecnologias.map((t) => (
                 <span
                   key={t.id_tecnologia}
-                  className="flex items-center gap-1 bg-brand/10 border border-brand/20 text-brand text-xs px-2.5 py-1 rounded-full"
+                  className="flex items-center gap-1 bg-[#C0FF72]/10 border border-[#C0FF72]/20 text-[#C0FF72] text-xs px-2.5 py-1 rounded-full"
                 >
                   {t.nombre}
                   <button
@@ -671,7 +500,7 @@ function OfertaModal({ oferta, onClose, onSaved }) {
                         ),
                       }))
                     }
-                    className="text-brand/60 hover:text-brand"
+                    className="text-[#C0FF72]/60 hover:text-[#C0FF72]"
                   >
                     ×
                   </button>
@@ -750,6 +579,32 @@ function OfertaModal({ oferta, onClose, onSaved }) {
 }
 
 // ─── Modal detalle oferta ──────────────────────────────────────────────────
+const TIPO_META = {
+  practicas: { label: "Prácticas", color: "blue" },
+  practicas_contratacion: { label: "Prácticas + contratación", color: "green" },
+  empleo_junior: { label: "Empleo junior", color: "purple" },
+};
+
+function Badge({ children, color = "gray" }) {
+  const cls = {
+    brand: "bg-[#C0FF72]/10 text-[#C0FF72]  border-[#C0FF72]/20",
+    blue: "bg-blue-500/10  text-blue-400   border-blue-500/20",
+    purple: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+    orange: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+    green: "bg-green-500/10 text-green-400  border-green-500/20",
+    gray: "bg-white/5      text-gray-400   border-white/10",
+  }[color];
+  return (
+    <span
+      className={`inline-flex items-center border rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+const modalidadIcon = { Presencial: "🏢", Remoto: "🌐", Híbrido: "⚡" };
+
 function DetalleModal({
   oferta,
   onClose,
@@ -757,7 +612,7 @@ function DetalleModal({
   yaPostulado,
   isEstudiante,
 }) {
-  const meta = tipoMeta[oferta.tipo_oferta] ?? {
+  const meta = TIPO_META[oferta.tipo_oferta] ?? {
     label: "Oferta",
     color: "gray",
   };
@@ -771,7 +626,7 @@ function DetalleModal({
       <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
         <div className="sticky top-0 bg-dark-800 border-b border-white/10 px-6 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#C0FF72]/10 border border-[#C0FF72]/20 flex items-center justify-center flex-shrink-0">
               {oferta.empresa_avatar ? (
                 <img
                   src={oferta.empresa_avatar}
@@ -779,7 +634,7 @@ function DetalleModal({
                   className="w-full h-full object-cover rounded-xl"
                 />
               ) : (
-                <svg className="w-5 h-5 text-brand" viewBox="0 0 640 640">
+                <svg className="w-5 h-5 text-[#C0FF72]" viewBox="0 0 640 640">
                   <use href="/icons.svg#icon-building" />
                 </svg>
               )}
@@ -884,7 +739,7 @@ function DetalleModal({
                 {tecnologias.map((t) => (
                   <span
                     key={t.id_tecnologia}
-                    className="bg-brand/10 border border-brand/20 text-brand text-xs px-2.5 py-1 rounded-full"
+                    className="bg-[#C0FF72]/10 border border-[#C0FF72]/20 text-[#C0FF72] text-xs px-2.5 py-1 rounded-full"
                   >
                     {t.nombre}
                   </span>
@@ -918,7 +773,7 @@ function DetalleModal({
           {isEstudiante && (
             <div className="pt-2 border-t border-white/10">
               {yaPostulado ? (
-                <div className="flex items-center justify-center gap-2 py-3 text-brand text-sm font-medium">
+                <div className="flex items-center justify-center gap-2 py-3 text-[#C0FF72] text-sm font-medium">
                   <svg
                     className="w-4 h-4"
                     viewBox="0 0 24 24"
@@ -955,7 +810,7 @@ function DetalleModal({
   );
 }
 
-// ─── Modal postulación ──────────────────────────────────────────────────────
+// ─── Modal postulación ─────────────────────────────────────────────────────
 function PostulacionModal({ oferta, onClose, onSuccess }) {
   const { user } = useAuth();
   const [mensaje, setMensaje] = useState("");
@@ -968,7 +823,7 @@ function PostulacionModal({ oferta, onClose, onSuccess }) {
     try {
       const { error: err } = await supabase.from("candidatura").insert({
         id_oferta: oferta.id_oferta,
-        id_estudiante: user.id, // estudiante.id === usuario.id
+        id_estudiante: user.id,
         mensaje: mensaje.trim() || null,
         estado: "pendiente",
         fecha_solicitud: new Date().toISOString(),
@@ -1040,6 +895,284 @@ function PostulacionModal({ oferta, onClose, onSuccess }) {
   );
 }
 
+// ─── Modal retirar candidatura ─────────────────────────────────────────────
+function RetirarModal({ oferta, onClose, onSuccess }) {
+  const { user } = useAuth();
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleRetirar = async () => {
+    setSending(true);
+    setError(null);
+    try {
+      const { error: err } = await supabase
+        .from("candidatura")
+        .delete()
+        .eq("id_oferta", oferta.id_oferta)
+        .eq("id_estudiante", user.id);
+      if (err) throw err;
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-sm p-6">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+            <svg
+              className="w-5 h-5 text-red-400"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14H6L5 6" />
+              <path d="M10 11v6M14 11v6M9 6V4h6v2" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="font-display text-lg font-bold text-white">
+              Retirar candidatura
+            </h2>
+            <p className="text-gray-500 text-xs">
+              Esta acción no se puede deshacer
+            </p>
+          </div>
+        </div>
+        <p className="text-gray-400 text-sm mb-5">
+          ¿Seguro que quieres retirar tu candidatura a{" "}
+          <strong className="text-white">{oferta.titulo}</strong>?
+        </p>
+        {error && (
+          <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+            {error}
+          </div>
+        )}
+        <div className="flex gap-3">
+          <button onClick={onClose} className="btn-secondary flex-1">
+            Cancelar
+          </button>
+          <button
+            onClick={handleRetirar}
+            disabled={sending}
+            className="flex-1 py-2 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-sm font-medium transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {sending ? (
+              <>
+                <Spinner className="w-4 h-4" /> Retirando...
+              </>
+            ) : (
+              "Confirmar retirada"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Barra de filtros ──────────────────────────────────────────────────────
+function FiltrosBar({
+  search,
+  setSearch,
+  filtroModalidad,
+  setFiltroModalidad,
+  filtroTipo,
+  setFiltroTipo,
+  filtroContrato,
+  setFiltroContrato,
+  filtroTech,
+  setFiltroTech,
+}) {
+  const filtrosActivos = [
+    filtroModalidad,
+    filtroTipo,
+    filtroContrato,
+    filtroTech,
+  ].filter(Boolean).length;
+
+  const limpiar = () => {
+    setFiltroModalidad("");
+    setFiltroTipo("");
+    setFiltroContrato("");
+    setFiltroTech("");
+  };
+
+  return (
+    <div className="bg-dark-800 border border-white/10 rounded-2xl p-4 mb-6 space-y-3">
+      <div className="relative">
+        <svg
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por título, empresa o ubicación..."
+          className="input-field pl-9"
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <select
+          value={filtroModalidad}
+          onChange={(e) => setFiltroModalidad(e.target.value)}
+          className="input-field text-sm py-1.5 w-auto flex-shrink-0"
+        >
+          <option value="">Modalidad</option>
+          {MODALIDADES.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filtroTipo}
+          onChange={(e) => setFiltroTipo(e.target.value)}
+          className="input-field text-sm py-1.5 w-auto flex-shrink-0"
+        >
+          <option value="">Tipo</option>
+          {TIPOS.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filtroContrato}
+          onChange={(e) => setFiltroContrato(e.target.value)}
+          className="input-field text-sm py-1.5 w-auto flex-shrink-0"
+        >
+          <option value="">Contratación</option>
+          <option value="si">Con opción de contrato</option>
+          <option value="no">Solo prácticas</option>
+        </select>
+        <div className="relative flex-1 min-w-[160px]">
+          <input
+            type="text"
+            value={filtroTech}
+            onChange={(e) => setFiltroTech(e.target.value)}
+            placeholder="Filtrar por tecnología..."
+            className="input-field text-sm py-1.5 w-full"
+          />
+        </div>
+        {filtrosActivos > 0 && (
+          <button
+            onClick={limpiar}
+            className="text-xs text-gray-500 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 transition-all border border-white/10 flex items-center gap-1"
+          >
+            <svg
+              className="w-3 h-3"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            Limpiar ({filtrosActivos})
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Tabs para empresas ────────────────────────────────────────────────────
+function TabsEmpresa({ tab, setTab, totalMisOfertas }) {
+  return (
+    <div className="flex gap-1 bg-dark-800 border border-white/10 rounded-xl p-1 mb-6 w-fit">
+      <button
+        onClick={() => setTab("explorar")}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          tab === "explorar"
+            ? "bg-white/10 text-white"
+            : "text-gray-500 hover:text-gray-300"
+        }`}
+      >
+        Explorar ofertas
+      </button>
+      <button
+        onClick={() => setTab("mis-ofertas")}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+          tab === "mis-ofertas"
+            ? "bg-[#C0FF72]/15 text-[#C0FF72] border border-[#C0FF72]/20"
+            : "text-gray-500 hover:text-gray-300"
+        }`}
+      >
+        Mis ofertas
+        {totalMisOfertas > 0 && (
+          <span
+            className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+              tab === "mis-ofertas"
+                ? "bg-[#C0FF72]/20 text-[#C0FF72]"
+                : "bg-white/10 text-gray-400"
+            }`}
+          >
+            {totalMisOfertas}
+          </span>
+        )}
+      </button>
+    </div>
+  );
+}
+
+// ─── Stats para empresa (pestaña Mis Ofertas) ──────────────────────────────
+function EmpresaStats({ ofertas }) {
+  const activas = ofertas.filter((o) => o.estado === "activa").length;
+  const pendientes = ofertas.filter((o) => o.estado === "pendiente").length;
+  const cerradas = ofertas.filter(
+    (o) => o.estado === "cerrada" || o.estado === "rechazada",
+  ).length;
+
+  return (
+    <div className="grid grid-cols-3 gap-3 mb-6">
+      {[
+        {
+          label: "Activas",
+          val: activas,
+          color: "text-green-400",
+          bg: "bg-green-500/10  border-green-500/20",
+        },
+        {
+          label: "En revisión",
+          val: pendientes,
+          color: "text-orange-400",
+          bg: "bg-orange-500/10 border-orange-500/20",
+        },
+        {
+          label: "Cerradas",
+          val: cerradas,
+          color: "text-gray-400",
+          bg: "bg-white/5       border-white/10",
+        },
+      ].map(({ label, val, color, bg }) => (
+        <div key={label} className={`border rounded-2xl p-4 text-center ${bg}`}>
+          <p className={`text-2xl font-display font-bold ${color}`}>{val}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Página principal ───────────────────────────────────────────────────────
 export default function OfertasPage() {
   const { user, userRole } = useAuth();
@@ -1048,24 +1181,29 @@ export default function OfertasPage() {
   const isEmpresa = userRole === "empresa";
   const isEstudiante = userRole === "estudiante";
 
-  const [ofertas, setOfertas] = useState([]);
+  // Datos
+  const [ofertasPublicas, setOfertasPublicas] = useState([]);
+  const [misOfertas, setMisOfertas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [postulaciones, setPostulaciones] = useState(new Set());
 
+  // UI
+  const [tab, setTab] = useState(isEmpresa ? "mis-ofertas" : "explorar");
   const [search, setSearch] = useState("");
   const [filtroModalidad, setFiltroModalidad] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroContrato, setFiltroContrato] = useState("");
   const [filtroTech, setFiltroTech] = useState("");
 
-  const [modalCrear, setModalCrear] = useState(null);
+  // Modales
+  const [modalCrear, setModalCrear] = useState(null); // null | "crear" | oferta
   const [detalleOferta, setDetalleOferta] = useState(null);
   const [postulacionOferta, setPostulacionOferta] = useState(null);
+  const [retirarOferta, setRetirarOferta] = useState(null);
 
-  const cargarOfertas = useCallback(async () => {
-    setLoading(true);
-
-    let query = supabase
+  // ── Carga de ofertas públicas (estudiantes y empresas explorando) ─────────
+  const cargarOfertasPublicas = useCallback(async () => {
+    const { data, error } = await supabase
       .from("oferta")
       .select(
         `
@@ -1073,42 +1211,61 @@ export default function OfertasPage() {
         duracion_semanas, horas_semanales, num_plazas, num_plazas_restantes,
         opcion_contrato, estado, fecha_publicacion, fecha_fin_solicitud,
         tipo_oferta, salario_mensual, requisitos_adicionales, beneficios, id_empresa,
-        empresa:empresa(
-          id,
-          nombre,
-          usuario:usuario!empresa_id_fkey(avatar_url)
-        ),
+        empresa:empresa(id, nombre, usuario:usuario!empresa_id_fkey(avatar_url)),
         oferta_tecnologia(tecnologia(id_tecnologia, nombre))
       `,
       )
+      // .eq("estado", "activa")
+      .in("estado", ["activa", "pendiente"])
       .order("fecha_publicacion", { ascending: false });
 
-    if (isEmpresa) {
-      // ✅ empresa.id === usuario.id, filtrar directamente por user.id
-      query = query.eq("id_empresa", user.id);
-    } else {
-      query = query.eq("estado", "activa");
-    }
-
-    const { data, error } = await query;
     if (error) {
       console.error(error);
-      setLoading(false);
       return;
     }
 
-    const normalizadas = (data ?? []).map((o) => ({
+    return (data ?? []).map((o) => ({
       ...o,
       empresa_nombre: o.empresa?.nombre ?? "Empresa",
       empresa_avatar: o.empresa?.usuario?.avatar_url ?? null,
       tecnologias:
         o.oferta_tecnologia?.map((ot) => ot.tecnologia).filter(Boolean) ?? [],
     }));
+  }, []);
 
-    setOfertas(normalizadas);
-    setLoading(false);
-  }, [user, isEmpresa]);
+  // ── Carga de mis ofertas (empresa) ────────────────────────────────────────
+  const cargarMisOfertas = useCallback(async () => {
+    if (!isEmpresa || !user) return [];
+    const { data, error } = await supabase
+      .from("oferta")
+      .select(
+        `
+        id_oferta, titulo, descripcion, modalidad, ubicacion,
+        duracion_semanas, horas_semanales, num_plazas, num_plazas_restantes,
+        opcion_contrato, estado, fecha_publicacion, fecha_fin_solicitud,
+        tipo_oferta, salario_mensual, requisitos_adicionales, beneficios, id_empresa,
+        empresa:empresa(id, nombre, usuario:usuario!empresa_id_fkey(avatar_url)),
+        oferta_tecnologia(tecnologia(id_tecnologia, nombre))
+      `,
+      )
+      .eq("id_empresa", user.id)
+      .order("fecha_publicacion", { ascending: false });
 
+    if (error) {
+      console.error(error);
+      return [];
+    }
+
+    return (data ?? []).map((o) => ({
+      ...o,
+      empresa_nombre: o.empresa?.nombre ?? "Empresa",
+      empresa_avatar: o.empresa?.usuario?.avatar_url ?? null,
+      tecnologias:
+        o.oferta_tecnologia?.map((ot) => ot.tecnologia).filter(Boolean) ?? [],
+    }));
+  }, [isEmpresa, user]);
+
+  // ── Carga de postulaciones del estudiante ─────────────────────────────────
   const cargarPostulaciones = useCallback(async () => {
     if (!isEstudiante || !user) return;
     const { data } = await supabase
@@ -1118,11 +1275,24 @@ export default function OfertasPage() {
     setPostulaciones(new Set((data ?? []).map((c) => c.id_oferta)));
   }, [isEstudiante, user]);
 
-  useEffect(() => {
-    cargarOfertas();
-    cargarPostulaciones();
-  }, [cargarOfertas, cargarPostulaciones]);
+  // ── Carga inicial ─────────────────────────────────────────────────────────
+  const recargar = useCallback(async () => {
+    setLoading(true);
+    const [pub, mis] = await Promise.all([
+      cargarOfertasPublicas(),
+      cargarMisOfertas(),
+    ]);
+    setOfertasPublicas(pub ?? []);
+    setMisOfertas(mis ?? []);
+    await cargarPostulaciones();
+    setLoading(false);
+  }, [cargarOfertasPublicas, cargarMisOfertas, cargarPostulaciones]);
 
+  useEffect(() => {
+    recargar();
+  }, [recargar]);
+
+  // ── Eliminar oferta ───────────────────────────────────────────────────────
   const handleDelete = async (idOferta) => {
     if (
       !window.confirm(
@@ -1132,51 +1302,49 @@ export default function OfertasPage() {
       return;
     await supabase.from("oferta_tecnologia").delete().eq("id_oferta", idOferta);
     await supabase.from("oferta").delete().eq("id_oferta", idOferta);
-    cargarOfertas();
+    recargar();
   };
 
-  const ofertasFiltradas = ofertas.filter((o) => {
-    const q = search.toLowerCase();
-    const matchSearch =
-      !q ||
-      o.titulo?.toLowerCase().includes(q) ||
-      o.empresa_nombre?.toLowerCase().includes(q) ||
-      o.ubicacion?.toLowerCase().includes(q);
-    const matchModalidad = !filtroModalidad || o.modalidad === filtroModalidad;
-    const matchTipo = !filtroTipo || o.tipo_oferta === filtroTipo;
-    const matchContrato =
-      !filtroContrato ||
-      (filtroContrato === "si" ? o.opcion_contrato : !o.opcion_contrato);
-    const matchTech =
-      !filtroTech ||
-      o.tecnologias.some((t) =>
-        t.nombre?.toLowerCase().includes(filtroTech.toLowerCase()),
+  // ── Filtrado ──────────────────────────────────────────────────────────────
+  const aplicarFiltros = (lista) =>
+    lista.filter((o) => {
+      const q = search.toLowerCase();
+      return (
+        (!q ||
+          o.titulo?.toLowerCase().includes(q) ||
+          o.empresa_nombre?.toLowerCase().includes(q) ||
+          o.ubicacion?.toLowerCase().includes(q)) &&
+        (!filtroModalidad || o.modalidad === filtroModalidad) &&
+        (!filtroTipo || o.tipo_oferta === filtroTipo) &&
+        (!filtroContrato ||
+          (filtroContrato === "si" ? o.opcion_contrato : !o.opcion_contrato)) &&
+        (!filtroTech ||
+          o.tecnologias.some((t) =>
+            t.nombre?.toLowerCase().includes(filtroTech.toLowerCase()),
+          ))
       );
-    return (
-      matchSearch && matchModalidad && matchTipo && matchContrato && matchTech
-    );
-  });
+    });
 
-  const filtrosActivos = [
-    filtroModalidad,
-    filtroTipo,
-    filtroContrato,
-    filtroTech,
-  ].filter(Boolean).length;
+  // Decide qué lista mostrar según el tab activo
+  const listaActiva = tab === "mis-ofertas" ? misOfertas : ofertasPublicas;
+  const listaFiltrada = aplicarFiltros(listaActiva);
+  const esMisOfertas = tab === "mis-ofertas";
 
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <MainLayout>
       <div className="min-h-screen bg-dark">
         <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+          {/* ── Cabecera ── */}
           <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
             <div>
               <h1 className="font-display text-3xl font-bold text-white">
-                {isEmpresa ? "Mis ofertas" : "Ofertas de prácticas"}
+                {esMisOfertas ? "Mis ofertas" : "Ofertas de prácticas"}
               </h1>
               <p className="text-gray-500 text-sm mt-1">
-                {isEmpresa
+                {esMisOfertas
                   ? "Gestiona y publica tus ofertas de prácticas o empleo"
-                  : `${ofertasFiltradas.length} oferta${ofertasFiltradas.length !== 1 ? "s" : ""} disponible${ofertasFiltradas.length !== 1 ? "s" : ""}`}
+                  : `${listaFiltrada.length} oferta${listaFiltrada.length !== 1 ? "s" : ""} disponible${listaFiltrada.length !== 1 ? "s" : ""}`}
               </p>
             </div>
             {isEmpresa && (
@@ -1199,100 +1367,40 @@ export default function OfertasPage() {
             )}
           </div>
 
-          <div className="bg-dark-800 border border-white/10 rounded-2xl p-4 mb-6 space-y-3">
-            <div className="relative">
-              <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por título, empresa o ubicación..."
-                className="input-field pl-9"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <select
-                value={filtroModalidad}
-                onChange={(e) => setFiltroModalidad(e.target.value)}
-                className="input-field text-sm py-1.5 w-auto flex-shrink-0"
-              >
-                <option value="">Modalidad</option>
-                {MODALIDADES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={filtroTipo}
-                onChange={(e) => setFiltroTipo(e.target.value)}
-                className="input-field text-sm py-1.5 w-auto flex-shrink-0"
-              >
-                <option value="">Tipo</option>
-                {TIPOS.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={filtroContrato}
-                onChange={(e) => setFiltroContrato(e.target.value)}
-                className="input-field text-sm py-1.5 w-auto flex-shrink-0"
-              >
-                <option value="">Contratación</option>
-                <option value="si">Con opción de contrato</option>
-                <option value="no">Solo prácticas</option>
-              </select>
-              <div className="relative flex-1 min-w-[160px]">
-                <input
-                  type="text"
-                  value={filtroTech}
-                  onChange={(e) => setFiltroTech(e.target.value)}
-                  placeholder="Filtrar por tecnología..."
-                  className="input-field text-sm py-1.5 w-full"
-                />
-              </div>
-              {filtrosActivos > 0 && (
-                <button
-                  onClick={() => {
-                    setFiltroModalidad("");
-                    setFiltroTipo("");
-                    setFiltroContrato("");
-                    setFiltroTech("");
-                  }}
-                  className="text-xs text-gray-500 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 transition-all border border-white/10 flex items-center gap-1"
-                >
-                  <svg
-                    className="w-3 h-3"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                  Limpiar ({filtrosActivos})
-                </button>
-              )}
-            </div>
-          </div>
+          {/* ── Tabs (solo empresa) ── */}
+          {isEmpresa && (
+            <TabsEmpresa
+              tab={tab}
+              setTab={setTab}
+              totalMisOfertas={misOfertas.length}
+            />
+          )}
 
+          {/* ── Stats empresa en "Mis ofertas" ── */}
+          {isEmpresa && esMisOfertas && misOfertas.length > 0 && (
+            <EmpresaStats ofertas={misOfertas} />
+          )}
+
+          {/* ── Filtros ── */}
+          <FiltrosBar
+            search={search}
+            setSearch={setSearch}
+            filtroModalidad={filtroModalidad}
+            setFiltroModalidad={setFiltroModalidad}
+            filtroTipo={filtroTipo}
+            setFiltroTipo={setFiltroTipo}
+            filtroContrato={filtroContrato}
+            setFiltroContrato={setFiltroContrato}
+            filtroTech={filtroTech}
+            setFiltroTech={setFiltroTech}
+          />
+
+          {/* ── Grid de cards ── */}
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Spinner className="w-8 h-8" />
             </div>
-          ) : ofertasFiltradas.length === 0 ? (
+          ) : listaFiltrada.length === 0 ? (
             <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
               <svg
                 className="w-12 h-12 text-gray-700 mx-auto mb-4"
@@ -1301,11 +1409,11 @@ export default function OfertasPage() {
                 <use href="/icons.svg#icon-briefcase" />
               </svg>
               <p className="text-gray-500 font-medium">
-                {isEmpresa
+                {esMisOfertas
                   ? "Aún no has publicado ninguna oferta"
                   : "No hay ofertas disponibles con estos filtros"}
               </p>
-              {isEmpresa && (
+              {isEmpresa && esMisOfertas && (
                 <button
                   onClick={() => setModalCrear("crear")}
                   className="btn-primary mt-4"
@@ -1316,14 +1424,21 @@ export default function OfertasPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {ofertasFiltradas.map((o) => (
+              {listaFiltrada.map((o) => (
                 <OfertaCard
                   key={o.id_oferta}
                   oferta={o}
+                  // Roles — en "Mis ofertas" la empresa gestiona sus propias;
+                  // en "Explorar" puede ver sin acciones de empresa
+                  isEmpresa={isEmpresa && esMisOfertas}
+                  isEstudiante={isEstudiante}
+                  yaPostulado={postulaciones.has(o.id_oferta)}
+                  // Handlers
                   onVerDetalle={setDetalleOferta}
-                  isEmpresa={isEmpresa}
-                  onEdit={(o) => setModalCrear(o)}
+                  onEdit={(oferta) => setModalCrear(oferta)}
                   onDelete={handleDelete}
+                  onPostular={(oferta) => setPostulacionOferta(oferta)}
+                  onRetirar={(oferta) => setRetirarOferta(oferta)}
                 />
               ))}
             </div>
@@ -1331,15 +1446,16 @@ export default function OfertasPage() {
         </main>
       </div>
 
+      {/* ── Modales ── */}
       {modalCrear && (
         <OfertaModal
           oferta={modalCrear === "crear" ? null : modalCrear}
           onClose={() => setModalCrear(null)}
-          onSaved={cargarOfertas}
+          onSaved={recargar}
         />
       )}
 
-      {detalleOferta && !postulacionOferta && (
+      {detalleOferta && !postulacionOferta && !retirarOferta && (
         <DetalleModal
           oferta={detalleOferta}
           onClose={() => setDetalleOferta(null)}
@@ -1360,7 +1476,22 @@ export default function OfertasPage() {
             setPostulaciones(
               (prev) => new Set([...prev, postulacionOferta.id_oferta]),
             );
-            cargarOfertas();
+            recargar();
+          }}
+        />
+      )}
+
+      {retirarOferta && (
+        <RetirarModal
+          oferta={retirarOferta}
+          onClose={() => setRetirarOferta(null)}
+          onSuccess={() => {
+            setPostulaciones((prev) => {
+              const next = new Set(prev);
+              next.delete(retirarOferta.id_oferta);
+              return next;
+            });
+            recargar();
           }}
         />
       )}

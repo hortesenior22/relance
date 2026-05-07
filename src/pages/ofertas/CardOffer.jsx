@@ -1,291 +1,416 @@
-// ─── OfertaCard.jsx ──────────────────────────────────────────────────────────
-// Componente reutilizable para mostrar una tarjeta de oferta.
-//
+// ─── components/ofertas/OfertaCard.jsx ────────────────────────────────────
+// Componente de tarjeta de oferta reutilizable.
 // Props:
-//   oferta        – objeto normalizado con los campos de la oferta
-//   onVerDetalle  – fn(oferta)    → abre modal de detalle
-//   isEmpresa     – boolean       → muestra acciones de editar/eliminar
-//   onEdit        – fn(oferta)    → abre modal de edición
-//   onDelete      – fn(id_oferta) → elimina la oferta
-//   yaPostulado   – boolean       → badge "Postulado" para estudiantes
+//   oferta          — objeto normalizado con todos los campos de la oferta
+//   isEmpresa       — bool: el usuario es la empresa propietaria
+//   isEstudiante    — bool: el usuario es estudiante
+//   yaPostulado     — bool: el estudiante ya se postuló
+//   onVerDetalle    — fn(oferta)
+//   onEdit          — fn(oferta)   [solo empresa]
+//   onDelete        — fn(id_oferta) [solo empresa]
+//   onPostular      — fn(oferta)   [solo estudiante, no postulado]
+//   onRetirar       — fn(oferta)   [solo estudiante, ya postulado]
 
-const TIPO_META = {
-  practicas:               { label: "Prácticas",           color: "#3b82f6", bg: "rgba(59,130,246,0.12)"  },
-  practicas_contratacion:  { label: "Prácticas + contrato", color: "#22c55e", bg: "rgba(34,197,94,0.12)"   },
-  empleo_junior:           { label: "Junior",               color: "#a855f7", bg: "rgba(168,85,247,0.12)"  },
+import { useState } from "react";
+
+// ── Mapa tipo → metadatos visuales ──────────────────────────────────────────
+export const TIPO_META = {
+  practicas: { label: "Prácticas", accent: "#3b82f6", colorClass: "blue" },
+  practicas_contratacion: {
+    label: "Prácticas + contratación",
+    accent: "#22c55e",
+    colorClass: "green",
+  },
+  empleo_junior: {
+    label: "Empleo junior",
+    accent: "#a855f7",
+    colorClass: "purple",
+  },
 };
 
-const ESTADO_META = {
-  activa:    { label: "Activa",    color: "#22c55e", bg: "rgba(34,197,94,0.12)",   icon: "✓"  },
-  pendiente: { label: "Pendiente", color: "#f59e0b", bg: "rgba(245,158,11,0.12)",  icon: "⏳" },
-  rechazada: { label: "Rechazada", color: "#ef4444", bg: "rgba(239,68,68,0.12)",   icon: "✗"  },
-  cerrada:   { label: "Cerrada",   color: "#6b7280", bg: "rgba(107,114,128,0.12)", icon: "●"  },
-};
+// ── Badge ────────────────────────────────────────────────────────────────────
+export function Badge({ children, color = "gray", icon }) {
+  const palette = {
+    brand: "bg-[#C0FF72]/10 text-[#C0FF72]  border-[#C0FF72]/20",
+    blue: "bg-blue-500/10  text-blue-400   border-blue-500/20",
+    purple: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+    orange: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+    green: "bg-green-500/10 text-green-400  border-green-500/20",
+    red: "bg-red-500/10   text-red-400    border-red-500/20",
+    gray: "bg-white/5      text-gray-400   border-white/10",
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 border rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide ${palette[color] ?? palette.gray}`}
+    >
+      {icon && <span className="opacity-80">{icon}</span>}
+      {children}
+    </span>
+  );
+}
 
-const MODALIDAD_ICON = { Presencial: "🏢", Remoto: "🌐", Híbrido: "⚡" };
+// ── Icono del sprite SVG ─────────────────────────────────────────────────────
+function Icon({ id, className = "w-4 h-4" }) {
+  return (
+    <svg className={className} viewBox="0 0 640 640" aria-hidden="true">
+      <use href={`/icons.svg#${id}`} />
+    </svg>
+  );
+}
 
-// ── Pequeños helpers de estilo ───────────────────────────────────────────────
-const pill = (color, bg) => ({
-  display: "inline-flex", alignItems: "center",
-  fontSize: "11px", fontWeight: 600, padding: "3px 10px",
-  borderRadius: "100px", color, background: bg,
-  border: `1px solid ${color}33`, whiteSpace: "nowrap",
-  lineHeight: 1.4,
-});
+// ── Initials avatar fallback ─────────────────────────────────────────────────
+function CompanyAvatar({ src, name, size = "md" }) {
+  const [err, setErr] = useState(false);
+  const sizeClass = size === "sm" ? "w-8 h-8 text-xs" : "w-11 h-11 text-sm";
+  const initials = (name ?? "E")
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
-const metaItem = {
-  display: "flex", alignItems: "center", gap: "5px",
-  fontSize: "12px", color: "rgba(156,163,175,0.9)",
-};
-
-// ── Ícono de reloj ────────────────────────────────────────────────────────────
-const IconClock = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-  </svg>
-);
-
-const IconUsers = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-  </svg>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-export default function CardOffer({
-  oferta,
-  onVerDetalle,
-  isEmpresa   = false,
-  onEdit,
-  onDelete,
-  yaPostulado = false,
-}) {
-  const tipo    = TIPO_META[oferta.tipo_oferta]  ?? { label: "Oferta",   color: "#6b7280", bg: "rgba(107,114,128,0.12)" };
-  const estado  = ESTADO_META[oferta.estado]     ?? null;
-  const techs   = oferta.tecnologias             ?? [];
-  const empresa = oferta.empresa_nombre          ?? "Empresa";
-
-  // Días restantes para el cierre de solicitudes
-  let diasRestantes = null;
-  if (oferta.fecha_fin_solicitud) {
-    diasRestantes = Math.ceil(
-      (new Date(oferta.fecha_fin_solicitud) - new Date()) / (1000 * 60 * 60 * 24)
+  if (src && !err) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        onError={() => setErr(true)}
+        className={`${sizeClass} rounded-xl object-cover border border-white/10 flex-shrink-0`}
+      />
     );
   }
+  return (
+    <div
+      className={`${sizeClass} rounded-xl bg-gradient-to-br from-[#C0FF72]/20 to-[#C0FF72]/5 border border-[#C0FF72]/15 flex items-center justify-center flex-shrink-0 font-display font-bold text-[#C0FF72]`}
+    >
+      {initials}
+    </div>
+  );
+}
+
+// ── Componente principal ─────────────────────────────────────────────────────
+export default function OfertaCard({
+  oferta,
+  isEmpresa = false,
+  isEstudiante = false,
+  yaPostulado = false,
+  onVerDetalle,
+  onEdit,
+  onDelete,
+  onPostular,
+  onRetirar,
+}) {
+  const meta = TIPO_META[oferta.tipo_oferta] ?? {
+    label: "Oferta",
+    accent: "#6b7280",
+    colorClass: "gray",
+  };
+  const empresa = oferta.empresa_nombre ?? "Empresa";
+  const tecnologias = oferta.tecnologias ?? [];
+
+  // Color de la franja superior según tipo
+  const stripColor =
+    {
+      blue: "from-blue-500/70   to-blue-500/10",
+      green: "from-green-500/70  to-green-500/10",
+      purple: "from-purple-500/70 to-purple-500/10",
+      gray: "from-gray-500/40   to-gray-500/10",
+    }[meta.colorClass] ?? "from-gray-500/40 to-gray-500/10";
 
   return (
-    <article
-      style={{
-        position: "relative",
-        background: "rgba(17,24,39,0.8)",
-        border: "1px solid rgba(255,255,255,0.07)",
-        borderRadius: "18px",
-        display: "flex", flexDirection: "column",
-        overflow: "hidden",
-        transition: "border-color 0.2s, box-shadow 0.2s, transform 0.2s",
-        cursor: "pointer",
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.borderColor = `${tipo.color}55`;
-        e.currentTarget.style.boxShadow   = `0 8px 30px ${tipo.color}14`;
-        e.currentTarget.style.transform   = "translateY(-2px)";
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
-        e.currentTarget.style.boxShadow   = "none";
-        e.currentTarget.style.transform   = "translateY(0)";
-      }}
-    >
-      {/* Franja de color superior según tipo de oferta */}
-      <div style={{ height: "3px", background: `linear-gradient(90deg, ${tipo.color}, ${tipo.color}55)`, flexShrink: 0 }} />
+    <article className="group relative bg-dark-800 border border-white/8 rounded-2xl overflow-hidden flex flex-col transition-all duration-300 hover:border-white/20 hover:shadow-2xl hover:shadow-black/40 hover:-translate-y-0.5">
+      {/* Franja de color superior */}
+      <div className={`h-[3px] w-full bg-gradient-to-r ${stripColor}`} />
 
-      {/* ── Cuerpo principal ── */}
-      <div
-        onClick={() => onVerDetalle(oferta)}
-        style={{ padding: "18px 18px 14px", flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}
-      >
-        {/* Header: logo empresa + título + badges de estado */}
-        <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-          {/* Avatar empresa */}
-          <div style={{
-            width: "42px", height: "42px", borderRadius: "11px", flexShrink: 0,
-            background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-            overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            {oferta.empresa_avatar
-              ? <img src={oferta.empresa_avatar} alt={empresa} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              : <span style={{ fontSize: "20px" }}>🏢</span>
-            }
+      {/* Cuerpo */}
+      <div className="p-5 flex flex-col gap-3.5 flex-1">
+        {/* ── Cabecera: avatar + título + empresa + estado ── */}
+        <div className="flex items-start gap-3">
+          <CompanyAvatar src={oferta.empresa_avatar} name={empresa} />
+
+          <div className="flex-1 min-w-0">
+            <button
+              onClick={() => onVerDetalle?.(oferta)}
+              className="block text-left w-full"
+            >
+              <h3 className="font-display font-bold text-white text-[15px] leading-snug hover:text-[#C0FF72] transition-colors line-clamp-2">
+                {oferta.titulo}
+              </h3>
+            </button>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <Icon
+                id="icon-building"
+                className="w-3 h-3 text-gray-600 flex-shrink-0"
+              />
+              <p className="text-gray-500 text-xs truncate">{empresa}</p>
+            </div>
           </div>
 
-          {/* Título + empresa */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{
-              margin: 0, fontSize: "14px", fontWeight: 700,
-              color: "#f9fafb", lineHeight: 1.35,
-              display: "-webkit-box", WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical", overflow: "hidden",
-            }}>
-              {oferta.titulo}
-            </h3>
-            <p style={{ margin: "3px 0 0", fontSize: "12px", color: "rgba(156,163,175,0.9)", fontWeight: 500 }}>
-              {empresa}
-            </p>
-          </div>
-        </div>
-
-        {/* Badges: tipo + modalidad + ubicación + opción contrato */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
-          <span style={pill(tipo.color, tipo.bg)}>{tipo.label}</span>
-
-          {oferta.modalidad && (
-            <span style={pill("rgba(156,163,175,0.85)", "rgba(255,255,255,0.05)")}>
-              {MODALIDAD_ICON[oferta.modalidad]} {oferta.modalidad}
-            </span>
+          {/* Estado (empresa) */}
+          {isEmpresa && oferta.estado && (
+            <div className="flex-shrink-0">
+              {oferta.estado === "activa" && (
+                <Badge color="green">Activa</Badge>
+              )}
+              {oferta.estado === "pendiente" && (
+                <Badge color="orange">Revisión</Badge>
+              )}
+              {oferta.estado === "rechazada" && (
+                <Badge color="red">Rechazada</Badge>
+              )}
+              {oferta.estado === "cerrada" && (
+                <Badge color="gray">Cerrada</Badge>
+              )}
+            </div>
           )}
 
-          {oferta.ubicacion && (
-            <span style={pill("rgba(156,163,175,0.85)", "rgba(255,255,255,0.05)")}>
-              📍 {oferta.ubicacion}
-            </span>
+          {/* Indicador postulado (estudiante) */}
+          {isEstudiante && yaPostulado && (
+            <div className="flex-shrink-0">
+              <Badge color="brand">
+                <svg
+                  className="w-3 h-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Postulado
+              </Badge>
+            </div>
+          )}
+        </div>
+
+        {/* ── Badges tipo + modalidad + contrato ── */}
+        <div className="flex flex-wrap gap-1.5">
+          <Badge color={meta.colorClass}>{meta.label}</Badge>
+
+          {oferta.modalidad === "Presencial" && (
+            <Badge color="gray">
+              <Icon id="icon-building" className="w-3 h-3" />
+              Presencial
+            </Badge>
+          )}
+          {oferta.modalidad === "Remoto" && (
+            <Badge color="gray">
+              <Icon id="icon-globe" className="w-3 h-3" />
+              Remoto
+            </Badge>
+          )}
+          {oferta.modalidad === "Híbrido" && (
+            <Badge color="gray">
+              <Icon id="icon-globe" className="w-3 h-3" />
+              Híbrido
+            </Badge>
           )}
 
           {oferta.opcion_contrato && (
-            <span style={pill("#22c55e", "rgba(34,197,94,0.10)")}>💼 Con contrato</span>
+            <Badge color="green">
+              <Icon id="icon-handshake" className="w-3 h-3" />
+              Opción contrato
+            </Badge>
           )}
         </div>
 
-        {/* Descripción (2 líneas) */}
+        {/* ── Descripción ── */}
         {oferta.descripcion && (
-          <p style={{
-            margin: 0, fontSize: "12.5px", color: "rgba(107,114,128,0.9)",
-            lineHeight: 1.55, display: "-webkit-box",
-            WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
-          }}>
+          <p className="text-gray-500 text-xs leading-relaxed line-clamp-2">
             {oferta.descripcion}
           </p>
         )}
 
-        {/* Tecnologías */}
-        {techs.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-            {techs.slice(0, 5).map(t => (
-              <span key={t.id_tecnologia ?? t} style={{
-                fontSize: "11px", fontWeight: 500, padding: "2px 8px",
-                borderRadius: "6px", color: "rgba(156,163,175,0.85)",
-                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
-                fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-              }}>
+        {/* ── Tecnologías ── */}
+        {tecnologias.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {tecnologias.slice(0, 4).map((t) => (
+              <span
+                key={t.id_tecnologia ?? t}
+                className="bg-white/4 border border-white/8 text-gray-400 text-[10px] px-2 py-0.5 rounded-md font-mono tracking-tight"
+              >
                 {t.nombre ?? t}
               </span>
             ))}
-            {techs.length > 5 && (
-              <span style={{ fontSize: "11px", color: "rgba(107,114,128,0.7)", padding: "2px 4px", alignSelf: "center" }}>
-                +{techs.length - 5} más
+            {tecnologias.length > 4 && (
+              <span className="text-gray-600 text-[10px] px-1.5 py-0.5 rounded-md bg-white/3 border border-white/5">
+                +{tecnologias.length - 4}
               </span>
             )}
           </div>
         )}
 
-        {/* Meta info: duración, plazas, salario, días restantes */}
-        <div style={{
-          display: "flex", flexWrap: "wrap", gap: "10px",
-          paddingTop: "10px", borderTop: "1px solid rgba(255,255,255,0.05)",
-          marginTop: "auto",
-        }}>
+        {/* ── Metadata grid ── */}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-3 border-t border-white/5 mt-auto">
+          {oferta.ubicacion && (
+            <div className="flex items-center gap-1.5 text-gray-500 text-[11px]">
+              <svg
+                className="w-3 h-3 flex-shrink-0 text-gray-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                <circle cx="12" cy="9" r="2.5" />
+              </svg>
+              <span className="truncate">{oferta.ubicacion}</span>
+            </div>
+          )}
           {oferta.duracion_semanas && (
-            <span style={metaItem}><IconClock />{oferta.duracion_semanas} sem.</span>
+            <div className="flex items-center gap-1.5 text-gray-500 text-[11px]">
+              <Icon
+                id="icon-clock"
+                className="w-3 h-3 flex-shrink-0 text-gray-600"
+              />
+              <span>{oferta.duracion_semanas} semanas</span>
+            </div>
           )}
           {oferta.horas_semanales && (
-            <span style={metaItem}>⏱ {oferta.horas_semanales}h/sem.</span>
+            <div className="flex items-center gap-1.5 text-gray-500 text-[11px]">
+              <Icon
+                id="icon-hourglass"
+                className="w-3 h-3 flex-shrink-0 text-gray-600"
+              />
+              <span>{oferta.horas_semanales} h/semana</span>
+            </div>
           )}
           {oferta.num_plazas_restantes != null && (
-            <span style={metaItem}><IconUsers />{oferta.num_plazas_restantes} plaza{oferta.num_plazas_restantes !== 1 ? "s" : ""}</span>
+            <div className="flex items-center gap-1.5 text-gray-500 text-[11px]">
+              <Icon
+                id="icon-user"
+                className="w-3 h-3 flex-shrink-0 text-gray-600"
+              />
+              <span>
+                {oferta.num_plazas_restantes} plaza
+                {oferta.num_plazas_restantes !== 1 ? "s" : ""}
+              </span>
+            </div>
           )}
-          {oferta.salario_mensual
-            ? <span style={{ ...metaItem, color: "#818cf8", fontWeight: 700 }}>💶 {oferta.salario_mensual}€/mes</span>
-            : <span style={{ ...metaItem, opacity: 0.6 }}>No remunerado</span>
-          }
-
-          {/* Días restantes (alineado a la derecha) */}
-          {diasRestantes !== null && diasRestantes > 0 && (
-            <span style={{
-              ...metaItem, marginLeft: "auto",
-              color: diasRestantes <= 7 ? "#f59e0b" : "rgba(107,114,128,0.7)",
-              fontWeight: diasRestantes <= 7 ? 700 : 400,
-            }}>
-              {diasRestantes <= 7 ? "⚡" : "📅"} {diasRestantes}d
-            </span>
+          {oferta.salario_mensual ? (
+            <div className="flex items-center gap-1 text-[#C0FF72] text-[11px] font-semibold">
+              <span className="text-[10px] opacity-70">€</span>
+              <span>{oferta.salario_mensual}/mes</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-gray-600 text-[11px]">
+              <span>No remunerado</span>
+            </div>
           )}
-          {diasRestantes !== null && diasRestantes <= 0 && (
-            <span style={{ ...metaItem, marginLeft: "auto", color: "#ef4444", fontWeight: 700 }}>Plazo cerrado</span>
+          {oferta.fecha_fin_solicitud && (
+            <div className="flex items-center gap-1.5 text-gray-600 text-[11px]">
+              <svg
+                className="w-3 h-3 flex-shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              <span>
+                Cierre{" "}
+                {new Date(oferta.fecha_fin_solicitud).toLocaleDateString(
+                  "es-ES",
+                  { day: "numeric", month: "short" },
+                )}
+              </span>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Badge estado (empresa) – posición absoluta sobre la tarjeta */}
-      {isEmpresa && estado && (
-        <span style={{
-          ...pill(estado.color, estado.bg),
-          position: "absolute", top: "14px", right: "14px",
-          zIndex: 1,
-        }}>
-          {estado.icon} {estado.label}
-        </span>
-      )}
+      {/* ── Footer: acciones ── */}
+      <div className="px-5 pb-4 flex gap-2">
+        {/* Ver detalle — siempre visible */}
+        <button
+          onClick={() => onVerDetalle?.(oferta)}
+          className="flex-1 text-[11px] font-medium py-2 rounded-xl bg-white/4 hover:bg-white/8 text-gray-400 hover:text-white transition-all border border-white/8 hover:border-white/15"
+        >
+          Ver detalle
+        </button>
 
-      {/* Badge "Ya postulado" (estudiante) */}
-      {!isEmpresa && yaPostulado && (
-        <span style={{
-          ...pill("#22c55e", "rgba(34,197,94,0.12)"),
-          position: "absolute", top: "14px", right: "14px",
-          zIndex: 1,
-        }}>
-          ✓ Postulado
-        </span>
-      )}
+        {/* Acciones estudiante */}
+        {isEstudiante &&
+          !isEmpresa &&
+          (yaPostulado ? (
+            <button
+              onClick={() => onRetirar?.(oferta)}
+              className="flex-1 text-[11px] font-medium py-2 rounded-xl bg-red-500/8 hover:bg-red-500/15 text-red-400/80 hover:text-red-300 transition-all border border-red-500/15 hover:border-red-500/30 flex items-center justify-center gap-1.5"
+            >
+              <svg
+                className="w-3 h-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+              Retirar
+            </button>
+          ) : (
+            <button
+              onClick={() => onPostular?.(oferta)}
+              className="flex-1 text-[11px] font-semibold py-2 rounded-xl bg-[#C0FF72]/12 hover:bg-[#C0FF72]/20 text-[#C0FF72] transition-all border border-[#C0FF72]/20 hover:border-[#C0FF72]/35 flex items-center justify-center gap-1.5"
+            >
+              <svg
+                className="w-3 h-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <path d="M22 2L11 13" />
+                <path d="M22 2L15 22l-4-9-9-4 20-7z" />
+              </svg>
+              Postularme
+            </button>
+          ))}
 
-      {/* ── Barra de acciones para empresa ── */}
-      {isEmpresa && (
-        <div style={{ display: "flex", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-          <button
-            onClick={e => { e.stopPropagation(); onEdit(oferta); }}
-            style={{
-              flex: 1, padding: "9px 0", fontSize: "12px", fontWeight: 500,
-              color: "rgba(156,163,175,0.8)", background: "transparent", border: "none",
-              borderRight: "1px solid rgba(255,255,255,0.05)", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-              transition: "background 0.15s, color 0.15s",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "#f9fafb"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(156,163,175,0.8)"; }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-            Editar
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onDelete(oferta.id_oferta); }}
-            style={{
-              flex: 1, padding: "9px 0", fontSize: "12px", fontWeight: 500,
-              color: "rgba(239,68,68,0.55)", background: "transparent", border: "none",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              gap: "6px", transition: "background 0.15s, color 0.15s",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = "rgba(239,68,68,0.06)"; e.currentTarget.style.color = "#ef4444"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(239,68,68,0.55)"; }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/>
-            </svg>
-            Eliminar
-          </button>
-        </div>
-      )}
+        {/* Acciones empresa */}
+        {isEmpresa && (
+          <>
+            <button
+              onClick={() => onEdit?.(oferta)}
+              className="flex-1 text-[11px] font-medium py-2 rounded-xl bg-white/4 hover:bg-white/8 text-gray-400 hover:text-white transition-all border border-white/8 flex items-center justify-center gap-1.5"
+            >
+              <svg
+                className="w-3 h-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              Editar
+            </button>
+            <button
+              onClick={() => onDelete?.(oferta.id_oferta)}
+              className="flex-1 text-[11px] font-medium py-2 rounded-xl bg-red-500/5 hover:bg-red-500/12 text-red-500/60 hover:text-red-400 transition-all border border-red-500/10 hover:border-red-500/25 flex items-center justify-center gap-1.5"
+            >
+              <svg
+                className="w-3 h-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v6M14 11v6M9 6V4h6v2" />
+              </svg>
+              Eliminar
+            </button>
+          </>
+        )}
+      </div>
     </article>
   );
 }
