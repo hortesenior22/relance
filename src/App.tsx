@@ -17,6 +17,8 @@ import OfferPage from "./pages/ofertas/Offer";
 import { useEffect, useState, useRef } from "react";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/routes/ProtectedRoute";
+import AdminProfile from "./pages/profiles/AdminProfile";
+import AdministrationPanel from "./pages/AdministrationPanel";
 
 // Roles que nunca deben ver el onboarding modal porque ya
 // completan sus datos durante el registro o tienen perfil propio
@@ -254,6 +256,7 @@ function AppContent() {
         <Route element={<ProtectedRoute requiredRole="centro_educativo" />}>
           <Route path="/perfil/centro" element={<CenterProfile />} />
         </Route>
+
         <Route
           element={
             <ProtectedRoute
@@ -262,6 +265,16 @@ function AppContent() {
           }
         >
           <Route path="/perfil/tutor" element={<TutorProfile />} />
+        </Route>
+
+        <Route element={<ProtectedRoute requiredRole="admin" />}>
+          <Route path="/perfil/admin" element={<AdminProfile />} />
+        </Route>
+        <Route element={<ProtectedRoute requiredRole="admin" />}>
+          <Route
+            path="/panel-administracion"
+            element={<AdministrationPanel />}
+          />
         </Route>
 
         {/* Ofertas — visible para todos los roles autenticados */}

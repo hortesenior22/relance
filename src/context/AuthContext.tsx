@@ -17,7 +17,8 @@ export type UserRole =
   | "centro_educativo"
   | "tutor"
   | "tutor_empresa"
-  | "tutor_centro";
+  | "tutor_centro"
+  | "admin";
 
 /** Devuelve la ruta de perfil según el rol */
 export function getRoleRoute(role: UserRole | null): string {
@@ -30,6 +31,8 @@ export function getRoleRoute(role: UserRole | null): string {
     case "tutor_empresa":
     case "tutor_centro":
       return "/perfil/tutor";
+    case "admin":
+      return "/perfil/admin";
     case "estudiante":
     default:
       return "/perfil/estudiante";
@@ -61,6 +64,8 @@ type AuthContextType = {
   user: User | null;
   userRole: UserRole | null;
   avatarUrl: string | null;
+  // `loading` es true mientras se obtiene la sesión inicial O el rol desde BD.
+  // Úsalo para bloquear renders que dependan del rol.
   loading: boolean;
   refreshAvatar: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -72,11 +77,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // Empieza en true; solo pasa a false cuando TANTO la sesión COMO el rol están resueltos.
   const [loading, setLoading] = useState(true);
 
   /**
    * Carga rol Y avatar desde `usuario` en una sola query.
    * Se llama cada vez que cambia la sesión.
+   * IMPORTANTE: no llama a setLoading(false) — eso lo gestiona el caller
+   * para garantizar que loading sea false solo cuando el rol ya está en estado.
    */
   const loadUserData = async (u: User | null) => {
     if (!u) {
@@ -126,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await supabase.auth.getSession();
         const u = data.session?.user ?? null;
         setUser(u);
+        // Esperamos a que el rol esté cargado ANTES de bajar loading a false.
         await loadUserData(u);
       } catch (err) {
         console.warn("Error al obtener sesión:", err);
@@ -133,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserRole(null);
         setAvatarUrl(null);
       } finally {
+        // Solo aquí bajamos loading: sesión + rol ya están en el estado.
         setLoading(false);
       }
     };
@@ -145,9 +155,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (_event, session: Session | null) => {
         const u = session?.user ?? null;
         setUser(u);
+        // Volvemos a activar loading mientras resolvemos el nuevo rol.
+        setLoading(true);
         try {
           await loadUserData(u);
         } finally {
+          // Solo bajamos loading cuando el rol ya está actualizado.
           setLoading(false);
         }
       },

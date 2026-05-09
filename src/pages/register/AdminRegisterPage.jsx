@@ -10,8 +10,29 @@ const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 function FieldError({ msg }) {
   return msg ? <p className="text-xs text-red-400 mt-1">{msg}</p> : null;
 }
-function inputCls(err) {
-  return `input-field${err ? " border-red-500/50 focus:border-red-500" : ""}`;
+
+function Spinner({ className = "w-5 h-5" }) {
+  return (
+    <svg
+      className={`animate-spin text-brand ${className}`}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
+    </svg>
+  );
 }
 
 function PasswordField({ value, onChange, hasError }) {
@@ -41,7 +62,7 @@ function PasswordField({ value, onChange, hasError }) {
           value={value}
           onChange={onChange}
           placeholder="Mínimo 8 caracteres"
-          className={inputCls(hasError) + " pr-10"}
+          className={`input-field pr-10 ${hasError ? "border-red-500/50" : ""}`}
         />
         <button
           type="button"
@@ -80,7 +101,7 @@ function PasswordField({ value, onChange, hasError }) {
           {[1, 2, 3, 4].map((lvl) => (
             <div
               key={lvl}
-              className={`h-1 flex-1 rounded-full transition-all duration-300 ${score >= lvl ? colors[score] : "bg-white/10"}`}
+              className={`h-1 flex-1 rounded-full transition-all ${score >= lvl ? colors[score] : "bg-white/10"}`}
             />
           ))}
           <span className="text-xs text-gray-500 w-16 text-right">
@@ -92,30 +113,7 @@ function PasswordField({ value, onChange, hasError }) {
   );
 }
 
-function Spinner({ className = "w-8 h-8" }) {
-  return (
-    <svg
-      className={`animate-spin text-brand ${className}`}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-      />
-    </svg>
-  );
-}
-
+// ── Pantallas auxiliares ──────────────────────────────────────────────────────
 function AlreadyLoggedIn({ userName, onSignOut }) {
   return (
     <div className="min-h-screen bg-dark flex items-center justify-center p-4">
@@ -154,12 +152,12 @@ function InvalidToken() {
           </svg>
         </div>
         <h2 className="font-display text-xl font-bold text-white mb-2">
-          Enlace inválido o caducado
+          Invitación inválida o caducada
         </h2>
         <p className="text-gray-400 text-sm mb-6">
           Este enlace de invitación de administrador no es válido, ya ha sido
-          usado o ha caducado. Solicita uno nuevo al administrador que te
-          invitó.
+          usado o ha caducado. Solicita un nuevo enlace a un administrador
+          existente.
         </p>
         <a href="/" className="btn-secondary block w-full text-center">
           Volver al inicio
@@ -182,7 +180,7 @@ function SuccessScreen({ navigate }) {
           ¡Cuenta de administrador creada!
         </h2>
         <p className="text-gray-400 text-sm mb-2">
-          Ya puedes acceder al panel de administración de Relance.
+          Tu cuenta ha sido creada con permisos de administrador.
         </p>
         <p className="text-gray-500 text-xs mb-8">
           Revisa tu correo para verificar la cuenta antes de iniciar sesión.
@@ -202,10 +200,10 @@ export default function AdminRegisterPage() {
   const { user, loading: authLoading, signOut } = useAuth();
 
   const token = params.get("token");
-  const entityId = params.get("entity"); // id del admin que invita
+  const entityId = params.get("entity"); // id del admin que generó el token
 
-  const [pageState, setPageState] = useState("loading");
-  const [inviterName, setInviterName] = useState("Relance");
+  const [pageState, setPageState] = useState("loading"); // loading|logged_in|invalid|form|success
+  const [invitedBy, setInvitedBy] = useState(null);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -241,6 +239,20 @@ export default function AdminRegisterPage() {
     return data;
   };
 
+  const fetchInviterName = async () => {
+    try {
+      const { data } = await supabase
+        .from("usuario")
+        .select("nombre")
+        .eq("id", entityId)
+        .maybeSingle();
+      return data?.nombre || "un administrador";
+    } catch {
+      return "un administrador";
+    }
+  };
+
+  // ── Efecto: esperar Auth, luego validar ──────────────────────────────────
   useEffect(() => {
     if (authLoading) return;
     const init = async () => {
@@ -253,17 +265,8 @@ export default function AdminRegisterPage() {
         setPageState("invalid");
         return;
       }
-      // Obtener nombre del admin que invita
-      try {
-        const { data } = await supabase
-          .from("usuario")
-          .select("nombre")
-          .eq("id", entityId)
-          .maybeSingle();
-        if (data?.nombre) setInviterName(data.nombre);
-      } catch {
-        /* ignorar */
-      }
+      const name = await fetchInviterName();
+      setInvitedBy(name);
       setPageState("form");
     };
     init();
@@ -274,7 +277,7 @@ export default function AdminRegisterPage() {
     await signOut();
   };
 
-  // ── Validación ────────────────────────────────────────────────────────────
+  // ── Validación ───────────────────────────────────────────────────────────
   const validate = () => {
     const e = {};
     if (!form.fullName.trim()) e.fullName = "El nombre es obligatorio.";
@@ -283,7 +286,7 @@ export default function AdminRegisterPage() {
     if (!form.password) e.password = "La contraseña es obligatoria.";
     else if (form.password.length < 8) e.password = "Mínimo 8 caracteres.";
     else if (!/[A-Z]/.test(form.password) || !/[0-9]/.test(form.password))
-      e.password = "Debe tener al menos una mayúscula y un número.";
+      e.password = "Debe incluir mayúscula y número.";
     if (!form.confirmPassword) e.confirmPassword = "Confirma tu contraseña.";
     else if (form.password !== form.confirmPassword)
       e.confirmPassword = "Las contraseñas no coinciden.";
@@ -291,7 +294,7 @@ export default function AdminRegisterPage() {
     return Object.keys(e).length === 0;
   };
 
-  // ── Submit ────────────────────────────────────────────────────────────────
+  // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
@@ -299,7 +302,8 @@ export default function AdminRegisterPage() {
     setSubmitError(null);
 
     try {
-      // 1. Crear cuenta en Auth
+      // 1. Crear cuenta Auth — el trigger handle_new_user() inserta
+      //    automáticamente en `usuario` con rol "admin".
       const { data: authData, error: signUpError } = await supabase.auth.signUp(
         {
           email: form.email,
@@ -310,28 +314,17 @@ export default function AdminRegisterPage() {
       if (signUpError) throw signUpError;
 
       const uid = authData.user?.id;
-      if (!uid) throw new Error("No se pudo obtener el ID del usuario.");
+      if (!uid) throw new Error("No se pudo obtener el ID del nuevo usuario.");
 
-      // 2. Insertar en tabla usuario
-      await supabase
-        .from("usuario")
-        .upsert(
-          {
-            id: uid,
-            email: form.email,
-            nombre: form.fullName,
-            rol: "admin",
-            is_profile_completed: true,
-          },
-          { onConflict: "id" },
-        );
-
-      // 3. Insertar en tabla administrador
-      await supabase
+      // 2. Insertar en tabla administrador.
+      //    El trigger no lo hace porque es una tabla de extensión específica
+      //    de este flujo; el cliente es el responsable de crearla.
+      const { error: adminError } = await supabase
         .from("administrador")
-        .insert({ id_usuario: uid, nivel: "admin" });
+        .insert({ id_usuario: uid });
+      if (adminError) console.warn("administrador insert:", adminError.message);
 
-      // 4. Marcar token como usado
+      // 3. Marcar token como usado
       await supabase
         .from("invite_tokens")
         .update({ used: true, used_at: new Date().toISOString() })
@@ -339,7 +332,7 @@ export default function AdminRegisterPage() {
 
       setPageState("success");
     } catch (err) {
-      console.error("Error en registro de admin:", err);
+      console.error("Error en registro admin:", err);
       setSubmitError(
         err.message || "Error al crear la cuenta. Inténtalo de nuevo.",
       );
@@ -348,11 +341,11 @@ export default function AdminRegisterPage() {
     }
   };
 
-  // ── Renders condicionales ─────────────────────────────────────────────────
+  // ── Renders ──────────────────────────────────────────────────────────────
   if (pageState === "loading")
     return (
       <div className="min-h-screen bg-dark flex items-center justify-center">
-        <Spinner />
+        <Spinner className="w-8 h-8" />
       </div>
     );
   if (pageState === "logged_in")
@@ -367,7 +360,7 @@ export default function AdminRegisterPage() {
 
   return (
     <div className="min-h-screen bg-dark py-12 px-4">
-      <div className="max-w-lg mx-auto">
+      <div className="max-w-md mx-auto">
         <div className="text-center mb-8">
           <a href="/">
             <img
@@ -390,21 +383,36 @@ export default function AdminRegisterPage() {
               Invitación de administrador
             </p>
             <p className="text-gray-400 text-sm mt-1">
-              <strong className="text-white">{inviterName}</strong> te ha
-              invitado a unirte al equipo de administración de{" "}
-              <strong className="text-brand">Relance</strong>.
+              <strong className="text-brand">{invitedBy}</strong> te ha invitado
+              a unirte como{" "}
+              <strong className="text-brand">administrador</strong> de Relance.
             </p>
           </div>
         </div>
 
+        {/* Aviso de responsabilidad */}
+        <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl px-4 py-3 mb-6 flex gap-3">
+          <svg
+            className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <p className="text-xs text-orange-300/80">
+            Los administradores tienen acceso completo al panel de gestión de
+            ofertas y pueden dar de alta a otros administradores.
+          </p>
+        </div>
+
         <div className="bg-dark-800 border border-white/10 rounded-2xl p-6 sm:p-8">
-          <h1 className="font-display text-2xl font-bold text-white mb-1">
+          <h1 className="font-display text-2xl font-bold text-white mb-6">
             Crear cuenta de administrador
           </h1>
-          <p className="text-gray-500 text-sm mb-6">
-            Esta cuenta tendrá acceso al panel de administración.
-          </p>
-
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div>
               <label className="block text-sm text-gray-400 mb-1.5">
@@ -415,7 +423,7 @@ export default function AdminRegisterPage() {
                 value={form.fullName}
                 onChange={s("fullName")}
                 placeholder="Tu nombre y apellidos"
-                className={inputCls(errs.fullName)}
+                className={`input-field ${errs.fullName ? "border-red-500/50" : ""}`}
               />
               <FieldError msg={errs.fullName} />
             </div>
@@ -428,7 +436,7 @@ export default function AdminRegisterPage() {
                 value={form.email}
                 onChange={s("email")}
                 placeholder="admin@relance.es"
-                className={inputCls(errs.email)}
+                className={`input-field ${errs.email ? "border-red-500/50" : ""}`}
               />
               <FieldError msg={errs.email} />
             </div>
@@ -452,35 +460,19 @@ export default function AdminRegisterPage() {
                 value={form.confirmPassword}
                 onChange={s("confirmPassword")}
                 placeholder="Repite la contraseña"
-                className={inputCls(errs.confirmPassword)}
+                className={`input-field ${errs.confirmPassword ? "border-red-500/50" : ""}`}
               />
+              {form.confirmPassword &&
+                form.confirmPassword !== form.password &&
+                !errs.confirmPassword && (
+                  <p className="text-xs text-red-400 mt-1">No coinciden</p>
+                )}
               {form.confirmPassword &&
                 form.confirmPassword === form.password &&
                 form.password.length >= 8 && (
                   <p className="text-xs text-brand mt-1">✓ Coinciden</p>
                 )}
               <FieldError msg={errs.confirmPassword} />
-            </div>
-
-            {/* Indicador de rol */}
-            <div className="bg-dark border border-white/8 rounded-xl p-3 flex items-center gap-3">
-              <svg
-                className="w-5 h-5 text-brand flex-shrink-0"
-                viewBox="0 0 640 640"
-              >
-                <use href="/icons.svg#icon-shield" />
-              </svg>
-              <div>
-                <p className="text-xs text-gray-500">Rol asignado</p>
-                <p className="text-sm text-white font-semibold">
-                  Administrador de Relance
-                </p>
-              </div>
-              <div className="ml-auto">
-                <span className="text-xs bg-brand/20 text-brand px-2 py-0.5 rounded-full">
-                  Acceso total
-                </span>
-              </div>
             </div>
 
             {submitError && (

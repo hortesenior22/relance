@@ -38,7 +38,6 @@ const isValidUrl = (v) => {
 const isValidCif = (v) => /^[A-Z0-9]{8,9}$/i.test(v.trim());
 const isValidPhone = (v) => /^[+\d\s\-().]{7,20}$/.test(v.trim());
 
-// Valida campos comunes (email + contraseñas)
 function validateCommon(form) {
   const errs = {};
   if (!form.fullName.trim()) errs.fullName = "El nombre es obligatorio.";
@@ -55,17 +54,15 @@ function validateCommon(form) {
   return errs;
 }
 
-// ── Campo de error inline ───────────────────────────────────────────────────
+// ── Componentes auxiliares ──────────────────────────────────────────────────
 function FieldError({ msg }) {
   return msg ? <p className="text-xs text-red-400 mt-1">{msg}</p> : null;
 }
 
-// ── Input con borde de error ─────────────────────────────────────────────────
 function inputCls(hasError) {
   return `input-field${hasError ? " border-red-500/50 focus:border-red-500" : ""}`;
 }
 
-// ── Componente PasswordField ────────────────────────────────────────────────
 function PasswordField({
   value,
   onChange,
@@ -91,6 +88,7 @@ function PasswordField({
     "bg-brand",
   ];
   const labels = ["", "Muy débil", "Débil", "Media", "Fuerte"];
+
   return (
     <div>
       <div className="relative">
@@ -808,22 +806,23 @@ export default function RegisterPage() {
 
     const { fullName, email, password, role, ...extra } = formData;
 
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
-      {
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            role,
-            ...(role === "empresa" && { cif: extra.cif ?? "" }),
-            ...(role === "centro_educativo" && {
-              institutional_code: extra.institutionalCode ?? "",
-            }),
-          },
+    // El trigger handle_new_user() se encarga de insertar en `usuario`
+    // y en la tabla de extensión correspondiente (estudiante / empresa /
+    // centro_educativo) usando los metadatos que pasamos aquí.
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          role,
+          ...(role === "empresa" && { cif: extra.cif ?? "" }),
+          ...(role === "centro_educativo" && {
+            institutional_code: extra.institutionalCode ?? "",
+          }),
         },
       },
-    );
+    });
 
     if (signUpError) {
       setLoading(false);
@@ -835,119 +834,11 @@ export default function RegisterPage() {
       return;
     }
 
-    const userId = signUpData?.user?.id;
-    if (!userId) {
-      setLoading(false);
-      setError("No se pudo obtener el ID de usuario.");
-      return;
-    }
-
-    try {
-      await supabase
-        .from("usuario")
-        .upsert(
-          {
-            id: userId,
-            email,
-            nombre: fullName,
-            rol: role,
-            is_profile_completed: true,
-          },
-          { onConflict: "id" },
-        );
-
-      if (role === "empresa") {
-        const { error: empresaError } = await supabase
-          .from("empresa")
-          .upsert(
-            {
-              id_usuario: userId,
-              nombre: extra.companyName,
-              cif: extra.cif,
-              sector: extra.sector || null,
-              tamanio: extra.tamanio || null,
-              ciudad: extra.ciudad || null,
-              web: extra.web || null,
-              telefono: extra.telefono || null,
-              descripcion: extra.descripcion || null,
-              email_contacto: email,
-            },
-            { onConflict: "id_usuario" },
-          );
-        if (empresaError)
-          throw new Error(`Error al guardar empresa: ${empresaError.message}`);
-      }
-
-      if (role === "estudiante") {
-        const parts = fullName.trim().split(" ");
-        const { error: estudianteError } = await supabase
-          .from("estudiante")
-          .upsert(
-            {
-              id: userId,
-              nombre: parts[0] ?? fullName,
-              apellidos: parts.slice(1).join(" ") || null,
-              sobre_mi: null,
-              formaciones: extra.centerName
-                ? [
-                    {
-                      id: Date.now(),
-                      titulo: extra.degree || null,
-                      centro: extra.centerName,
-                      en_curso: true,
-                      mes_inicio: null,
-                      anio_inicio: extra.graduationYear
-                        ? Number(extra.graduationYear) - 1
-                        : null,
-                      mes_fin: null,
-                      anio_fin: extra.graduationYear
-                        ? Number(extra.graduationYear)
-                        : null,
-                    },
-                  ]
-                : [],
-              habilidades: [],
-              proyectos: [],
-              redes_sociales: {},
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "id" },
-          );
-        if (estudianteError)
-          throw new Error(
-            `Error al guardar estudiante: ${estudianteError.message}`,
-          );
-      }
-
-      if (role === "centro_educativo") {
-        const { error: centroError } = await supabase
-          .from("centro_educativo")
-          .upsert(
-            {
-              id: userId,
-              nombre: extra.centerName,
-              codigo_institucional: extra.institutionalCode || null,
-              tipo_centro: extra.centerType || null,
-              ciudad: extra.city || null,
-              provincia: extra.province || null,
-              sitio_web: extra.website || null,
-              email_contacto: email,
-              titulaciones: [],
-            },
-            { onConflict: "id" },
-          );
-        if (centroError)
-          throw new Error(`Error al guardar centro: ${centroError.message}`);
-      }
-    } catch (dbErr) {
-      setLoading(false);
-      setError(
-        `Tu cuenta se creó pero hubo un problema guardando los datos: ${dbErr.message}. Puedes completar tu perfil después de verificar el correo.`,
-      );
-      setRegisteredEmail(email);
-      setSuccess(true);
-      return;
-    }
+    // Para empresa guardamos los datos extra (sector, tamaño, etc.) que el
+    // trigger no tiene porque no viajan en los metadatos de auth.
+    // Lo hacemos con service_role a través de una edge function, o bien
+    // dejamos que el usuario los complete en su perfil tras verificar el email.
+    // Por ahora simplemente mostramos el estado de éxito.
 
     setLoading(false);
     setRegisteredEmail(email);
@@ -1001,6 +892,7 @@ export default function RegisterPage() {
 
   return (
     <MainLayout>
+      {/* Fondo grid */}
       <div
         className="absolute inset-0 opacity-[0.03]"
         style={{
@@ -1009,6 +901,7 @@ export default function RegisterPage() {
           backgroundSize: "60px 60px",
         }}
       />
+      {/* Glow central */}
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full opacity-[0.06] blur-[120px] pointer-events-none"
         style={{ background: "#c0ff72" }}
@@ -1024,6 +917,7 @@ export default function RegisterPage() {
           </p>
         </div>
 
+        {/* Selector de rol */}
         <div className="grid grid-cols-3 gap-3 mb-8">
           {ROLES.map((role) => (
             <button
@@ -1032,7 +926,11 @@ export default function RegisterPage() {
                 setSelectedRole(role.id);
                 setError(null);
               }}
-              className={`relative p-4 rounded-2xl border text-left transition-all duration-200 overflow-hidden ${selectedRole === role.id ? "border-brand bg-brand/10" : "border-white/10 hover:border-white/20 bg-dark-800"}`}
+              className={`relative p-4 rounded-2xl border text-left transition-all duration-200 overflow-hidden ${
+                selectedRole === role.id
+                  ? "border-brand bg-brand/10"
+                  : "border-white/10 hover:border-white/20 bg-dark-800"
+              }`}
             >
               {selectedRole === role.id && (
                 <div className="absolute inset-0 bg-brand/5 pointer-events-none" />
@@ -1068,6 +966,7 @@ export default function RegisterPage() {
           ))}
         </div>
 
+        {/* Aviso tutores */}
         <div className="mb-6 bg-brand/5 border border-brand/20 rounded-2xl p-4 flex gap-3">
           <span className="flex-shrink-0">
             <svg className="text-brand w-5 h-5">
@@ -1085,6 +984,7 @@ export default function RegisterPage() {
           </div>
         </div>
 
+        {/* Formulario */}
         {selectedRole && (
           <div className="bg-dark-800 border border-white/10 rounded-2xl p-6 sm:p-8">
             <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/10">

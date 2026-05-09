@@ -5,12 +5,15 @@ import { supabase } from "../../lib/supabase";
 import { showAlert } from "../../lib/swal";
 
 export default function UserMenu({ onClose }) {
-  const { user, userRole, avatarUrl } = useAuth();
+  const { user, userRole, avatarUrl, loading } = useAuth();
   const ref = useRef(null);
   const navigate = useNavigate();
 
+  // ✅ FIX: el rol SIEMPRE viene del contexto (BD), nunca de user_metadata.
+  // user_metadata puede tener valores obsoletos o incorrectos (ej. "estudiante" por defecto).
+  const role = userRole;
+
   const fullName = user?.user_metadata?.full_name ?? user?.email ?? "Usuario";
-  const role = userRole ?? user?.user_metadata?.role;
   const initials = fullName
     .split(" ")
     .slice(0, 2)
@@ -24,6 +27,10 @@ export default function UserMenu({ onClose }) {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [onClose]);
+
+  // ✅ FIX: no renderizamos el menú hasta que loading sea false y el rol esté resuelto.
+  // Esto evita mostrar rutas/badges incorrectos durante la carga inicial.
+  if (loading || !user) return null;
 
   const handleSignOut = async () => {
     const identities = user?.identities ?? [];
@@ -89,16 +96,20 @@ export default function UserMenu({ onClose }) {
     navigate("/", { replace: true });
   };
 
+  // ✅ FIX: profilePath calculado solo con `role` (ya es siempre el valor real de BD).
+  // No hay fallback a user_metadata para evitar rutas erróneas.
   const profilePath =
-    role === "empresa"
-      ? "/perfil/empresa"
-      : role === "centro_educativo" || role === "centro"
-        ? "/perfil/centro"
-        : role === "tutor_empresa" ||
-            role === "tutor_centro" ||
-            role === "tutor"
-          ? "/perfil/tutor"
-          : "/perfil/estudiante";
+    role === "admin"
+      ? "/perfil/admin"
+      : role === "empresa"
+        ? "/perfil/empresa"
+        : role === "centro_educativo" || role === "centro"
+          ? "/perfil/centro"
+          : role === "tutor_empresa" ||
+              role === "tutor_centro" ||
+              role === "tutor"
+            ? "/perfil/tutor"
+            : "/perfil/estudiante";
 
   const menuItems = [
     {
@@ -107,6 +118,28 @@ export default function UserMenu({ onClose }) {
       href: profilePath,
       roles: null,
     },
+
+    // ADMIN
+    {
+      icon: "icon-settings",
+      label: "Panel de administración",
+      href: "/panel-administracion",
+      roles: ["admin"],
+    },
+    {
+      icon: "icon-student",
+      label: "Gestionar usuarios",
+      href: "/admin/usuarios",
+      roles: ["admin"],
+    },
+    {
+      icon: "icon-briefcase",
+      label: "Gestionar ofertas",
+      href: "/admin/ofertas",
+      roles: ["admin"],
+    },
+
+    // ESTUDIANTE, TUTORES Y CENTROS
     {
       icon: "icon-briefcase",
       label: "Ofertas de prácticas",
@@ -150,6 +183,10 @@ export default function UserMenu({ onClose }) {
   );
 
   const roleBadges = {
+    admin: {
+      label: "Administrador",
+      color: "bg-red-500/20 text-red-400",
+    },
     estudiante: { label: "Estudiante", color: "bg-blue-500/20 text-blue-400" },
     empresa: { label: "Empresa", color: "bg-purple-500/20 text-purple-400" },
     centro_educativo: {

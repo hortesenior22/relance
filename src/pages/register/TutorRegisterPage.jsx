@@ -4,6 +4,31 @@ import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import logoUrl from "../../assets/logo_relance.jpg";
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function Spinner({ className = "w-8 h-8" }) {
+  return (
+    <svg
+      className={`animate-spin text-brand ${className}`}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
+    </svg>
+  );
+}
+
 // ── Password field con indicador de fortaleza ────────────────────────────────
 function PasswordField({ value, onChange }) {
   const [show, setShow] = useState(false);
@@ -24,6 +49,7 @@ function PasswordField({ value, onChange }) {
     "bg-brand",
   ];
   const labels = ["", "Muy débil", "Débil", "Media", "Fuerte"];
+
   return (
     <div>
       <div className="relative">
@@ -85,31 +111,7 @@ function PasswordField({ value, onChange }) {
   );
 }
 
-function Spinner({ className = "w-8 h-8" }) {
-  return (
-    <svg
-      className={`animate-spin text-brand ${className}`}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-      />
-    </svg>
-  );
-}
-
-// ── Pantalla: sesión activa ──────────────────────────────────────────────────
+// ── Pantallas auxiliares ─────────────────────────────────────────────────────
 function AlreadyLoggedIn({ userName, onSignOut }) {
   return (
     <div className="min-h-screen bg-dark flex items-center justify-center p-4">
@@ -138,7 +140,6 @@ function AlreadyLoggedIn({ userName, onSignOut }) {
   );
 }
 
-// ── Pantalla: token inválido ─────────────────────────────────────────────────
 function InvalidToken() {
   return (
     <div className="min-h-screen bg-dark flex items-center justify-center p-4">
@@ -164,7 +165,6 @@ function InvalidToken() {
   );
 }
 
-// ── Pantalla: éxito ──────────────────────────────────────────────────────────
 function SuccessScreen({ entityName, navigate }) {
   return (
     <div className="min-h-screen bg-dark flex items-center justify-center p-4">
@@ -218,13 +218,9 @@ export default function TutorRegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
-  // ── Validar token ────────────────────────────────────────────────────
-  // La tabla invite_tokens necesita una política RLS de SELECT para "anon":
-  //   Supabase Dashboard → Authentication → Policies → invite_tokens
-  //   → New Policy → "Enable read access for all users" → USING (true)
+  // ── Validar token ────────────────────────────────────────────────────────
   const validateToken = async () => {
     if (!token || !entityId || !entityType) return null;
-
     const { data, error } = await supabase
       .from("invite_tokens")
       .select("id, entity_id, entity_type, used, expires_at")
@@ -232,13 +228,12 @@ export default function TutorRegisterPage() {
       .eq("entity_id", entityId)
       .eq("used", false)
       .gt("expires_at", new Date().toISOString())
-      .maybeSingle(); // No lanza error si 0 filas, a diferencia de .single()
-
+      .maybeSingle();
     if (error) {
       console.error("Error al validar token:", error.message);
       return null;
     }
-    return data; // null si no existe/expiró
+    return data;
   };
 
   const fetchEntityName = async () => {
@@ -265,27 +260,20 @@ export default function TutorRegisterPage() {
     return null;
   };
 
-  // ── Efecto: esperar a Auth, luego validar ────────────────────────────
+  // ── Efecto: esperar a Auth, luego validar ────────────────────────────────
   useEffect(() => {
-    if (authLoading) return; // Esperar a que AuthContext resuelva
-
+    if (authLoading) return;
     const init = async () => {
-      // Si hay sesión activa, mostrar aviso
       if (user) {
         setPageState("logged_in");
         return;
       }
-
-      // Validar token
       const tokenData = await validateToken();
       if (!tokenData) {
         setPageState("invalid");
         return;
       }
-
-      // Obtener nombre de la entidad (best effort)
       const entityName = await fetchEntityName();
-
       setEntityInfo({
         name:
           entityName || (entityType === "empresa" ? "la empresa" : "el centro"),
@@ -293,20 +281,17 @@ export default function TutorRegisterPage() {
         id: entityId,
         tokenId: tokenData.id,
       });
-
       setPageState("form");
     };
-
     init();
   }, [authLoading, user]);
 
-  // ── Cerrar sesión → AuthContext actualiza user → useEffect re-ejecuta ─
   const handleSignOut = async () => {
     setPageState("loading");
     await signOut();
   };
 
-  // ── Submit: crear cuenta + insertar en BD ────────────────────────────
+  // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.password !== form.confirmPassword) {
@@ -324,7 +309,8 @@ export default function TutorRegisterPage() {
     const role = entityType === "empresa" ? "tutor_empresa" : "tutor_centro";
 
     try {
-      // 1. Crear cuenta en Supabase Auth
+      // 1. Crear cuenta en Auth — el trigger handle_new_user() inserta
+      //    automáticamente en `usuario` con el rol pasado en los metadatos.
       const { data: authData, error: signUpError } = await supabase.auth.signUp(
         {
           email: form.email,
@@ -338,20 +324,9 @@ export default function TutorRegisterPage() {
       if (!newUserId)
         throw new Error("No se pudo obtener el ID del nuevo usuario.");
 
-      // 2. Insertar en tabla genérica "usuario"
-      const { error: usuarioError } = await supabase.from("usuario").insert({
-        id: newUserId,
-        email: form.email,
-        nombre: form.fullName,
-        rol: role,
-        is_profile_completed: true,
-      });
-      if (usuarioError && !usuarioError.message?.includes("duplicate")) {
-        throw usuarioError;
-      }
-
-      // 3. Insertar en tabla de tutor y vincular a la entidad
-      //    Ajusta los nombres de tabla y columnas según tu esquema real
+      // 2. Insertar en la tabla de tutor y vincular a la entidad.
+      //    Esta inserción la hace el cliente porque el trigger no tiene
+      //    acceso a entityId (no viaja en los metadatos de auth).
       if (entityType === "empresa") {
         const { error: tutorError } = await supabase
           .from("tutor_empresa")
@@ -378,7 +353,7 @@ export default function TutorRegisterPage() {
           console.warn("tutor_centro insert:", tutorError.message);
       }
 
-      // 4. Marcar token como usado
+      // 3. Marcar token como usado
       await supabase
         .from("invite_tokens")
         .update({ used: true, used_at: new Date().toISOString() })
@@ -395,7 +370,7 @@ export default function TutorRegisterPage() {
     }
   };
 
-  // ── Renders condicionales ────────────────────────────────────────────
+  // ── Renders condicionales ────────────────────────────────────────────────
   if (pageState === "loading") {
     return (
       <div className="min-h-screen bg-dark flex items-center justify-center">
@@ -409,11 +384,10 @@ export default function TutorRegisterPage() {
     return <AlreadyLoggedIn userName={displayName} onSignOut={handleSignOut} />;
   }
   if (pageState === "invalid") return <InvalidToken />;
-  if (pageState === "success") {
+  if (pageState === "success")
     return <SuccessScreen entityName={entityInfo?.name} navigate={navigate} />;
-  }
 
-  // ── Formulario ───────────────────────────────────────────────────────
+  // ── Formulario ───────────────────────────────────────────────────────────
   const entityLabel = entityType === "empresa" ? "empresa" : "centro educativo";
   const roleLabel =
     entityType === "empresa" ? "tutor de empresa" : "tutor de centro educativo";

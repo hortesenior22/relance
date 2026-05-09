@@ -22,7 +22,8 @@ type UserRole =
   | "centro_educativo"
   | "tutor"
   | "tutor_empresa"
-  | "tutor_centro";
+  | "tutor_centro"
+  | "admin";
 
 /* ─────────────────────────────────────────────
    PROPS
