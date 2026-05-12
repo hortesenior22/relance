@@ -5,8 +5,9 @@ import { useAuth } from "../../context/AuthContext";
 import MainLayout from "../../components/layout/MainLayout";
 
 import OfertaCard from "./CardOffer";
-import CandidatosModal from "./CandidatesModal"; // ← nuevo
-import StudentProfileDrawer from "../profiles/StudentProfileDrawer"; // ← nuevo (por si se usa standalone)
+import CandidatosModal from "./CandidatesModal";
+import StudentProfileDrawer from "../profiles/StudentProfileDrawer";
+import RecommendModalOffer from "./RecommendModalOffer";
 
 // ── Constantes ────────────────────────────────────────────────────────────
 const MODALIDADES = ["Presencial", "Remoto", "Híbrido"];
@@ -24,7 +25,7 @@ const DURACIONES = [
   { val: 48, label: "12 meses" },
 ];
 
-// ─── Helpers UI locales ────────────────────────────────────────────────────
+// ─── Spinner ───────────────────────────────────────────────────────────────
 function Spinner({ className = "w-5 h-5" }) {
   return (
     <svg
@@ -247,7 +248,7 @@ function OfertaModal({ oferta, onClose, onSaved }) {
             </div>
           )}
 
-          {/* Tipo de oferta */}
+          {/* Tipo */}
           <div>
             <label className="block text-xs text-gray-500 mb-2 uppercase tracking-wider">
               Tipo de oferta *
@@ -258,11 +259,7 @@ function OfertaModal({ oferta, onClose, onSaved }) {
                   key={t.id}
                   type="button"
                   onClick={() => setForm((f) => ({ ...f, tipo_oferta: t.id }))}
-                  className={`py-2.5 px-3 rounded-xl border text-xs font-medium transition-all ${
-                    form.tipo_oferta === t.id
-                      ? "border-[#C0FF72] bg-[#C0FF72]/10 text-[#C0FF72]"
-                      : "border-white/10 text-gray-400 hover:border-white/20"
-                  }`}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-medium transition-all ${form.tipo_oferta === t.id ? "border-[#C0FF72] bg-[#C0FF72]/10 text-[#C0FF72]" : "border-white/10 text-gray-400 hover:border-white/20"}`}
                 >
                   {t.label}
                 </button>
@@ -426,7 +423,7 @@ function OfertaModal({ oferta, onClose, onSaved }) {
             </div>
           </div>
 
-          {/* Opción contratación */}
+          {/* Toggle contrato */}
           <div className="flex items-center gap-3 p-3 bg-dark border border-white/8 rounded-xl">
             <button
               type="button"
@@ -599,7 +596,6 @@ function Badge({ children, color = "gray" }) {
   );
 }
 
-// const modalidadIcon = { Presencial: "🏢", Remoto: "🌐", Híbrido: "⚡" };
 const modalidadIcon = { Presencial: "", Remoto: "", Híbrido: "" };
 
 function DetalleModal({
@@ -661,17 +657,12 @@ function DetalleModal({
                 {modalidadIcon[oferta.modalidad]} {oferta.modalidad}
               </Badge>
             )}
-            {oferta.ubicacion && (
-              // <Badge color="gray">📍 {oferta.ubicacion}</Badge>
-              <Badge color="gray"> {oferta.ubicacion}</Badge>
-            )}
+            {oferta.ubicacion && <Badge color="gray">{oferta.ubicacion}</Badge>}
             {oferta.opcion_contrato && (
-              // <Badge color="green">💼 Opción de contratación</Badge>
               <Badge color="green">Opción de contratación</Badge>
             )}
             {oferta.salario_mensual ? (
-              // <Badge color="brand">💶 {oferta.salario_mensual} €/mes</Badge>
-              <Badge color="brand"> {oferta.salario_mensual} €/mes</Badge>
+              <Badge color="brand">{oferta.salario_mensual} €/mes</Badge>
             ) : (
               <Badge color="gray">No remunerado</Badge>
             )}
@@ -729,7 +720,6 @@ function DetalleModal({
               </p>
             </div>
           )}
-
           {tecnologias.length > 0 && (
             <div>
               <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">
@@ -747,7 +737,6 @@ function DetalleModal({
               </div>
             </div>
           )}
-
           {oferta.requisitos_adicionales && (
             <div>
               <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">
@@ -758,7 +747,6 @@ function DetalleModal({
               </p>
             </div>
           )}
-
           {oferta.beneficios && (
             <div>
               <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">
@@ -821,15 +809,11 @@ function PostulacionModal({ oferta, onClose, onSuccess }) {
     setSending(true);
     setError(null);
     try {
-      // ── FIX: columnas reales de la tabla candidatura:
-      //   fecha_solicitud → fecha_envio  (tiene default now(), se puede omitir)
-      //   mensaje         → comentario_estudiante
       const { error: err } = await supabase.from("candidatura").insert({
         id_oferta: oferta.id_oferta,
         id_estudiante: user.id,
-        comentario_estudiante: mensaje.trim() || null, // ← era "mensaje"
+        comentario_estudiante: mensaje.trim() || null,
         estado: "pendiente",
-        // fecha_envio tiene DEFAULT now() en BD, no hace falta enviarlo
       });
       if (err) throw err;
       onSuccess();
@@ -1185,7 +1169,7 @@ function FiltrosBar({
   );
 }
 
-// ─── Tabs para empresas ────────────────────────────────────────────────────
+// ─── Tabs empresa ──────────────────────────────────────────────────────────
 function TabsEmpresa({ tab, setTab, totalMisOfertas }) {
   return (
     <div className="flex gap-1 bg-dark-800 border border-white/10 rounded-xl p-1 mb-6 w-fit">
@@ -1212,7 +1196,7 @@ function TabsEmpresa({ tab, setTab, totalMisOfertas }) {
   );
 }
 
-// ─── Stats para empresa (pestaña Mis Ofertas) ──────────────────────────────
+// ─── Stats empresa ─────────────────────────────────────────────────────────
 function EmpresaStats({ ofertas }) {
   const activas = ofertas.filter((o) => o.estado === "activa").length;
   const pendientes = ofertas.filter((o) => o.estado === "pendiente").length;
@@ -1258,6 +1242,7 @@ export default function OfertasPage() {
 
   const isEmpresa = userRole === "empresa";
   const isEstudiante = userRole === "estudiante";
+  const isTutorCentro = userRole === "tutor_centro"; // ← AÑADIDO
 
   // Datos
   const [ofertasPublicas, setOfertasPublicas] = useState([]);
@@ -1280,6 +1265,7 @@ export default function OfertasPage() {
   const [retirarOferta, setRetirarOferta] = useState(null);
   const [cerrarOferta, setCerrarOferta] = useState(null);
   const [candidatosOferta, setCandidatosOferta] = useState(null);
+  const [recomendarOferta, setRecomendarOferta] = useState(null); // ← AÑADIDO
 
   // ── Carga de ofertas públicas ──────────────────────────────────────────
   const cargarOfertasPublicas = useCallback(async () => {
@@ -1302,7 +1288,6 @@ export default function OfertasPage() {
       console.error(error);
       return [];
     }
-
     return (data ?? []).map((o) => ({
       ...o,
       empresa_nombre: o.empresa?.nombre ?? "Empresa",
@@ -1334,7 +1319,6 @@ export default function OfertasPage() {
       console.error(error);
       return [];
     }
-
     return (data ?? []).map((o) => ({
       ...o,
       empresa_nombre: o.empresa?.nombre ?? "Empresa",
@@ -1344,7 +1328,7 @@ export default function OfertasPage() {
     }));
   }, [isEmpresa, user]);
 
-  // ── Carga de postulaciones del estudiante ──────────────────────────────
+  // ── Carga postulaciones del estudiante ────────────────────────────────
   const cargarPostulaciones = useCallback(async () => {
     if (!isEstudiante || !user) return;
     const { data } = await supabase
@@ -1407,7 +1391,6 @@ export default function OfertasPage() {
   const esMisOfertas = tab === "mis-ofertas";
   const listaActiva = esMisOfertas ? misOfertas : ofertasPublicas;
   const listaFiltrada = aplicarFiltros(listaActiva);
-
   const isEmpresaOwnerOf = (oferta) =>
     isEmpresa && oferta.id_empresa === user?.id;
 
@@ -1416,7 +1399,7 @@ export default function OfertasPage() {
     <MainLayout>
       <div className="min-h-screen bg-dark">
         <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
-          {/* ── Cabecera ── */}
+          {/* Cabecera */}
           <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
             <div>
               <h1 className="font-display text-3xl font-bold text-white">
@@ -1448,7 +1431,7 @@ export default function OfertasPage() {
             )}
           </div>
 
-          {/* ── Tabs (solo empresa) ── */}
+          {/* Tabs solo empresa */}
           {isEmpresa && (
             <TabsEmpresa
               tab={tab}
@@ -1457,12 +1440,12 @@ export default function OfertasPage() {
             />
           )}
 
-          {/* ── Stats empresa en "Mis ofertas" ── */}
+          {/* Stats empresa */}
           {isEmpresa && esMisOfertas && misOfertas.length > 0 && (
             <EmpresaStats ofertas={misOfertas} />
           )}
 
-          {/* ── Filtros ── */}
+          {/* Filtros */}
           <FiltrosBar
             search={search}
             setSearch={setSearch}
@@ -1476,7 +1459,7 @@ export default function OfertasPage() {
             setFiltroTech={setFiltroTech}
           />
 
-          {/* ── Grid de cards ── */}
+          {/* Grid */}
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Spinner className="w-8 h-8" />
@@ -1511,6 +1494,7 @@ export default function OfertasPage() {
                   oferta={o}
                   isEmpresa={esMisOfertas ? isEmpresa : isEmpresaOwnerOf(o)}
                   isEstudiante={isEstudiante}
+                  isTutorCentro={isTutorCentro}
                   yaPostulado={postulaciones.has(o.id_oferta)}
                   onVerDetalle={setDetalleOferta}
                   onEdit={(oferta) => setModalCrear(oferta)}
@@ -1519,6 +1503,11 @@ export default function OfertasPage() {
                   onVerCandidatos={(oferta) => setCandidatosOferta(oferta)}
                   onPostular={(oferta) => setPostulacionOferta(oferta)}
                   onRetirar={(oferta) => setRetirarOferta(oferta)}
+                  onRecomendar={
+                    isTutorCentro
+                      ? (oferta) => setRecomendarOferta(oferta)
+                      : null
+                  }
                 />
               ))}
             </div>
@@ -1592,6 +1581,14 @@ export default function OfertasPage() {
           oferta={candidatosOferta}
           onClose={() => setCandidatosOferta(null)}
           supabase={supabase}
+        />
+      )}
+
+      {/* ← AÑADIDO */}
+      {recomendarOferta && (
+        <RecommendModalOffer
+          oferta={recomendarOferta}
+          onClose={() => setRecomendarOferta(null)}
         />
       )}
     </MainLayout>

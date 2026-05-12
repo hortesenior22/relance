@@ -13,15 +13,15 @@ import ResetPassword from "./pages/ResetPassword";
 import AuthCallback from "./pages/AuthCallback";
 import OnboardingModal from "./components/auth/OnboardingModal";
 import OfferPage from "./pages/ofertas/Offer";
+import NotificacionesPage from "./pages/NotificacionesPage";
 
 import { useEffect, useState, useRef } from "react";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/routes/ProtectedRoute";
 import AdminProfile from "./pages/profiles/AdminProfile";
 import AdministrationPanel from "./pages/AdministrationPanel";
+import CenterEducativePanel from "./pages/CenterEducativePanel";
 
-// Roles que nunca deben ver el onboarding modal porque ya
-// completan sus datos durante el registro o tienen perfil propio
 const ROLES_SIN_ONBOARDING = [
   "estudiante",
   "empresa",
@@ -31,14 +31,11 @@ const ROLES_SIN_ONBOARDING = [
   "tutor",
 ];
 
-/* ───────── App Content ───────── */
-
 function AppContent() {
   const { user, loading } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [safeLoading, setSafeLoading] = useState(true);
 
-  // Garantía de seguridad: si loading tarda más de 8s, desbloquear la UI
   useEffect(() => {
     if (!loading) {
       setSafeLoading(false);
@@ -51,25 +48,8 @@ function AppContent() {
     return () => clearTimeout(fallback);
   }, [loading]);
 
-  // const params = new URLSearchParams(window.location.search);
-  // const isGitHubConnect = params.has("gh");
-
-  // No mostrar onboarding si el usuario acaba de registrarse desde /registro
-  // ya que en esa página ya se recogen todos los datos necesarios
-  // const isFromRegisterPage =
-  //   window.location.pathname === "/registro" ||
-  //   window.location.pathname === "/registro-tutor";
-
   const lastCheckedUserId = useRef<string | null>(null);
   const retryTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // const ROLES_SIN_ONBOARDING = [
-  //   "empresa",
-  //   "centro_educativo",
-  //   "tutor_empresa",
-  //   "tutor_centro",
-  //   "tutor",
-  // ];
 
   const checkOnboarding = async (currentUser: typeof user, attempt = 0) => {
     if (retryTimeout.current) clearTimeout(retryTimeout.current);
@@ -124,7 +104,6 @@ function AppContent() {
   useEffect(() => {
     if (!loading) {
       checkOnboarding(user);
-
       const params = new URLSearchParams(window.location.search);
       if (params.has("gh")) {
         window.history.replaceState(
@@ -134,7 +113,6 @@ function AppContent() {
         );
       }
     }
-
     return () => {
       if (retryTimeout.current) clearTimeout(retryTimeout.current);
     };
@@ -245,8 +223,7 @@ function AppContent() {
         <Route path="/registro-tutor" element={<TutorRegisterPage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
-
-        {/* RUTAS PROTEGIDAS - Solo accesibles para el rol correspondiente */}
+        {/* RUTAS PROTEGIDAS */}
         <Route element={<ProtectedRoute requiredRole="estudiante" />}>
           <Route path="/perfil/estudiante" element={<StudentProfile />} />
         </Route>
@@ -254,9 +231,11 @@ function AppContent() {
           <Route path="/perfil/empresa" element={<CompanyProfile />} />
         </Route>
         <Route element={<ProtectedRoute requiredRole="centro_educativo" />}>
+          <Route path="/panel-centro" element={<CenterEducativePanel />} />
+        </Route>
+        <Route element={<ProtectedRoute requiredRole="centro_educativo" />}>
           <Route path="/perfil/centro" element={<CenterProfile />} />
         </Route>
-
         <Route
           element={
             <ProtectedRoute
@@ -266,7 +245,6 @@ function AppContent() {
         >
           <Route path="/perfil/tutor" element={<TutorProfile />} />
         </Route>
-
         <Route element={<ProtectedRoute requiredRole="admin" />}>
           <Route path="/perfil/admin" element={<AdminProfile />} />
         </Route>
@@ -276,19 +254,19 @@ function AppContent() {
             element={<AdministrationPanel />}
           />
         </Route>
-
-        {/* Ofertas — visible para todos los roles autenticados */}
+        {/* Ofertas — todos los roles autenticados */}
         <Route element={<ProtectedRoute />}>
           <Route path="/ofertas" element={<OfferPage />} />
         </Route>
-
+        {/* Notificaciones — todos los roles autenticados */} {/* ← NUEVO */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/notificaciones" element={<NotificacionesPage />} />
+        </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   );
 }
-
-/* ───────── Root ───────── */
 
 export default function App() {
   return (

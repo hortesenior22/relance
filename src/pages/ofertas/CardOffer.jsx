@@ -1,19 +1,6 @@
 // ─── components/ofertas/OfertaCard.jsx ────────────────────────────────────
-// Componente de tarjeta de oferta reutilizable.
-// Props:
-//   oferta          — objeto normalizado con todos los campos de la oferta
-//   isEmpresa       — bool: el usuario es la empresa propietaria
-//   isEstudiante    — bool: el usuario es estudiante
-//   yaPostulado     — bool: el estudiante ya se postuló
-//   onVerDetalle    — fn(oferta)
-//   onEdit          — fn(oferta)   [solo empresa]
-//   onDelete        — fn(id_oferta) [solo empresa]
-//   onPostular      — fn(oferta)   [solo estudiante, no postulado]
-//   onRetirar       — fn(oferta)   [solo estudiante, ya postulado]
-
 import { useState } from "react";
 
-// ── Mapa tipo → metadatos visuales ──────────────────────────────────────────
 export const TIPO_META = {
   practicas: { label: "Prácticas", accent: "#3b82f6", colorClass: "blue" },
   practicas_contratacion: {
@@ -28,7 +15,6 @@ export const TIPO_META = {
   },
 };
 
-// ── Badge ────────────────────────────────────────────────────────────────────
 export function Badge({ children, color = "gray", icon }) {
   const palette = {
     brand: "bg-[#C0FF72]/10 text-[#C0FF72]  border-[#C0FF72]/20",
@@ -49,7 +35,6 @@ export function Badge({ children, color = "gray", icon }) {
   );
 }
 
-// ── Icono del sprite SVG ─────────────────────────────────────────────────────
 function Icon({ id, className = "w-4 h-4" }) {
   return (
     <svg className={className} viewBox="0 0 640 640" aria-hidden="true">
@@ -58,7 +43,6 @@ function Icon({ id, className = "w-4 h-4" }) {
   );
 }
 
-// ── Initials avatar fallback ─────────────────────────────────────────────────
 function CompanyAvatar({ src, name, size = "md" }) {
   const [err, setErr] = useState(false);
   const sizeClass = size === "sm" ? "w-8 h-8 text-xs" : "w-11 h-11 text-sm";
@@ -88,11 +72,11 @@ function CompanyAvatar({ src, name, size = "md" }) {
   );
 }
 
-// ── Componente principal ─────────────────────────────────────────────────────
 export default function OfertaCard({
   oferta,
   isEmpresa = false,
   isEstudiante = false,
+  isTutorCentro = false, // ← NUEVO
   yaPostulado = false,
   onVerDetalle,
   onVerCandidatos,
@@ -100,6 +84,8 @@ export default function OfertaCard({
   onDelete,
   onPostular,
   onRetirar,
+  onRecomendar, // ← NUEVO
+  onCerrar,
 }) {
   const meta = TIPO_META[oferta.tipo_oferta] ?? {
     label: "Oferta",
@@ -109,7 +95,6 @@ export default function OfertaCard({
   const empresa = oferta.empresa_nombre ?? "Empresa";
   const tecnologias = oferta.tecnologias ?? [];
 
-  // Color de la franja superior según tipo
   const stripColor =
     {
       blue: "from-blue-500/70   to-blue-500/10",
@@ -120,12 +105,11 @@ export default function OfertaCard({
 
   return (
     <article className="group relative bg-dark-800 border border-white/8 rounded-2xl overflow-hidden flex flex-col transition-all duration-300 hover:border-white/20 hover:shadow-2xl hover:shadow-black/40 hover:-translate-y-0.5">
-      {/* Franja de color superior */}
+      {/* Franja superior */}
       <div className={`h-[3px] w-full bg-gradient-to-r ${stripColor}`} />
 
-      {/* Cuerpo */}
       <div className="p-5 flex flex-col gap-3.5 flex-1">
-        {/* ── Cabecera: avatar + título + empresa + estado ── */}
+        {/* Cabecera */}
         <div className="flex items-start gap-3">
           <CompanyAvatar src={oferta.empresa_avatar} name={empresa} />
 
@@ -165,7 +149,7 @@ export default function OfertaCard({
             </div>
           )}
 
-          {/* Indicador postulado (estudiante) */}
+          {/* Postulado (estudiante) */}
           {isEstudiante && yaPostulado && (
             <div className="flex-shrink-0">
               <Badge color="brand">
@@ -184,10 +168,9 @@ export default function OfertaCard({
           )}
         </div>
 
-        {/* ── Badges tipo + modalidad + contrato ── */}
+        {/* Badges tipo + modalidad + contrato */}
         <div className="flex flex-wrap gap-1.5">
           <Badge color={meta.colorClass}>{meta.label}</Badge>
-
           {oferta.modalidad === "Presencial" && (
             <Badge color="gray">
               <Icon id="icon-building" className="w-3 h-3" />
@@ -206,7 +189,6 @@ export default function OfertaCard({
               Híbrido
             </Badge>
           )}
-
           {oferta.opcion_contrato && (
             <Badge color="green">
               <Icon id="icon-handshake" className="w-3 h-3" />
@@ -215,14 +197,14 @@ export default function OfertaCard({
           )}
         </div>
 
-        {/* ── Descripción ── */}
+        {/* Descripción */}
         {oferta.descripcion && (
           <p className="text-gray-500 text-xs leading-relaxed line-clamp-2">
             {oferta.descripcion}
           </p>
         )}
 
-        {/* ── Tecnologías ── */}
+        {/* Tecnologías */}
         {tecnologias.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {tecnologias.slice(0, 4).map((t) => (
@@ -241,7 +223,7 @@ export default function OfertaCard({
           </div>
         )}
 
-        {/* ── Metadata grid ── */}
+        {/* Metadata grid */}
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-3 border-t border-white/5 mt-auto">
           {oferta.ubicacion && (
             <div className="flex items-center gap-1.5 text-gray-500 text-[11px]">
@@ -324,9 +306,9 @@ export default function OfertaCard({
         </div>
       </div>
 
-      {/* ── Footer: acciones ── */}
-      <div className="px-5 pb-4 flex gap-2">
-        {/* Ver detalle — siempre visible */}
+      {/* Footer: acciones */}
+      <div className="px-5 pb-4 flex gap-2 flex-wrap">
+        {/* Ver detalle — siempre */}
         <button
           onClick={() => onVerDetalle?.(oferta)}
           className="flex-1 text-[11px] font-medium py-2 rounded-xl bg-white/4 hover:bg-white/8 text-gray-400 hover:text-white transition-all border border-white/8 hover:border-white/15"
@@ -334,7 +316,7 @@ export default function OfertaCard({
           Ver detalle
         </button>
 
-        {/* Acciones estudiante */}
+        {/* ── Estudiante ── */}
         {isEstudiante &&
           !isEmpresa &&
           (yaPostulado ? (
@@ -373,7 +355,29 @@ export default function OfertaCard({
             </button>
           ))}
 
-        {/* Acciones empresa */}
+        {/* ── Tutor de centro — botón Recomendar ── */}
+        {isTutorCentro && onRecomendar && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRecomendar(oferta);
+            }}
+            className="flex-1 text-[11px] font-semibold py-2 rounded-xl bg-[#C0FF72]/10 hover:bg-[#C0FF72]/18 text-[#C0FF72] transition-all border border-[#C0FF72]/20 hover:border-[#C0FF72]/40 flex items-center justify-center gap-1.5"
+          >
+            <svg
+              className="w-3 h-3"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" />
+            </svg>
+            Recomendar
+          </button>
+        )}
+
+        {/* ── Empresa ── */}
         {isEmpresa && (
           <>
             <button
@@ -389,12 +393,10 @@ export default function OfertaCard({
               >
                 <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
                 <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 00-3-3.87" />
-                <path d="M16 3.13a4 4 0 010 7.75" />
+                <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
               </svg>
               Candidatos
             </button>
-
             <button
               onClick={() => onEdit?.(oferta)}
               className="flex-1 text-[11px] font-medium py-2 rounded-xl bg-white/4 hover:bg-white/8 text-gray-400 hover:text-white transition-all border border-white/8 flex items-center justify-center gap-1.5"
@@ -423,8 +425,7 @@ export default function OfertaCard({
                 strokeWidth="2"
               >
                 <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6l-1 14H6L5 6" />
-                <path d="M10 11v6M14 11v6M9 6V4h6v2" />
+                <path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" />
               </svg>
               Eliminar
             </button>
