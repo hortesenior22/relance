@@ -4,7 +4,6 @@ import { supabase, loginWithGoogle } from "../../lib/supabase";
 import { fetchUserRole, getRoleRoute } from "../../context/AuthContext";
 import logoUrl from "../../assets/logo_relance.jpg";
 
-// Vista: 'login' | 'forgot'
 type View = "login" | "forgot";
 
 interface LoginModalProps {
@@ -12,23 +11,50 @@ interface LoginModalProps {
   onSwitchToRegister: () => void;
 }
 
+// ── Helpers de validación ────────────────────────────────────────────────
+const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
 export default function LoginModal({
   onClose,
   onSwitchToRegister,
 }: LoginModalProps) {
   const navigate = useNavigate();
   const [view, setView] = useState<View>("login");
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [loadingGoogle, setLoadingGoogle] = useState<boolean>(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [forgotSent, setForgotSent] = useState<boolean>(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
-  // == Login email/contraseña ==================================
+  // Errores de campo individuales
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
+
+  const validateLogin = () => {
+    const errs: typeof fieldErrors = {};
+    if (!email.trim()) errs.email = "El correo es obligatorio.";
+    else if (!isValidEmail(email)) errs.email = "Introduce un correo válido.";
+    if (!password) errs.password = "La contraseña es obligatoria.";
+    else if (password.length < 6) errs.password = "Mínimo 6 caracteres.";
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const validateForgot = () => {
+    const errs: typeof fieldErrors = {};
+    if (!email.trim()) errs.email = "El correo es obligatorio.";
+    else if (!isValidEmail(email)) errs.email = "Introduce un correo válido.";
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!validateLogin()) return;
     setLoading(true);
     setError(null);
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -44,24 +70,22 @@ export default function LoginModal({
       setLoading(false);
     } else {
       onClose();
-      // Redirigir al perfil según el rol del usuario
       if (data.user) {
         const role = await fetchUserRole(data.user.id);
-        navigate(getRoleRoute(role));
+        navigate("/");
       }
     }
   };
 
-  // == Login con Google ==================================
   const handleGoogle = async () => {
     setLoadingGoogle(true);
     setError(null);
     await loginWithGoogle();
   };
 
-  // == Recuperar contraseña ==================================
   const handleForgot = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!validateForgot()) return;
     setLoading(true);
     setError(null);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -72,12 +96,13 @@ export default function LoginModal({
     else setForgotSent(true);
   };
 
+  const FieldError = ({ msg }: { msg?: string }) =>
+    msg ? <p className="text-xs text-red-400 mt-1">{msg}</p> : null;
+
   return (
     <>
-      {/* == SVG SPRITE == */}
       <svg xmlns="http://www.w3.org/2000/svg" style={{ display: "none" }}>
         <symbol id="icon-google-color" viewBox="-0.5 0 48 48">
-          <title>Google-color</title>
           <g fill="none" fillRule="evenodd">
             <g transform="translate(-401 -860)">
               <g transform="translate(401 860)">
@@ -108,7 +133,6 @@ export default function LoginModal({
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >
         <div className="modal-card">
-          {/* Cerrar */}
           <button
             onClick={onClose}
             className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
@@ -119,12 +143,11 @@ export default function LoginModal({
             </svg>
           </button>
 
-          {/* Logo */}
           <div className="flex justify-center mb-6">
             <img src={logoUrl} alt="Relance" className="h-8 rounded-md" />
           </div>
 
-          {/* == Modal: Login == */}
+          {/* ── Login ── */}
           {view === "login" && (
             <>
               <h2 className="font-display text-2xl font-bold text-white text-center mb-1">
@@ -134,7 +157,6 @@ export default function LoginModal({
                 Inicia sesión en tu cuenta
               </p>
 
-              {/* Botón Google */}
               <button
                 type="button"
                 onClick={handleGoogle}
@@ -169,14 +191,13 @@ export default function LoginModal({
                 {loadingGoogle ? "Conectando..." : "Continuar con Google"}
               </button>
 
-              {/* Separador */}
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex-1 h-px bg-white/10" />
                 <span className="text-gray-600 text-xs">o con correo</span>
                 <div className="flex-1 h-px bg-white/10" />
               </div>
 
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4" noValidate>
                 <div>
                   <label
                     className="block text-sm text-gray-400 mb-1.5"
@@ -187,12 +208,15 @@ export default function LoginModal({
                   <input
                     id="login-email"
                     type="email"
-                    required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setFieldErrors((p) => ({ ...p, email: undefined }));
+                    }}
                     placeholder="tu@correo.com"
-                    className="input-field"
+                    className={`input-field ${fieldErrors.email ? "border-red-500/50 focus:border-red-500" : ""}`}
                   />
+                  <FieldError msg={fieldErrors.email} />
                 </div>
 
                 <div>
@@ -206,11 +230,13 @@ export default function LoginModal({
                     <input
                       id="login-password"
                       type={showPassword ? "text" : "password"}
-                      required
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setFieldErrors((p) => ({ ...p, password: undefined }));
+                      }}
                       placeholder="••••••••"
-                      className="input-field pr-10"
+                      className={`input-field pr-10 ${fieldErrors.password ? "border-red-500/50 focus:border-red-500" : ""}`}
                     />
                     <button
                       type="button"
@@ -245,6 +271,7 @@ export default function LoginModal({
                       )}
                     </button>
                   </div>
+                  <FieldError msg={fieldErrors.password} />
                 </div>
 
                 <div className="text-right">
@@ -253,6 +280,7 @@ export default function LoginModal({
                     onClick={() => {
                       setView("forgot");
                       setError(null);
+                      setFieldErrors({});
                     }}
                     className="text-xs text-brand hover:text-brand-dark transition-colors"
                   >
@@ -312,7 +340,7 @@ export default function LoginModal({
             </>
           )}
 
-          {/* == Modal: Recuperar contraseña == */}
+          {/* ── Recuperar contraseña ── */}
           {view === "forgot" && (
             <>
               <button
@@ -320,6 +348,7 @@ export default function LoginModal({
                   setView("login");
                   setError(null);
                   setForgotSent(false);
+                  setFieldErrors({});
                 }}
                 className="flex items-center gap-1.5 text-gray-500 hover:text-white text-sm mb-4 transition-colors"
               >
@@ -345,7 +374,7 @@ export default function LoginModal({
 
               {forgotSent ? (
                 <div className="text-center">
-                  <div className="text-5xl mb-4 flex items-center justify-center">
+                  <div className="mb-4 flex items-center justify-center">
                     <svg className="size-16">
                       <use href="icons.svg#icon-envelope" />
                     </svg>
@@ -369,19 +398,22 @@ export default function LoginModal({
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleForgot} className="space-y-4">
+                <form onSubmit={handleForgot} className="space-y-4" noValidate>
                   <div>
                     <label className="block text-sm text-gray-400 mb-1.5">
                       Correo electrónico
                     </label>
                     <input
                       type="email"
-                      required
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setFieldErrors((p) => ({ ...p, email: undefined }));
+                      }}
                       placeholder="tu@correo.com"
-                      className="input-field"
+                      className={`input-field ${fieldErrors.email ? "border-red-500/50" : ""}`}
                     />
+                    <FieldError msg={fieldErrors.email} />
                   </div>
 
                   {error && (

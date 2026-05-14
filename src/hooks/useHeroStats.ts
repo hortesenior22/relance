@@ -25,12 +25,17 @@ export const useHeroStats = () => {
       try {
         const [estudiantesRes, empresasRes, centrosRes] = await Promise.all([
           supabase
-            .from("estudiante")
-            .select("*", { count: "exact", head: true }),
-          supabase.from("empresa").select("*", { count: "exact", head: true }),
+            .from("usuario")
+            .select("*", { count: "exact", head: true })
+            .eq("rol", "estudiante"),
           supabase
-            .from("centro_educativo")
-            .select("*", { count: "exact", head: true }),
+            .from("usuario")
+            .select("*", { count: "exact", head: true })
+            .eq("rol", "empresa"),
+          supabase
+            .from("usuario")
+            .select("*", { count: "exact", head: true })
+            .eq("rol", "centro_educativo"),
         ]);
 
         if (estudiantesRes.error || empresasRes.error || centrosRes.error) {

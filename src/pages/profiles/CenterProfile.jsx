@@ -3,10 +3,12 @@ import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabase";
 import Header from "../../components/layout/Header";
 
+// ── Modal QR ────────────────────────────────────────────────────────────────
 function QRModal({ url, entityName, onClose }) {
   const [qrUrl, setQrUrl] = useState(null);
   const [loadingQr, setLoadingQr] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   useEffect(() => {
     const generate = async () => {
@@ -52,6 +54,7 @@ function QRModal({ url, entityName, onClose }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
   const handleDownload = () => {
     const a = document.createElement("a");
     a.href = qrUrl;
@@ -60,11 +63,185 @@ function QRModal({ url, entityName, onClose }) {
   };
 
   return (
+    <>
+      <div
+        className="modal-overlay"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <div className="modal-card text-center">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+            </svg>
+          </button>
+
+          <h2 className="font-display text-xl font-bold text-white mb-1">
+            Código QR de invitación
+          </h2>
+          <p className="text-gray-500 text-sm mb-5">
+            Comparte este QR para que los tutores del centro{" "}
+            <strong className="text-white">{entityName}</strong> se registren
+            vinculados automáticamente.
+          </p>
+
+          <div className="flex items-center justify-center mb-5">
+            {loadingQr ? (
+              <div className="w-48 h-48 bg-dark rounded-2xl flex items-center justify-center border border-white/10">
+                <svg
+                  className="animate-spin w-8 h-8 text-brand"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+              </div>
+            ) : (
+              <div className="p-3 bg-dark rounded-2xl border border-brand/20">
+                <img src={qrUrl} alt="QR" className="w-48 h-48 rounded-xl" />
+              </div>
+            )}
+          </div>
+
+          <div className="bg-dark border border-white/10 rounded-xl px-3 py-2 mb-4 flex items-center gap-2">
+            <span className="text-gray-500 text-xs truncate flex-1 text-left">
+              {url}
+            </span>
+            <button
+              onClick={handleCopy}
+              className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-lg transition-all font-medium ${
+                copied
+                  ? "bg-brand/20 text-brand"
+                  : "bg-white/10 text-gray-400 hover:text-white"
+              }`}
+            >
+              {copied ? "✓ Copiado" : "Copiar"}
+            </button>
+          </div>
+
+          <div className="flex gap-3 mb-3">
+            <button
+              onClick={handleDownload}
+              disabled={loadingQr}
+              className="btn-secondary flex-1 flex items-center justify-center gap-2 disabled:opacity-40"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Descargar QR
+            </button>
+            <button
+              onClick={() => setShowEmailModal(true)}
+              className="btn-secondary flex-1 flex items-center justify-center gap-2"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+              Enviar por correo
+            </button>
+          </div>
+
+          <button onClick={onClose} className="btn-primary w-full">
+            Cerrar
+          </button>
+          <p className="text-xs text-gray-600 mt-4">
+            Válido durante <strong className="text-gray-500">7 días</strong>.
+          </p>
+        </div>
+      </div>
+
+      {showEmailModal && (
+        <SendInviteEmailModal
+          inviteUrl={url}
+          inviterName={entityName}
+          inviterType="centro_educativo"
+          onClose={() => setShowEmailModal(false)}
+        />
+      )}
+    </>
+  );
+}
+
+// ── Modal envío de invitación por correo ────────────────────────────────────
+function SendInviteEmailModal({
+  inviteUrl,
+  inviterName,
+  inviterType,
+  onClose,
+}) {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const roleLabel =
+    inviterType === "empresa"
+      ? "tutor de empresa"
+      : "tutor de centro educativo";
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const { error: fnError } = await supabase.functions.invoke(
+      "send-invite-email",
+      { body: { to: email, inviterName, inviterType, inviteUrl } },
+    );
+
+    setLoading(false);
+    if (fnError) {
+      setError("No se pudo enviar el correo. Inténtalo de nuevo.");
+    } else {
+      setSent(true);
+    }
+  };
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
     <div
       className="modal-overlay"
+      style={{ zIndex: 60 }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="modal-card text-center">
+      <div className="modal-card">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
@@ -73,89 +250,205 @@ function QRModal({ url, entityName, onClose }) {
             <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
           </svg>
         </button>
-        <h2 className="font-display text-xl font-bold text-white mb-1">
-          Código QR de invitación
-        </h2>
-        <p className="text-gray-500 text-sm mb-5">
-          Comparte este QR para que los tutores del centro{" "}
-          <strong className="text-white">{entityName}</strong> se registren
-          vinculados automáticamente.
-        </p>
-        <div className="flex items-center justify-center mb-5">
-          {loadingQr ? (
-            <div className="w-48 h-48 bg-dark rounded-2xl flex items-center justify-center border border-white/10">
-              <svg
-                className="animate-spin w-8 h-8 text-brand"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-            </div>
-          ) : (
-            <div className="p-3 bg-dark rounded-2xl border border-brand/20">
-              <img src={qrUrl} alt="QR" className="w-48 h-48 rounded-xl" />
-            </div>
-          )}
-        </div>
-        <div className="bg-dark border border-white/10 rounded-xl px-3 py-2 mb-4 flex items-center gap-2">
-          <span className="text-gray-500 text-xs truncate flex-1 text-left">
-            {url}
-          </span>
-          <button
-            onClick={handleCopy}
-            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-lg transition-all font-medium ${copied ? "bg-brand/20 text-brand" : "bg-white/10 text-gray-400 hover:text-white"}`}
+
+        <div className="flex justify-center mb-6">
+          <div
+            style={{
+              display: "inline-block",
+              background: "#c0ff72",
+              borderRadius: "10px",
+              padding: "6px 18px",
+            }}
           >
-            {copied ? "✓ Copiado" : "Copiar"}
-          </button>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={handleDownload}
-            disabled={loadingQr}
-            className="btn-secondary flex-1 flex items-center justify-center gap-2 disabled:opacity-40"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+            <span
+              style={{
+                color: "#0A0A0A",
+                fontWeight: 800,
+                fontSize: "18px",
+                letterSpacing: "-0.5px",
+              }}
             >
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Descargar QR
-          </button>
-          <button onClick={onClose} className="btn-primary flex-1">
-            Cerrar
-          </button>
+              Relance
+            </span>
+          </div>
         </div>
-        <p className="text-xs text-gray-600 mt-4 flex items-center gap-1">
-          <svg className="w-3.5 h-3.5 inline-block" viewBox="0 0 640 640">
-            <use href="/icons.svg#icon-hourglass" />
-          </svg>{" "}
-          Válido durante <strong className="text-gray-500">7 días</strong>.
-        </p>
+
+        {!sent ? (
+          <>
+            <div className="flex justify-center mb-4">
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 14,
+                  background: "rgba(192,255,114,0.12)",
+                  border: "1px solid rgba(192,255,114,0.25)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 26,
+                }}
+              >
+                👋
+              </div>
+            </div>
+            <h2 className="font-display text-2xl font-bold text-white text-center mb-1">
+              Enviar invitación por correo
+            </h2>
+            <p className="text-gray-500 text-sm text-center mb-6">
+              Escribe el correo del tutor al que quieres invitar a unirse a{" "}
+              <strong style={{ color: "#c0ff72" }}>{inviterName}</strong> como{" "}
+              <strong className="text-white">{roleLabel}</strong>.
+            </p>
+
+            <form onSubmit={handleSend} className="space-y-4">
+              <div>
+                <label
+                  className="block text-sm text-gray-400 mb-1.5"
+                  htmlFor="invite-email-centro"
+                >
+                  Correo electrónico del tutor
+                </label>
+                <input
+                  id="invite-email-centro"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tutor@centro.edu.es"
+                  className="input-field"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">
+                  Enlace de invitación
+                </label>
+                <div className="bg-dark border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2">
+                  <span className="text-gray-500 text-xs truncate flex-1">
+                    {inviteUrl}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-lg transition-all font-medium ${
+                      copied
+                        ? "bg-brand/20 text-brand"
+                        : "bg-white/10 text-gray-400 hover:text-white hover:bg-white/15"
+                    }`}
+                  >
+                    {copied ? "✓ Copiado" : "Copiar"}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <svg
+                      className="animate-spin w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                      <polyline points="22,6 12,13 2,6" />
+                    </svg>
+                    Enviar invitación →
+                  </>
+                )}
+              </button>
+            </form>
+
+            <p className="text-xs text-gray-600 text-center mt-4">
+              El enlace caduca en{" "}
+              <strong className="text-gray-500">7 días</strong>.
+            </p>
+          </>
+        ) : (
+          <div className="text-center">
+            <div className="flex justify-center mb-4">
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 16,
+                  background: "rgba(192,255,114,0.12)",
+                  border: "1px solid rgba(192,255,114,0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#c0ff72"
+                  strokeWidth="2.5"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+            </div>
+            <h2 className="font-display text-xl font-bold text-white mb-2">
+              ¡Invitación enviada!
+            </h2>
+            <p className="text-gray-400 text-sm mb-1">
+              Se ha enviado la invitación a{" "}
+              <span style={{ color: "#c0ff72" }}>{email}</span>.
+            </p>
+            <p className="text-gray-500 text-xs mb-6">
+              El tutor recibirá un correo con el enlace para registrarse
+              vinculado a tu centro.
+            </p>
+            <button onClick={onClose} className="btn-primary w-full">
+              Cerrar
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+// ── Sección helper ──────────────────────────────────────────────────────────
 function SectionCard({ title, children }) {
   return (
     <section className="bg-dark-800 border border-white/10 rounded-2xl p-6">
@@ -167,8 +460,9 @@ function SectionCard({ title, children }) {
   );
 }
 
+// ── Página principal ────────────────────────────────────────────────────────
 export default function CenterProfile() {
-  const { user } = useAuth();
+  const { user, avatarUrl, refreshAvatar } = useAuth();
   const fileInputRef = useRef(null);
   const meta = user?.user_metadata ?? {};
 
@@ -179,7 +473,6 @@ export default function CenterProfile() {
   const [inviteUrl, setInviteUrl] = useState("");
   const [generatingToken, setGeneratingToken] = useState(false);
 
-  const [logoUrl, setLogoUrl] = useState(null);
   const [centerName, setCenterName] = useState(meta.centerName ?? "");
   const [institutionalCode, setInstitutionalCode] = useState(
     meta.institutionalCode ?? "",
@@ -198,26 +491,35 @@ export default function CenterProfile() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      const { data } = await supabase
-        .from("profiles")
+      const { data, error } = await supabase
+        .from("centro_educativo")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
+
+      if (error) console.error("[CenterProfile] Error cargando datos:", error);
+
       if (data) {
-        setLogoUrl(data.logo_url);
-        setCenterName(data.center_name ?? meta.centerName ?? "");
+        setCenterName(data.nombre ?? meta.centerName ?? "");
         setInstitutionalCode(
-          data.institutional_code ?? meta.institutionalCode ?? "",
+          data.codigo_institucional ?? meta.institutionalCode ?? "",
         );
-        setCenterType(data.center_type ?? meta.centerType ?? "");
-        setCity(data.city ?? meta.city ?? "");
-        setProvince(data.province ?? meta.province ?? "");
-        setWebsite(data.website ?? meta.website ?? "");
-        setDescription(data.description ?? "");
-        setEmail(data.contact_email ?? user.email ?? "");
-        setPhone(data.phone ?? "");
-        setStudentsCount(data.students_count ?? "");
-        setDegreesOffered(data.degrees_offered ?? []);
+        setCenterType(data.tipo_centro ?? meta.centerType ?? "");
+        setCity(data.ciudad ?? meta.city ?? "");
+        setProvince(data.provincia ?? "");
+        setWebsite(data.sitio_web ?? meta.website ?? "");
+        setDescription(data.descripcion ?? "");
+        setEmail(data.email_contacto ?? user.email ?? "");
+        setPhone(data.telefono ?? "");
+        setStudentsCount(data.num_alumnos ?? "");
+        setDegreesOffered(data.titulaciones ?? []);
+      } else {
+        setCenterName(meta.centerName ?? "");
+        setInstitutionalCode(meta.institutionalCode ?? "");
+        setCenterType(meta.centerType ?? "");
+        setCity(meta.city ?? "");
+        setProvince(meta.province ?? "");
+        setEmail(user.email ?? "");
       }
     };
     load();
@@ -228,14 +530,20 @@ export default function CenterProfile() {
     if (!file || !user) return;
     setUploading(true);
     const ext = file.name.split(".").pop();
+    const path = `avatars/${user.id}.${ext}`;
     const { error } = await supabase.storage
       .from("profiles")
-      .upload(`logos/${user.id}.${ext}`, file, { upsert: true });
+      .upload(path, file, { upsert: true });
     if (!error) {
-      const { data } = supabase.storage
-        .from("profiles")
-        .getPublicUrl(`logos/${user.id}.${ext}`);
-      setLogoUrl(data.publicUrl);
+      const { data } = supabase.storage.from("profiles").getPublicUrl(path);
+      await supabase
+        .from("usuario")
+        .update({
+          avatar_url: data.publicUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+      await refreshAvatar();
     }
     setUploading(false);
   };
@@ -252,22 +560,36 @@ export default function CenterProfile() {
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
-    await supabase.from("profiles").upsert({
-      id: user.id,
-      logo_url: logoUrl,
-      center_name: centerName,
-      institutional_code: institutionalCode,
-      center_type: centerType,
-      city,
-      province,
-      website,
-      description,
-      contact_email: email,
-      phone,
-      students_count: studentsCount,
-      degrees_offered: degreesOffered,
-      updated_at: new Date().toISOString(),
-    });
+
+    const { error: centroError } = await supabase
+      .from("centro_educativo")
+      .upsert(
+        {
+          id: user.id,
+          nombre: centerName,
+          codigo_institucional: institutionalCode,
+          tipo_centro: centerType,
+          ciudad: city,
+          provincia: province,
+          sitio_web: website,
+          descripcion: description,
+          email_contacto: email,
+          telefono: phone,
+          num_alumnos: studentsCount !== "" ? Number(studentsCount) : null,
+          titulaciones: degreesOffered,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" },
+      );
+
+    if (centroError)
+      console.error("[CenterProfile] Error guardando:", centroError);
+
+    await supabase
+      .from("usuario")
+      .update({ nombre: centerName, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
+
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
@@ -276,17 +598,13 @@ export default function CenterProfile() {
   const handleGenerateQR = async () => {
     setGeneratingToken(true);
     const token = crypto.randomUUID();
-    await supabase
-      .from("invite_tokens")
-      .insert({
-        token,
-        entity_id: user.id,
-        entity_type: "centro_educativo",
-        expires_at: new Date(
-          Date.now() + 7 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
-        used: false,
-      });
+    await supabase.from("invite_tokens").insert({
+      token,
+      entity_id: user.id,
+      entity_type: "centro_educativo",
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      used: false,
+    });
     setInviteUrl(
       `${window.location.origin}/registro-tutor?token=${token}&entity=${user.id}&type=centro_educativo`,
     );
@@ -344,12 +662,13 @@ export default function CenterProfile() {
         </div>
 
         <div className="space-y-6">
+          {/* Logo */}
           <SectionCard title="Logo del centro">
             <div className="flex items-center gap-5">
               <div className="relative flex-shrink-0">
-                {logoUrl ? (
+                {avatarUrl ? (
                   <img
-                    src={logoUrl}
+                    src={avatarUrl}
                     alt={centerName}
                     className="w-20 h-20 rounded-2xl object-cover border border-white/10"
                   />
@@ -409,6 +728,7 @@ export default function CenterProfile() {
             </div>
           </SectionCard>
 
+          {/* Info centro */}
           <SectionCard title="Información del centro">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="sm:col-span-2">
@@ -510,6 +830,7 @@ export default function CenterProfile() {
             </div>
           </SectionCard>
 
+          {/* Titulaciones */}
           <SectionCard title="Ciclos / Titulaciones ofertadas">
             <input
               type="text"
@@ -544,6 +865,7 @@ export default function CenterProfile() {
             </div>
           </SectionCard>
 
+          {/* Descripción */}
           <SectionCard title="Descripción del centro">
             <textarea
               value={description}
@@ -557,6 +879,7 @@ export default function CenterProfile() {
             </p>
           </SectionCard>
 
+          {/* Contacto */}
           <SectionCard title="Datos de contacto">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -586,7 +909,7 @@ export default function CenterProfile() {
             </div>
           </SectionCard>
 
-          {/* QR de invitación para tutores */}
+          {/* QR de invitación */}
           <SectionCard title="Invitar tutores de centro">
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center">
@@ -601,7 +924,8 @@ export default function CenterProfile() {
                 <p className="text-gray-500 text-xs leading-relaxed mb-4">
                   Genera un enlace QR único que los tutores del centro puedan
                   escanear para registrarse en Relance vinculados
-                  automáticamente a tu centro. Caduca a los 7 días.
+                  automáticamente a tu centro. El enlace también se puede enviar
+                  por correo o compartir manualmente. Caduca a los 7 días.
                 </p>
                 <button
                   onClick={handleGenerateQR}
@@ -655,6 +979,7 @@ export default function CenterProfile() {
           </SectionCard>
         </div>
       </main>
+
       {showQR && (
         <QRModal
           url={inviteUrl}

@@ -1,29 +1,23 @@
-import { getRoleRoute, useAuth } from "../../context/AuthContext";
+import { useAuth, getRoleRoute } from "../../context/AuthContext";
 import { useHeroStats } from "../../hooks/useHeroStats";
 
 export default function HeroSection({ onRegisterClick }) {
   const { stats, loading } = useHeroStats();
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
 
   const scrollToNext = () => {
     const next = document.getElementById("como-funciona");
     if (next) next.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Mapeo seguro de roles → rutas
-  const profileRoutes = {
-    estudiante: "/perfil/estudiante",
-    empresa: "/perfil/empresa",
-    centro: "/perfil/centro",
-    tutor: "/perfil/tutor",
-  };
-  console.log("Usuario actual:", user?.userId, "Rol:", user?.rol);
-
-  // Ruta de perfil basada en rol, con fallback
-  const profileUrl = getRoleRoute(user?.role ?? "estudiante");
+  const profileUrl = getRoleRoute(userRole);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-dark">
+    <section
+      className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      style={{ background: "var(--color-bg)" }}
+    >
+      {/* Grid pattern */}
       <div
         className="absolute inset-0 opacity-[0.03]"
         style={{
@@ -32,24 +26,47 @@ export default function HeroSection({ onRegisterClick }) {
         }}
       />
 
+      {/* Central glow — brand green tinted, very subtle */}
       <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full opacity-[0.06] blur-[120px] pointer-events-none"
-        style={{ background: "#c0ff72" }}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+        style={{
+          width: 700,
+          height: 500,
+          borderRadius: "50%",
+          opacity: 0.07,
+          filter: "blur(120px)",
+          background:
+            "radial-gradient(ellipse, #c0ff72 0%, #1a3a5c 60%, transparent 100%)",
+        }}
       />
 
+      {/* Bottom-right accent — navy blue glow */}
       <div
-        className="absolute bottom-20 right-10 w-[300px] h-[300px] rounded-full opacity-[0.04] blur-[80px] pointer-events-none"
-        style={{ background: "#c0ff72" }}
+        className="absolute bottom-20 right-10 pointer-events-none"
+        style={{
+          width: 320,
+          height: 320,
+          borderRadius: "50%",
+          opacity: 0.08,
+          filter: "blur(80px)",
+          background: "#1e4a8a",
+        }}
+      />
+
+      {/* Top-left accent — deep navy */}
+      <div
+        className="absolute top-10 left-0 pointer-events-none"
+        style={{
+          width: 400,
+          height: 300,
+          borderRadius: "50%",
+          opacity: 0.06,
+          filter: "blur(100px)",
+          background: "#0a1f4e",
+        }}
       />
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 text-center">
-        <div className="inline-flex items-center gap-2 bg-brand/10 border border-brand/20 rounded-full px-4 py-1.5 mb-8 animate-hero-in opacity-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
-          <span className="text-brand text-xs font-semibold tracking-wide uppercase">
-            La plataforma de prácticas y primer empleo
-          </span>
-        </div>
-
         <h1
           className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.1] tracking-tight mb-6 animate-hero-in opacity-0"
           style={{ animationDelay: "0.1s" }}
@@ -78,7 +95,6 @@ export default function HeroSection({ onRegisterClick }) {
           className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-hero-in opacity-0"
           style={{ animationDelay: "0.35s" }}
         >
-          {/* Usuario no logueado */}
           {!user && (
             <button
               onClick={onRegisterClick}
@@ -91,7 +107,6 @@ export default function HeroSection({ onRegisterClick }) {
             </button>
           )}
 
-          {/* Usuario logueado */}
           {user && (
             <a
               href={profileUrl}
@@ -109,15 +124,6 @@ export default function HeroSection({ onRegisterClick }) {
             className="flex items-center gap-2 text-gray-400 hover:text-white text-sm font-medium transition-colors duration-200 group"
           >
             <span>Saber más</span>
-            {/* <svg
-              className="w-4 h-4 group-hover:translate-y-0.5 transition-transform duration-200"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M12 5v14M5 12l7 7 7-7" />
-            </svg> */}
             <svg className="w-4 h-4 group-hover:translate-y-0.5 transition-transform duration-200">
               <use href="icons.svg#icon-arrowDown" />
             </svg>
