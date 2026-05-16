@@ -122,6 +122,7 @@ const POPULAR: string[] = [
 
 interface SearchContext {
   empresaId: string | null;
+  centroId: string | null;
   tutorStudentIds: string[] | null;
 }
 
@@ -129,7 +130,11 @@ async function resolveSearchContext(
   role: Role,
   userId: string,
 ): Promise<SearchContext> {
-  const ctx: SearchContext = { empresaId: null, tutorStudentIds: null };
+  const ctx: SearchContext = {
+    empresaId: null,
+    centroId: null,
+    tutorStudentIds: null,
+  };
   if (!userId) return ctx;
 
   // ── empresa ──────────────────────────────────────────────────────────────
@@ -137,6 +142,17 @@ async function resolveSearchContext(
   // No es necesaria ninguna query adicional.
   if (role === "empresa") {
     ctx.empresaId = userId;
+  }
+
+
+  if (role === "centro_educativo") {
+    const { data: centroRow } = await supabase
+      .from("centro_educativo")
+      .select("id")
+      .eq("usuario_id", userId)
+      .maybeSingle();
+
+    ctx.centroId = centroRow?.id ?? userId;
   }
 
   // ── tutor_centro: estudiantes asignados a este tutor en centro_estudiante ─
@@ -215,28 +231,23 @@ async function fetchEstudiantes(
   term: string,
   tutorStudentIds: string[] | null,
 ): Promise<SearchResult[]> {
-  const isTutor = tutorStudentIds !== null;
+  const isTutorScoped = tutorStudentIds !== null;
 
-  if (isTutor && tutorStudentIds!.length === 0) return [];
+  if (isTutorScoped && tutorStudentIds.length === 0) return [];
 
-  const limit = isTutor ? Math.min(tutorStudentIds!.length + 10, 50) : 5;
-
-  // FIX: la sintaxis correcta de .or() en PostgREST NO lleva comillas
-  // alrededor del valor — "%term%" es incorrecto, %term% es correcto.
-  const { data } = await supabase
+  let query = supabase
     .from("estudiante")
     .select("id, nombre, apellidos, titulacion, ciudad, avatar_url")
     .or(`nombre.ilike.%${term}%,apellidos.ilike.%${term}%`)
-    .limit(limit);
+    .limit(5);
 
-  let rows = data ?? [];
-
-  if (isTutor) {
-    const ids = new Set(tutorStudentIds!);
-    rows = rows.filter((s) => ids.has(s.id)).slice(0, 5);
+  if (isTutorScoped) {
+    query = query.in("id", tutorStudentIds);
   }
 
-  return rows.map((s) => ({
+  const { data } = await query;
+
+  return (data ?? []).map((s) => ({
     id: s.id,
     type: "estudiante" as const,
     name: `${s.nombre ?? ""} ${s.apellidos ?? ""}`.trim(),
@@ -246,14 +257,25 @@ async function fetchEstudiantes(
   }));
 }
 
-async function fetchTutoresEmpresa(term: string): Promise<SearchResult[]> {
+async function fetchTutoresEmpresa(
+  term: string,
+  empresaId: string | null,
+  role: Role,
+): Promise<SearchResult[]> {
   // FIX: la tabla tutor_empresa solo tiene `nombre` (text), NO `apellidos`.
   // Subtítulo: cargo + nombre de la empresa (join via empresa_id → empresa.nombre).
-  const { data } = await supabase
+  let query = supabase
     .from("tutor_empresa")
-    .select("id, nombre, cargo, empresa:empresa_id(nombre), avatar_url")
+    .select("id, nombre, cargo, empresa_id, empresa:empresa_id(nombre), avatar_url")
     .ilike("nombre", `%${term}%`)
     .limit(5);
+
+  if (role === "empresa") {
+    if (!empresaId) return [];
+    query = query.eq("empresa_id", empresaId);
+  }
+
+  const { data } = await query;
 
   return (data ?? []).map((t) => ({
     id: t.id,
@@ -267,14 +289,25 @@ async function fetchTutoresEmpresa(term: string): Promise<SearchResult[]> {
   }));
 }
 
-async function fetchTutoresCentro(term: string): Promise<SearchResult[]> {
+async function fetchTutoresCentro(
+  term: string,
+  centroId: string | null,
+  role: Role,
+): Promise<SearchResult[]> {
   // FIX: la tabla tutor_centro solo tiene `nombre` (text), NO `apellidos`.
   // Subtítulo: departamento + nombre del centro (join via centro_id → centro_educativo.nombre).
-  const { data } = await supabase
+  let query = supabase
     .from("tutor_centro")
-    .select("id, nombre, departamento, centro:centro_id(nombre), avatar_url")
+    .select("id, nombre, departamento, centro_id, centro:centro_id(nombre), avatar_url")
     .ilike("nombre", `%${term}%`)
     .limit(5);
+
+  if (role === "centro_educativo") {
+    if (!centroId) return [];
+    query = query.eq("centro_id", centroId);
+  }
+
+  const { data } = await query;
 
   return (data ?? []).map((t) => ({
     id: t.id,
@@ -338,8 +371,9 @@ async function runSearch(
   if (allowed.includes("estudiante"))
     searches.push(fetchEstudiantes(term, ctx.tutorStudentIds));
   if (allowed.includes("tutor_empresa"))
-    searches.push(fetchTutoresEmpresa(term));
-  if (allowed.includes("tutor_centro")) searches.push(fetchTutoresCentro(term));
+    searches.push(fetchTutoresEmpresa(term, ctx.empresaId, role));
+  if (allowed.includes("tutor_centro"))
+    searches.push(fetchTutoresCentro(term, ctx.centroId, role));
   if (allowed.includes("oferta"))
     searches.push(fetchOfertas(term, ctx.empresaId, role));
 
@@ -649,6 +683,7 @@ export default function SearchModal({
   const [activeIdx, setActive] = useState(-1);
   const [searchCtx, setSearchCtx] = useState<SearchContext>({
     empresaId: null,
+    centroId: null,
     tutorStudentIds: null,
   });
 
