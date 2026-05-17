@@ -19,6 +19,12 @@ type EntityType =
   | "tutor_centro"
   | "oferta";
 
+type RelationStatus =
+  | "matriculado" // centro_educativo: estudiante vinculado al centro
+  | "en_practicas" // empresa: estudiante actualmente en prácticas
+  | "finalizado" // empresa: prácticas finalizadas
+  | null; // sin vínculo conocido
+
 interface SearchResult {
   id: string;
   type: EntityType;
@@ -26,6 +32,7 @@ interface SearchResult {
   subtitle: string;
   avatarUrl?: string;
   href: string;
+  relationStatus?: RelationStatus;
 }
 
 export interface SearchModalProps {
@@ -33,19 +40,15 @@ export interface SearchModalProps {
   onClose: () => void;
   role: Role;
   userId: string;
+  /** Opcional: navegar a ExplorarPage al hacer click en un resultado en vez de ir directamente al perfil */
+  useExplorarPage?: boolean;
+  /** Ruta base de ExplorarPage, por defecto "/explorar" */
+  explorarBasePath?: string;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RBAC — AQUÍ SE DECLARA QUÉ PUEDE BUSCAR CADA ROL
-// Cambiar los permisos de un rol = editar SOLO esta constante.
-//
-// Las restricciones adicionales de fila (empresa → solo sus ofertas,
-// tutores → solo sus estudiantes asignados) se aplican dentro de las
-// queries individuales; ver fetchOfertas y fetchEstudiantes.
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── RBAC ─────────────────────────────────────────────────────────────────────
 
 const ROLE_PERMISSIONS: Record<Role, EntityType[]> = {
-  //                  ┌── entidades que puede buscar este rol
   administrador: [
     "empresa",
     "centro_educativo",
@@ -56,13 +59,12 @@ const ROLE_PERMISSIONS: Record<Role, EntityType[]> = {
   ],
   centro_educativo: ["estudiante", "empresa", "tutor_centro"],
   empresa: ["estudiante", "centro_educativo", "tutor_empresa", "oferta"],
-  //                  ↑ empresa NO se incluye a sí misma
-  tutor_centro: ["estudiante", "oferta"], // estudiante → solo asignados (ver fetchEstudiantes)
-  tutor_empresa: ["estudiante"], // estudiante → solo asignados (ver fetchEstudiantes)
+  tutor_centro: ["estudiante", "oferta"],
+  tutor_empresa: ["estudiante"],
   estudiante: ["empresa", "centro_educativo", "oferta"],
 };
 
-// ─── Labels y colores ─────────────────────────────────────────────────────────
+// ─── Labels, colores e iconos SVG ─────────────────────────────────────────────
 
 const ENTITY_LABELS: Record<EntityType, string> = {
   empresa: "Empresa",
@@ -75,26 +77,136 @@ const ENTITY_LABELS: Record<EntityType, string> = {
 
 const ENTITY_COLOR: Record<
   EntityType,
-  { bg: string; text: string; dot: string }
+  { bg: string; text: string; dot: string; activeBg: string; border: string }
 > = {
-  empresa: { bg: "rgba(192,255,114,0.08)", text: "#c0ff72", dot: "#c0ff72" },
+  empresa: {
+    bg: "rgba(192,255,114,0.06)",
+    text: "#c0ff72",
+    dot: "#c0ff72",
+    activeBg: "rgba(192,255,114,0.14)",
+    border: "rgba(192,255,114,0.35)",
+  },
   centro_educativo: {
-    bg: "rgba(99,179,237,0.08)",
+    bg: "rgba(99,179,237,0.06)",
     text: "#63b3ed",
     dot: "#63b3ed",
+    activeBg: "rgba(99,179,237,0.14)",
+    border: "rgba(99,179,237,0.35)",
   },
-  estudiante: { bg: "rgba(246,173,85,0.08)", text: "#f6ad55", dot: "#f6ad55" },
+  estudiante: {
+    bg: "rgba(246,173,85,0.06)",
+    text: "#f6ad55",
+    dot: "#f6ad55",
+    activeBg: "rgba(246,173,85,0.14)",
+    border: "rgba(246,173,85,0.35)",
+  },
   tutor_empresa: {
-    bg: "rgba(252,129,129,0.08)",
+    bg: "rgba(252,129,129,0.06)",
     text: "#fc8181",
     dot: "#fc8181",
+    activeBg: "rgba(252,129,129,0.14)",
+    border: "rgba(252,129,129,0.35)",
   },
   tutor_centro: {
-    bg: "rgba(154,230,180,0.08)",
+    bg: "rgba(154,230,180,0.06)",
     text: "#9ae6b4",
     dot: "#9ae6b4",
+    activeBg: "rgba(154,230,180,0.14)",
+    border: "rgba(154,230,180,0.35)",
   },
-  oferta: { bg: "rgba(159,122,234,0.08)", text: "#9f7aea", dot: "#9f7aea" },
+  oferta: {
+    bg: "rgba(159,122,234,0.06)",
+    text: "#9f7aea",
+    dot: "#9f7aea",
+    activeBg: "rgba(159,122,234,0.14)",
+    border: "rgba(159,122,234,0.35)",
+  },
+};
+
+// ─── Iconos SVG por entidad ───────────────────────────────────────────────────
+
+function EntityIcon({
+  type,
+  size = 15,
+  color = "currentColor",
+}: {
+  type: EntityType;
+  size?: number;
+  color?: string;
+}) {
+  const s = { width: size, height: size, flexShrink: 0 as const };
+  const p = {
+    fill: "none",
+    stroke: color,
+    strokeWidth: "1.8",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+
+  switch (type) {
+    case "empresa":
+      return (
+        <svg viewBox="0 0 24 24" style={s} {...p}>
+          <rect x="2" y="7" width="20" height="15" rx="2" />
+          <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+          <line x1="12" y1="12" x2="12" y2="12" strokeWidth="3" />
+          <path d="M2 12h20" />
+        </svg>
+      );
+    case "centro_educativo":
+      return (
+        <svg viewBox="0 0 24 24" style={s} {...p}>
+          <path d="M3 21h18" />
+          <path d="M5 21V7l7-4 7 4v14" />
+          <path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4" />
+          <rect x="9" y="9" width="2" height="2" />
+          <rect x="13" y="9" width="2" height="2" />
+        </svg>
+      );
+    case "estudiante":
+      return (
+        <svg viewBox="0 0 24 24" style={s} {...p}>
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+          <path d="M6 12v5c0 1.657 2.686 3 6 3s6-1.343 6-3v-5" />
+        </svg>
+      );
+    case "tutor_empresa":
+      return (
+        <svg viewBox="0 0 24 24" style={s} {...p}>
+          <circle cx="9" cy="7" r="4" />
+          <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          <path d="M21 21v-2a4 4 0 0 0-3-3.85" />
+        </svg>
+      );
+    case "tutor_centro":
+      return (
+        <svg viewBox="0 0 24 24" style={s} {...p}>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 20v-1a7 7 0 0 1 7-7h2a7 7 0 0 1 7 7v1" />
+          <path d="M9 12l1.5 1.5L14 10" strokeWidth="2" />
+        </svg>
+      );
+    case "oferta":
+      return (
+        <svg viewBox="0 0 24 24" style={s} {...p}>
+          <rect x="3" y="3" width="18" height="18" rx="3" />
+          <path d="M3 9h18" />
+          <path d="M9 21V9" />
+        </svg>
+      );
+  }
+}
+
+// ─── Placeholders por entidad ─────────────────────────────────────────────────
+
+const ENTITY_PLACEHOLDER: Record<EntityType, string> = {
+  empresa: "Buscar empresas por nombre…",
+  centro_educativo: "Buscar centros educativos…",
+  estudiante: "Buscar estudiantes por nombre…",
+  tutor_empresa: "Buscar tutores de empresa…",
+  tutor_centro: "Buscar tutores de centro…",
+  oferta: "Buscar ofertas por título…",
 };
 
 const RECENT: string[] = [
@@ -108,17 +220,7 @@ const POPULAR: string[] = [
   "Ofertas 2025",
 ];
 
-// ─── Contexto de búsqueda ─────────────────────────────────────────────────────
-//
-// Se resuelve UNA sola vez al abrir el modal (o al cambiar rol/userId).
-//
-//   empresaId       → UUID de la empresa del usuario logado
-//                     FIX: empresa.id = usuario.id (no existe columna usuario_id
-//                     en la tabla empresa según el esquema real de la BD).
-//                     No se necesita query extra.
-//
-//   tutorStudentIds → UUIDs de estudiantes asignados al tutor.
-//                     null = sin restricción (rol que ve todos los estudiantes).
+// ─── SearchContext ─────────────────────────────────────────────────────────────
 
 interface SearchContext {
   empresaId: string | null;
@@ -137,251 +239,419 @@ async function resolveSearchContext(
   };
   if (!userId) return ctx;
 
-  // ── empresa ──────────────────────────────────────────────────────────────
-  // La tabla `empresa` usa el mismo UUID que el usuario auth (sin usuario_id).
-  // No es necesaria ninguna query adicional.
-  if (role === "empresa") {
-    ctx.empresaId = userId;
-  }
+  if (role === "empresa") ctx.empresaId = userId;
+  if (role === "centro_educativo") ctx.centroId = userId;
 
-
-  if (role === "centro_educativo") {
-    const { data: centroRow } = await supabase
-      .from("centro_educativo")
+  if (role === "tutor_centro") {
+    const { data: tutorRow, error } = await supabase
+      .from("tutor_centro")
       .select("id")
       .eq("usuario_id", userId)
       .maybeSingle();
 
-    ctx.centroId = centroRow?.id ?? userId;
-  }
+    if (error)
+      console.error("[Search] resolveContext tutor_centro:", error.message);
+    if (!tutorRow?.id) {
+      ctx.tutorStudentIds = [];
+      return ctx;
+    }
 
-  // ── tutor_centro: estudiantes asignados a este tutor en centro_estudiante ─
-  if (role === "tutor_centro") {
-    const { data } = await supabase
+    const { data: asignados, error: errA } = await supabase
       .from("centro_estudiante")
       .select("id_estudiante")
-      .eq("id_tutor", userId);
-    ctx.tutorStudentIds = (data ?? []).map((r) => r.id_estudiante);
+      .eq("id_tutor", tutorRow.id);
+
+    if (errA)
+      console.error("[Search] resolveContext centro_estudiante:", errA.message);
+    ctx.tutorStudentIds = (asignados ?? []).map((r) => r.id_estudiante);
   }
 
-  // ── tutor_empresa: estudiantes en prácticas asignados a su empresa ────────
   if (role === "tutor_empresa") {
-    // 1. Localizar la empresa del tutor via tutor_empresa.usuario_id
-    const { data: tutorRow } = await supabase
+    const { data: tutorRow, error } = await supabase
       .from("tutor_empresa")
       .select("empresa_id")
       .eq("usuario_id", userId)
       .maybeSingle();
 
+    if (error)
+      console.error("[Search] resolveContext tutor_empresa:", error.message);
     if (!tutorRow?.empresa_id) {
-      ctx.tutorStudentIds = []; // tutor sin empresa asignada
+      ctx.tutorStudentIds = [];
       return ctx;
     }
 
-    // 2. Estudiantes activos o finalizados en esa empresa
-    const { data: estadoRows } = await supabase
+    const { data: estadoRows, error: errE } = await supabase
       .from("estudiante_estado")
       .select("id_estudiante")
       .eq("id_empresa", tutorRow.empresa_id)
       .in("estado", ["en_practicas", "finalizado"]);
 
+    if (errE)
+      console.error("[Search] resolveContext estudiante_estado:", errE.message);
     ctx.tutorStudentIds = (estadoRows ?? []).map((r) => r.id_estudiante);
   }
 
   return ctx;
 }
 
-// ─── Queries Supabase — una función por entidad ───────────────────────────────
+// ─── Helper: buscar estudiantes directamente en tabla estudiante ──────────────
 
-async function fetchEmpresas(term: string): Promise<SearchResult[]> {
-  const { data } = await supabase
-    .from("empresa")
-    .select("id, nombre, sector, ciudad, logo_url")
-    .ilike("nombre", `%${term}%`)
-    .limit(5);
-
-  return (data ?? []).map((e) => ({
-    id: e.id,
-    type: "empresa" as const,
-    name: e.nombre,
-    subtitle: [e.sector, e.ciudad].filter(Boolean).join(" · "),
-    avatarUrl: e.logo_url ?? undefined,
-    href: `/empresa/${e.id}`,
-  }));
-}
-
-async function fetchCentros(term: string): Promise<SearchResult[]> {
-  const { data } = await supabase
-    .from("centro_educativo")
-    .select("id, nombre, tipo_centro, ciudad, avatar_url")
-    .ilike("nombre", `%${term}%`)
-    .limit(5);
-
-  return (data ?? []).map((c) => ({
-    id: c.id,
-    type: "centro_educativo" as const,
-    name: c.nombre,
-    subtitle: [c.tipo_centro, c.ciudad].filter(Boolean).join(" · "),
-    avatarUrl: c.avatar_url ?? undefined,
-    href: `/centro_educativo/${c.id}`,
-  }));
-}
-
-async function fetchEstudiantes(
+async function fetchEstudiantesDirecto(
   term: string,
-  tutorStudentIds: string[] | null,
+  scopedIds?: string[],
 ): Promise<SearchResult[]> {
-  const isTutorScoped = tutorStudentIds !== null;
-
-  if (isTutorScoped && tutorStudentIds.length === 0) return [];
-
   let query = supabase
     .from("estudiante")
     .select("id, nombre, apellidos, titulacion, ciudad, avatar_url")
     .or(`nombre.ilike.%${term}%,apellidos.ilike.%${term}%`)
-    .limit(5);
+    .limit(8);
 
-  if (isTutorScoped) {
-    query = query.in("id", tutorStudentIds);
+  if (scopedIds && scopedIds.length > 0) query = query.in("id", scopedIds);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("[Search] fetchEstudiantesDirecto:", error.message);
+    return [];
   }
 
-  const { data } = await query;
+  return (data ?? []).map((s) => mapEstudiante(s));
+}
 
-  return (data ?? []).map((s) => ({
+function mapEstudiante(s: {
+  id: string;
+  nombre: string | null;
+  apellidos: string | null;
+  titulacion: string | null;
+  ciudad: string | null;
+  avatar_url: string | null;
+}): SearchResult {
+  return {
     id: s.id,
     type: "estudiante" as const,
     name: `${s.nombre ?? ""} ${s.apellidos ?? ""}`.trim(),
     subtitle: [s.titulacion, s.ciudad].filter(Boolean).join(" · "),
     avatarUrl: s.avatar_url ?? undefined,
-    href: `/estudiante/${s.id}`,
+    href: `/perfiles/${s.id}`,
+  };
+}
+
+// ─── Queries Supabase ─────────────────────────────────────────────────────────
+
+async function fetchEmpresas(term: string): Promise<SearchResult[]> {
+  const { data, error } = await supabase
+    .from("empresa")
+    .select("id, nombre, sector, ciudad, logo_url")
+    .ilike("nombre", `%${term}%`)
+    .limit(8);
+
+  if (error) {
+    console.error("[Search] empresa:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((e) => ({
+    id: e.id,
+    type: "empresa" as const,
+    name: e.nombre ?? "",
+    subtitle: [e.sector, e.ciudad].filter(Boolean).join(" · "),
+    avatarUrl: e.logo_url ?? undefined,
+    href: `/perfiles/${e.id}`,
   }));
+}
+
+async function fetchCentros(term: string): Promise<SearchResult[]> {
+  const { data, error } = await supabase
+    .from("centro_educativo")
+    .select("id, nombre, tipo_centro, ciudad, avatar_url")
+    .ilike("nombre", `%${term}%`)
+    .limit(8);
+
+  if (error) {
+    console.error("[Search] centro_educativo:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((c) => ({
+    id: c.id,
+    type: "centro_educativo" as const,
+    name: c.nombre ?? "",
+    subtitle: [c.tipo_centro, c.ciudad].filter(Boolean).join(" · "),
+    avatarUrl: c.avatar_url ?? undefined,
+    href: `/perfiles/${c.id}`,
+  }));
+}
+
+async function fetchEstudiantes(
+  term: string,
+  role: Role,
+  ctx: SearchContext,
+): Promise<SearchResult[]> {
+  const isTutorScoped = ctx.tutorStudentIds !== null;
+  if (isTutorScoped && ctx.tutorStudentIds!.length === 0) return [];
+
+  // ── CENTRO EDUCATIVO: todos los estudiantes + marcar matriculados ──────────
+  if (role === "centro_educativo") {
+    const { data: todosVinculos } = await supabase
+      .from("centro_estudiante")
+      .select("id_estudiante, id_centro");
+
+    const estudianteCentroMap = new Map<string, string>(
+      (todosVinculos ?? []).map((r) => [r.id_estudiante, r.id_centro]),
+    );
+
+    const matriculadosEnEsteCentro = new Set(
+      (todosVinculos ?? [])
+        .filter((r) => r.id_centro === ctx.centroId)
+        .map((r) => r.id_estudiante),
+    );
+
+    const centroIds = [
+      ...new Set((todosVinculos ?? []).map((r) => r.id_centro)),
+    ];
+    const centroNombreMap = new Map<string, string>();
+    if (centroIds.length > 0) {
+      const { data: centros } = await supabase
+        .from("centro_educativo")
+        .select("id, nombre")
+        .in("id", centroIds);
+      (centros ?? []).forEach((c) => centroNombreMap.set(c.id, c.nombre));
+    }
+
+    const results = await fetchEstudiantesDirecto(term);
+    if (!results.length) return [];
+
+    return results
+      .map((r) => {
+        const idCentroDelEstudiante = estudianteCentroMap.get(r.id);
+        const nombreCentro = idCentroDelEstudiante
+          ? centroNombreMap.get(idCentroDelEstudiante)
+          : undefined;
+        return {
+          ...r,
+          subtitle: [r.subtitle, nombreCentro].filter(Boolean).join(" · "),
+          relationStatus: (idCentroDelEstudiante
+            ? "matriculado"
+            : null) as RelationStatus,
+        };
+      })
+      .sort((a, b) =>
+        a.relationStatus && !b.relationStatus
+          ? -1
+          : !a.relationStatus && b.relationStatus
+            ? 1
+            : 0,
+      );
+  }
+
+  // ── EMPRESA: todos los estudiantes + marcar en_practicas / finalizado ──────
+  if (role === "empresa") {
+    let estadoMap = new Map<string, "en_practicas" | "finalizado">();
+    if (ctx.empresaId) {
+      const { data: estadoRows, error: errE } = await supabase
+        .from("estudiante_estado")
+        .select("id_estudiante, estado")
+        .eq("id_empresa", ctx.empresaId)
+        .in("estado", ["en_practicas", "finalizado"]);
+
+      if (errE)
+        console.error("[Search] estudiante_estado empresa:", errE.message);
+      for (const row of estadoRows ?? []) {
+        estadoMap.set(
+          row.id_estudiante,
+          row.estado as "en_practicas" | "finalizado",
+        );
+      }
+    }
+
+    const results = await fetchEstudiantesDirecto(term);
+    if (!results.length) return [];
+
+    return results
+      .map((r) => ({
+        ...r,
+        relationStatus: (estadoMap.get(r.id) ?? null) as RelationStatus,
+      }))
+      .sort((a, b) =>
+        a.relationStatus && !b.relationStatus
+          ? -1
+          : !a.relationStatus && b.relationStatus
+            ? 1
+            : 0,
+      );
+  }
+
+  // ── TUTOR (scoped): solo sus estudiantes asignados ─────────────────────────
+  if (isTutorScoped) return fetchEstudiantesDirecto(term, ctx.tutorStudentIds!);
+
+  // ── ADMINISTRADOR / cualquier otro rol: todos ─────────────────────────────
+  return fetchEstudiantesDirecto(term);
 }
 
 async function fetchTutoresEmpresa(
   term: string,
-  empresaId: string | null,
   role: Role,
+  ctx: SearchContext,
 ): Promise<SearchResult[]> {
-  // FIX: la tabla tutor_empresa solo tiene `nombre` (text), NO `apellidos`.
-  // Subtítulo: cargo + nombre de la empresa (join via empresa_id → empresa.nombre).
   let query = supabase
     .from("tutor_empresa")
-    .select("id, nombre, cargo, empresa_id, empresa:empresa_id(nombre), avatar_url")
+    .select("id, nombre, cargo, empresa_id")
     .ilike("nombre", `%${term}%`)
-    .limit(5);
+    .limit(8);
 
   if (role === "empresa") {
-    if (!empresaId) return [];
-    query = query.eq("empresa_id", empresaId);
+    if (!ctx.empresaId) return [];
+    query = query.eq("empresa_id", ctx.empresaId);
   }
 
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) {
+    console.error("[Search] tutor_empresa:", error.message);
+    return [];
+  }
+  if (!data?.length) return [];
 
-  return (data ?? []).map((t) => ({
+  const empresaIds = [
+    ...new Set(data.map((t) => t.empresa_id).filter(Boolean)),
+  ];
+  let empresaMap: Record<string, string> = {};
+  if (empresaIds.length > 0) {
+    const { data: emps } = await supabase
+      .from("empresa")
+      .select("id, nombre")
+      .in("id", empresaIds);
+    empresaMap = Object.fromEntries((emps ?? []).map((e) => [e.id, e.nombre]));
+  }
+
+  return data.map((t) => ({
     id: t.id,
     type: "tutor_empresa" as const,
     name: t.nombre ?? "",
-    subtitle: [(t.empresa as { nombre?: string } | null)?.nombre, t.cargo]
+    subtitle: [empresaMap[t.empresa_id] ?? null, t.cargo]
       .filter(Boolean)
       .join(" · "),
-    avatarUrl: t.avatar_url ?? undefined,
-    href: `/tutor_empresa/${t.id}`,
+    href: `/perfiles/${t.id}`,
   }));
 }
 
 async function fetchTutoresCentro(
   term: string,
-  centroId: string | null,
   role: Role,
+  ctx: SearchContext,
 ): Promise<SearchResult[]> {
-  // FIX: la tabla tutor_centro solo tiene `nombre` (text), NO `apellidos`.
-  // Subtítulo: departamento + nombre del centro (join via centro_id → centro_educativo.nombre).
   let query = supabase
     .from("tutor_centro")
-    .select("id, nombre, departamento, centro_id, centro:centro_id(nombre), avatar_url")
+    .select("id, nombre, departamento, centro_id")
     .ilike("nombre", `%${term}%`)
-    .limit(5);
+    .limit(8);
 
   if (role === "centro_educativo") {
-    if (!centroId) return [];
-    query = query.eq("centro_id", centroId);
+    if (!ctx.centroId) return [];
+    query = query.eq("centro_id", ctx.centroId);
   }
 
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) {
+    console.error("[Search] tutor_centro:", error.message);
+    return [];
+  }
+  if (!data?.length) return [];
 
-  return (data ?? []).map((t) => ({
+  const centroIds = [...new Set(data.map((t) => t.centro_id).filter(Boolean))];
+  let centroMap: Record<string, string> = {};
+  if (centroIds.length > 0) {
+    const { data: centros } = await supabase
+      .from("centro_educativo")
+      .select("id, nombre")
+      .in("id", centroIds);
+    centroMap = Object.fromEntries(
+      (centros ?? []).map((c) => [c.id, c.nombre]),
+    );
+  }
+
+  return data.map((t) => ({
     id: t.id,
     type: "tutor_centro" as const,
     name: t.nombre ?? "",
-    subtitle: [(t.centro as { nombre?: string } | null)?.nombre, t.departamento]
+    subtitle: [centroMap[t.centro_id] ?? null, t.departamento]
       .filter(Boolean)
       .join(" · "),
-    avatarUrl: t.avatar_url ?? undefined,
-    href: `/tutor_centro/${t.id}`,
+    href: `/perfiles/${t.id}`,
   }));
 }
 
 async function fetchOfertas(
   term: string,
-  empresaId: string | null,
   role: Role,
+  ctx: SearchContext,
 ): Promise<SearchResult[]> {
-  // Empresa sin ID resuelto → no puede ver ofertas
-  if (role === "empresa" && !empresaId) return [];
+  if (role === "empresa" && !ctx.empresaId) return [];
 
   let query = supabase
     .from("oferta")
-    .select("id_oferta, titulo, modalidad, ubicacion")
+    .select("id_oferta, titulo, modalidad, ubicacion, id_empresa")
     .ilike("titulo", `%${term}%`)
     .eq("estado", "activa")
-    .limit(5);
+    .limit(8);
 
-  // Empresa: solo sus propias ofertas (filtro por id_empresa = empresaId)
-  if (role === "empresa") {
-    query = query.eq("id_empresa", empresaId!);
+  if (role === "empresa") query = query.eq("id_empresa", ctx.empresaId!);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("[Search] oferta:", error.message);
+    return [];
+  }
+  if (!data?.length) return [];
+
+  const empresaIds = [
+    ...new Set(data.map((o) => o.id_empresa).filter(Boolean)),
+  ];
+  let empresaMap: Record<string, string> = {};
+  if (empresaIds.length > 0) {
+    const { data: emps } = await supabase
+      .from("empresa")
+      .select("id, nombre")
+      .in("id", empresaIds);
+    empresaMap = Object.fromEntries((emps ?? []).map((e) => [e.id, e.nombre]));
   }
 
-  // tutor_centro, administrador, estudiante → todas las ofertas activas
-
-  const { data } = await query;
-
-  return (data ?? []).map((o) => ({
+  return data.map((o) => ({
     id: o.id_oferta,
     type: "oferta" as const,
-    name: o.titulo,
-    subtitle: [o.modalidad, o.ubicacion].filter(Boolean).join(" · "),
+    name: o.titulo ?? "",
+    subtitle: [empresaMap[o.id_empresa] ?? null, o.modalidad, o.ubicacion]
+      .filter(Boolean)
+      .join(" · "),
     href: `/ofertas/${o.id_oferta}`,
   }));
 }
 
-// ─── Orquestador ─────────────────────────────────────────────────────────────
+// ─── Búsqueda por un solo tipo ────────────────────────────────────────────────
 
-async function runSearch(
+async function runSearchForType(
   term: string,
-  allowed: EntityType[],
+  type: EntityType,
   role: Role,
   ctx: SearchContext,
 ): Promise<SearchResult[]> {
-  if (!term.trim()) return [];
+  if (!term.trim() || term.trim().length < 2) return [];
 
-  const searches: Promise<SearchResult[]>[] = [];
-
-  if (allowed.includes("empresa")) searches.push(fetchEmpresas(term));
-  if (allowed.includes("centro_educativo")) searches.push(fetchCentros(term));
-  if (allowed.includes("estudiante"))
-    searches.push(fetchEstudiantes(term, ctx.tutorStudentIds));
-  if (allowed.includes("tutor_empresa"))
-    searches.push(fetchTutoresEmpresa(term, ctx.empresaId, role));
-  if (allowed.includes("tutor_centro"))
-    searches.push(fetchTutoresCentro(term, ctx.centroId, role));
-  if (allowed.includes("oferta"))
-    searches.push(fetchOfertas(term, ctx.empresaId, role));
-
-  const batches = await Promise.all(searches);
-  return batches.flat();
+  switch (type) {
+    case "empresa":
+      return fetchEmpresas(term);
+    case "centro_educativo":
+      return fetchCentros(term);
+    case "estudiante":
+      return fetchEstudiantes(term, role, ctx);
+    case "tutor_empresa":
+      return fetchTutoresEmpresa(term, role, ctx);
+    case "tutor_centro":
+      return fetchTutoresCentro(term, role, ctx);
+    case "oferta":
+      return fetchOfertas(term, role, ctx);
+  }
 }
 
-// ─── Hooks internos ───────────────────────────────────────────────────────────
+// ─── Hooks ───────────────────────────────────────────────────────────────────
 
 function useDebounce<T>(value: T, ms: number): T {
   const [d, setD] = useState(value);
@@ -408,14 +678,18 @@ function useScrollLock(active: boolean) {
 function getStudentSectionLabel(role: Role): string {
   if (role === "tutor_centro") return "Mis estudiantes tutorizados";
   if (role === "tutor_empresa") return "Estudiantes en mis prácticas";
+  if (role === "centro_educativo") return "Estudiantes del centro";
   return "Estudiantes";
 }
 
 function getSectionLabel(type: EntityType, role: Role): string {
-  return type === "estudiante" &&
-    (role === "tutor_centro" || role === "tutor_empresa")
+  return type === "estudiante"
     ? getStudentSectionLabel(role)
     : ENTITY_LABELS[type];
+}
+
+function buildExplorarUrl(basePath: string, result: SearchResult): string {
+  return `${basePath}?id=${result.id}&type=${result.type}`;
 }
 
 // ─── Subcomponentes ───────────────────────────────────────────────────────────
@@ -584,6 +858,73 @@ function SRSuggestion({
   );
 }
 
+// ─── RelationBadge ────────────────────────────────────────────────────────────
+
+const RELATION_BADGE: Record<
+  NonNullable<RelationStatus>,
+  { label: string; bg: string; text: string; icon: React.ReactNode }
+> = {
+  matriculado: {
+    label: "Matriculado",
+    bg: "rgba(246,173,85,0.12)",
+    text: "#f6ad55",
+    icon: (
+      <svg
+        width="9"
+        height="9"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+        <path d="M6 12v5c0 1.657 2.686 3 6 3s6-1.343 6-3v-5" />
+      </svg>
+    ),
+  },
+  en_practicas: {
+    label: "En prácticas",
+    bg: "rgba(154,230,180,0.12)",
+    text: "#9ae6b4",
+    icon: (
+      <svg
+        width="9"
+        height="9"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+    ),
+  },
+  finalizado: {
+    label: "Finalizado",
+    bg: "rgba(99,179,237,0.12)",
+    text: "#63b3ed",
+    icon: (
+      <svg
+        width="9"
+        height="9"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    ),
+  },
+};
+
 function SRResult({
   result,
   idx,
@@ -598,6 +939,10 @@ function SRResult({
   onClick: () => void;
 }) {
   const c = ENTITY_COLOR[result.type];
+  const rel = result.relationStatus
+    ? RELATION_BADGE[result.relationStatus]
+    : null;
+
   return (
     <a
       href={result.href}
@@ -621,7 +966,25 @@ function SRResult({
         transition: "background 0.1s, border-color 0.1s",
       }}
     >
-      <ResultAvatar r={result} />
+      {/* Avatar con indicador de vínculo */}
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <ResultAvatar r={result} />
+        {rel && (
+          <span
+            style={{
+              position: "absolute",
+              bottom: -2,
+              right: -2,
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              background: rel.text,
+              border: "2px solid var(--color-surface-strong)",
+            }}
+          />
+        )}
+      </div>
+
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -649,35 +1012,252 @@ function SRResult({
           {result.subtitle}
         </div>
       </div>
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: "0.07em",
-          textTransform: "uppercase",
-          padding: "2px 7px",
-          borderRadius: 5,
-          background: c.bg,
-          color: c.text,
-          fontFamily: "Plus Jakarta Sans, sans-serif",
-          flexShrink: 0,
-        }}
+
+      {/* Badges lado derecho */}
+      <div
+        style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}
       >
-        {ENTITY_LABELS[result.type]}
-      </span>
+        {rel && (
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              padding: "2px 7px",
+              borderRadius: 5,
+              background: rel.bg,
+              color: rel.text,
+              fontFamily: "Plus Jakarta Sans, sans-serif",
+            }}
+          >
+            {rel.icon}
+            {rel.label}
+          </span>
+        )}
+        {!rel && result.type === "estudiante" && (
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+              padding: "2px 7px",
+              borderRadius: 5,
+              background: "rgba(255,255,255,0.04)",
+              color: "var(--color-text-subtle)",
+              fontFamily: "Plus Jakarta Sans, sans-serif",
+              border: "1px solid rgba(255,255,255,0.07)",
+            }}
+          >
+            <svg
+              width="9"
+              height="9"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            Sin vincular
+          </span>
+        )}
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: "0.07em",
+            textTransform: "uppercase",
+            padding: "2px 7px",
+            borderRadius: 5,
+            background: c.bg,
+            color: c.text,
+            fontFamily: "Plus Jakarta Sans, sans-serif",
+          }}
+        >
+          {ENTITY_LABELS[result.type]}
+        </span>
+      </div>
     </a>
   );
 }
 
-// ─── SearchModal (export default) ────────────────────────────────────────────
+// ─── FilterBar ────────────────────────────────────────────────────────────────
+
+function FilterBar({
+  types,
+  active,
+  role,
+  onChange,
+}: {
+  types: EntityType[];
+  active: EntityType;
+  role: Role;
+  onChange: (t: EntityType) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 6,
+        padding: "10px 16px",
+        borderBottom: "1px solid var(--color-border)",
+        overflowX: "auto",
+        scrollbarWidth: "none",
+      }}
+    >
+      {types.map((type) => {
+        const c = ENTITY_COLOR[type];
+        const isActive = active === type;
+        const label =
+          type === "estudiante" &&
+          (role === "tutor_centro" ||
+            role === "tutor_empresa" ||
+            role === "centro_educativo")
+            ? getSectionLabel(type, role)
+            : ENTITY_LABELS[type];
+
+        return (
+          <button
+            key={type}
+            onClick={() => onChange(type)}
+            title={label}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "5px 12px",
+              borderRadius: 8,
+              flexShrink: 0,
+              border: isActive
+                ? `1px solid ${c.border}`
+                : "1px solid var(--color-border)",
+              background: isActive ? c.activeBg : "transparent",
+              color: isActive ? c.text : "var(--color-text-subtle)",
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: isActive ? 700 : 500,
+              fontFamily: "Plus Jakarta Sans, sans-serif",
+              whiteSpace: "nowrap",
+              transition: "all 0.15s ease",
+              letterSpacing: isActive ? "0.01em" : "0",
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive) {
+                e.currentTarget.style.background = c.bg;
+                e.currentTarget.style.color = c.text;
+                e.currentTarget.style.borderColor = `${c.dot}44`;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--color-text-subtle)";
+                e.currentTarget.style.borderColor = "var(--color-border)";
+              }
+            }}
+          >
+            <EntityIcon
+              type={type}
+              size={13}
+              color={isActive ? c.text : "currentColor"}
+            />
+            {label}
+            {isActive && (
+              <span
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  background: c.dot,
+                  marginLeft: 1,
+                  flexShrink: 0,
+                }}
+              />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Enlace a ExplorarPage ────────────────────────────────────────────────────
+
+function ExplorarLink({
+  basePath,
+  activeType,
+  role,
+}: {
+  basePath: string;
+  activeType: EntityType;
+  role: Role;
+}) {
+  const c = ENTITY_COLOR[activeType];
+  return (
+    <a
+      href={`${basePath}?type=${activeType}`}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "7px 18px",
+        textDecoration: "none",
+        color: c.text,
+        fontSize: 12.5,
+        fontFamily: "Plus Jakarta Sans, sans-serif",
+        fontWeight: 600,
+        transition: "background 0.1s",
+        borderTop: "1px solid var(--color-border)",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = c.bg)}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+    >
+      <EntityIcon type={activeType} size={12} color={c.text} />
+      Ver todos los {getSectionLabel(activeType, role).toLowerCase()}
+      <svg
+        width="11"
+        height="11"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ marginLeft: "auto" }}
+      >
+        <path d="M5 12h14" />
+        <path d="m12 5 7 7-7 7" />
+      </svg>
+    </a>
+  );
+}
+
+// ─── SearchModal (export default) ─────────────────────────────────────────────
 
 export default function SearchModal({
   open,
   onClose,
   role,
   userId,
+  useExplorarPage = false,
+  explorarBasePath = "/explorar",
 }: SearchModalProps) {
+  const allowedTypes = ROLE_PERMISSIONS[role] ?? [];
+
   const [query, setQuery] = useState("");
+  const [activeType, setActiveType] = useState<EntityType>(allowedTypes[0]);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeIdx, setActive] = useState(-1);
@@ -691,28 +1271,37 @@ export default function SearchModal({
   const listRef = useRef<HTMLDivElement>(null);
   const dq = useDebounce(query, 220);
 
-  const allowedTypes = ROLE_PERMISSIONS[role] ?? [];
-  const isTutor = role === "tutor_centro" || role === "tutor_empresa";
+  const isScopedRole =
+    role === "tutor_centro" ||
+    role === "tutor_empresa" ||
+    role === "centro_educativo";
 
   useScrollLock(open);
 
-  // Resolver contexto al abrir o cambiar rol/userId
   useEffect(() => {
     if (!open || !userId) return;
     resolveSearchContext(role, userId).then(setSearchCtx);
   }, [open, role, userId]);
 
-  // Reset + foco al abrir
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 40);
       setQuery("");
       setResults([]);
       setActive(-1);
+      setActiveType(allowedTypes[0]);
     }
   }, [open]);
 
-  // ESC para cerrar
+  // Reset al cambiar filtro
+  useEffect(() => {
+    setQuery("");
+    setResults([]);
+    setActive(-1);
+    setTimeout(() => inputRef.current?.focus(), 30);
+  }, [activeType]);
+
+  // Cerrar con Escape
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -721,16 +1310,16 @@ export default function SearchModal({
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
 
-  // Búsqueda con debounce
+  // Búsqueda debounced
   useEffect(() => {
-    if (!dq.trim()) {
+    if (!dq.trim() || dq.trim().length < 2) {
       setResults([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     let cancelled = false;
-    runSearch(dq, allowedTypes, role, searchCtx)
+    runSearchForType(dq, activeType, role, searchCtx)
       .then((r) => {
         if (!cancelled) {
           setResults(r);
@@ -743,9 +1332,9 @@ export default function SearchModal({
     return () => {
       cancelled = true;
     };
-  }, [dq, allowedTypes, role, searchCtx]);
+  }, [dq, activeType, role, searchCtx]);
 
-  // Navegación por teclado
+  // Navegación con teclado
   const handleKey = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "ArrowDown") {
@@ -758,12 +1347,15 @@ export default function SearchModal({
         e.preventDefault();
         const r = results[activeIdx];
         if (r) {
-          window.location.href = r.href;
+          const dest = useExplorarPage
+            ? buildExplorarUrl(explorarBasePath, r)
+            : r.href;
+          window.location.href = dest;
           onClose();
         }
       }
     },
-    [results, activeIdx, onClose],
+    [results, activeIdx, onClose, useExplorarPage, explorarBasePath],
   );
 
   // Scroll al elemento activo
@@ -776,25 +1368,18 @@ export default function SearchModal({
     }
   }, [activeIdx]);
 
-  // Agrupación en orden de allowedTypes
-  const grouped = allowedTypes.reduce<
-    Partial<Record<EntityType, SearchResult[]>>
-  >((acc, type) => {
-    const items = results.filter((r) => r.type === type);
-    if (items.length > 0) acc[type] = items;
-    return acc;
-  }, {});
-
-  const offsetOf = (type: EntityType): number => {
-    let offset = 0;
-    for (const t of allowedTypes) {
-      if (t === type) break;
-      offset += grouped[t]?.length ?? 0;
-    }
-    return offset;
-  };
+  const c = ENTITY_COLOR[activeType];
+  const placeholder = ENTITY_PLACEHOLDER[activeType];
 
   if (!open) return null;
+
+  function handleResultClick(result: SearchResult) {
+    const dest = useExplorarPage
+      ? buildExplorarUrl(explorarBasePath, result)
+      : result.href;
+    window.location.href = dest;
+    onClose();
+  }
 
   return (
     <>
@@ -813,7 +1398,7 @@ export default function SearchModal({
         }}
       />
 
-      {/* Panel */}
+      {/* Dialog */}
       <div
         role="dialog"
         aria-modal
@@ -864,7 +1449,7 @@ export default function SearchModal({
                   borderRadius: "50%",
                   flexShrink: 0,
                   border: "2px solid var(--color-border-strong)",
-                  borderTopColor: "var(--color-brand)",
+                  borderTopColor: c.dot,
                   animation: "spin 0.7s linear infinite",
                 }}
               />
@@ -874,11 +1459,11 @@ export default function SearchModal({
                 height="16"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="var(--color-text-muted)"
+                stroke={query.trim() ? c.dot : "var(--color-text-muted)"}
                 strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                style={{ flexShrink: 0 }}
+                style={{ flexShrink: 0, transition: "stroke 0.2s" }}
               >
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.35-4.35" />
@@ -889,7 +1474,7 @@ export default function SearchModal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Buscar empresas, centros, estudiantes, tutores, ofertas…"
+              placeholder={placeholder}
               aria-label="Campo de búsqueda"
               style={{
                 flex: 1,
@@ -923,9 +1508,19 @@ export default function SearchModal({
             </kbd>
           </div>
 
-          {/* ── Body ── */}
+          {/* ── Filtros de tipo ── */}
+          {allowedTypes.length > 1 && (
+            <FilterBar
+              types={allowedTypes}
+              active={activeType}
+              role={role}
+              onChange={(t) => setActiveType(t)}
+            />
+          )}
+
+          {/* ── Cuerpo ── */}
           <div ref={listRef} style={{ overflowY: "auto", flex: 1 }}>
-            {/* Estado vacío */}
+            {/* Estado vacío: sugerencias + hint */}
             {!query.trim() && (
               <div style={{ padding: "6px 0 10px" }}>
                 <SRSection label="Recientes">
@@ -953,28 +1548,14 @@ export default function SearchModal({
                     margin: "4px 18px 6px",
                     padding: "9px 13px",
                     borderRadius: 10,
-                    background: "rgba(192,255,114,0.04)",
-                    border: "1px solid rgba(192,255,114,0.08)",
+                    background: c.bg,
+                    border: `1px solid ${c.border}`,
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
                   }}
                 >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#c0ff72"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ flexShrink: 0 }}
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
+                  <EntityIcon type={activeType} size={13} color={c.dot} />
                   <span
                     style={{
                       fontSize: 11.5,
@@ -982,62 +1563,53 @@ export default function SearchModal({
                       fontFamily: "Plus Jakarta Sans, sans-serif",
                     }}
                   >
-                    {isTutor && allowedTypes.includes("estudiante") ? (
-                      <>
-                        Buscando:{" "}
-                        <span style={{ color: "#f6ad55", fontWeight: 600 }}>
-                          {getStudentSectionLabel(role)}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        Puedes buscar:{" "}
-                        <span
-                          style={{
-                            color: "var(--color-brand)",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {allowedTypes.map((t) => ENTITY_LABELS[t]).join(", ")}
-                        </span>
-                      </>
+                    Buscando en:{" "}
+                    <span style={{ color: c.text, fontWeight: 600 }}>
+                      {getSectionLabel(activeType, role)}
+                    </span>
+                    {isScopedRole && activeType === "estudiante" && (
+                      <span style={{ color: "var(--color-text-subtle)" }}>
+                        {" "}
+                        · limitado a tus asignados
+                      </span>
                     )}
                   </span>
                 </div>
               </div>
             )}
 
-            {/* Resultados agrupados */}
+            {/* Resultados */}
             {query.trim() && results.length > 0 && (
-              <div style={{ padding: "6px 0 10px" }}>
-                {(
-                  Object.entries(grouped) as [EntityType, SearchResult[]][]
-                ).map(([type, items]) => (
-                  <SRSection
-                    key={type}
-                    label={getSectionLabel(type, role)}
-                    dot={ENTITY_COLOR[type].dot}
-                  >
-                    {items.map((r, i) => (
-                      <SRResult
-                        key={r.id}
-                        result={r}
-                        idx={offsetOf(type) + i}
-                        active={activeIdx === offsetOf(type) + i}
-                        onHover={() => setActive(offsetOf(type) + i)}
-                        onClick={() => {
-                          window.location.href = r.href;
-                          onClose();
-                        }}
-                      />
-                    ))}
-                  </SRSection>
-                ))}
+              <div style={{ padding: "6px 0 0" }}>
+                <SRSection
+                  label={getSectionLabel(activeType, role)}
+                  dot={c.dot}
+                >
+                  {results.map((r, i) => (
+                    <SRResult
+                      key={r.id}
+                      result={r}
+                      idx={i}
+                      active={activeIdx === i}
+                      onHover={() => setActive(i)}
+                      onClick={() => handleResultClick(r)}
+                    />
+                  ))}
+                </SRSection>
+
+                {/* Enlace a ExplorarPage si está habilitado */}
+                {useExplorarPage && (
+                  <ExplorarLink
+                    basePath={explorarBasePath}
+                    activeType={activeType}
+                    role={role}
+                  />
+                )}
               </div>
             )}
 
             {/* Sin resultados */}
-            {query.trim() && results.length === 0 && !loading && (
+            {query.trim().length >= 2 && results.length === 0 && !loading && (
               <div
                 style={{
                   display: "flex",
@@ -1072,8 +1644,12 @@ export default function SearchModal({
                   Sin resultados para{" "}
                   <strong style={{ color: "var(--color-text)" }}>
                     "{query}"
-                  </strong>
-                  {isTutor && allowedTypes.includes("estudiante") && (
+                  </strong>{" "}
+                  en{" "}
+                  <span style={{ color: c.text, fontWeight: 600 }}>
+                    {getSectionLabel(activeType, role)}
+                  </span>
+                  {isScopedRole && activeType === "estudiante" && (
                     <span
                       style={{
                         display: "block",
@@ -1086,6 +1662,21 @@ export default function SearchModal({
                     </span>
                   )}
                 </span>
+              </div>
+            )}
+
+            {/* Mínimo 2 caracteres */}
+            {query.trim().length === 1 && (
+              <div
+                style={{
+                  padding: "20px",
+                  textAlign: "center",
+                  fontSize: 12,
+                  color: "var(--color-text-subtle)",
+                  fontFamily: "Plus Jakarta Sans, sans-serif",
+                }}
+              >
+                Escribe al menos 2 caracteres para buscar
               </div>
             )}
           </div>
@@ -1136,14 +1727,67 @@ export default function SearchModal({
                 </span>
               </span>
             ))}
+
+            {/* Acceso rápido a ExplorarPage */}
+            {useExplorarPage && !query.trim() && (
+              <a
+                href={explorarBasePath}
+                onClick={onClose}
+                style={{
+                  marginLeft: "auto",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 11.5,
+                  color: c.text,
+                  textDecoration: "none",
+                  fontFamily: "Plus Jakarta Sans, sans-serif",
+                  fontWeight: 600,
+                  opacity: 0.8,
+                  transition: "opacity 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.8")}
+              >
+                <EntityIcon type={activeType} size={11} color={c.text} />
+                Explorar directorio
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </a>
+            )}
+
+            {results.length > 0 && (
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontSize: 11,
+                  color: "var(--color-text-subtle)",
+                  fontFamily: "Plus Jakarta Sans, sans-serif",
+                }}
+              >
+                {results.length} resultado{results.length !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
         </div>
       </div>
 
       <style>{`
         @keyframes srch-bg { from { opacity:0 } to { opacity:1 } }
-        @keyframes srch-in { from { opacity:0; transform:scale(0.96) translateY(-14px) } to { opacity:1; transform:scale(1) translateY(0) } }
-        @keyframes spin    { to   { transform:rotate(360deg) } }
+        @keyframes srch-in  { from { opacity:0; transform:scale(0.96) translateY(-14px) } to { opacity:1; transform:scale(1) translateY(0) } }
+        @keyframes spin     { to   { transform:rotate(360deg) } }
+        div::-webkit-scrollbar { display: none; }
       `}</style>
     </>
   );

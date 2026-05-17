@@ -25,7 +25,7 @@ export default function Header({
     user?.user_metadata?.avatar_url,
   );
 
-  const role: Role = (user?.user_metadata?.rol as Role) ?? "estudiante";
+  const role: Role = (user?.user_metadata?.role as Role) ?? "estudiante";
   const userId: string = user?.id ?? "";
   const fullName: string = user?.user_metadata?.full_name ?? user?.email ?? "";
   const initials: string = fullName
@@ -68,57 +68,83 @@ export default function Header({
 
   return (
     <>
+      {/* ── Sticky wrapper ── */}
       <div
-        className="sticky top-0 z-40 pointer-events-none"
-        style={{ padding: "10px 20px 0" }}
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 40,
+          padding: "8px 16px 0",
+          pointerEvents: "none",
+        }}
       >
         <header
-          className="pointer-events-auto"
           style={{
-            borderRadius: 20,
+            pointerEvents: "auto",
+            borderRadius: 16,
             border: scrolled
               ? "1px solid rgba(192,255,114,0.14)"
               : "1px solid rgba(255,255,255,0.06)",
-            background: scrolled ? "rgba(1,3,9,0.96)" : "rgba(2,5,13,0.75)",
+            background: scrolled ? "rgba(1,3,9,0.97)" : "rgba(2,5,13,0.80)",
             backdropFilter: "blur(24px)",
             WebkitBackdropFilter: "blur(24px)",
             boxShadow: scrolled
-              ? "0 8px 40px rgba(0,0,0,0.7), 0 1px 0 rgba(192,255,114,0.07) inset, 0 0 0 1px rgba(192,255,114,0.04)"
+              ? "0 8px 40px rgba(0,0,0,0.7), 0 1px 0 rgba(192,255,114,0.07) inset"
               : "0 4px 24px rgba(0,0,0,0.4)",
             transition: "all 0.35s cubic-bezier(0.4,0,0.2,1)",
           }}
         >
-          <div className="max-w-7xl mx-auto px-5 sm:px-6">
-            <div className="flex items-center justify-between h-14 gap-3">
+          <div
+            style={{
+              maxWidth: 1280,
+              margin: "0 auto",
+              padding: "0 16px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                height: 48, // ← 56→48 px en portátil
+                gap: 10,
+              }}
+            >
               {/* ── Logo ── */}
               <a
                 href="/"
-                className="flex items-center gap-2.5 flex-shrink-0 group"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexShrink: 0,
+                  textDecoration: "none",
+                }}
               >
                 <img
                   src={logoUrl}
                   alt="Relance"
                   style={{
-                    height: 28,
+                    height: 24, // ← 28→24 px
                     width: "auto",
-                    borderRadius: 7,
+                    borderRadius: 6,
                     transition: "opacity 0.2s",
                   }}
                 />
               </a>
 
               {/* ── Nav ── */}
-              <nav className="hidden md:flex items-center gap-0.5">
+              <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
                 {navLinks.map((link) => (
                   <a
                     key={link.label}
                     href={link.href}
                     style={{
-                      padding: "6px 13px",
-                      fontSize: 13,
+                      padding: "5px 11px", // ← 6/13 → 5/11
+                      fontSize: 12, // ← 13→12
                       fontWeight: 500,
                       color: "var(--color-text-muted)",
-                      borderRadius: 9,
+                      borderRadius: 8,
                       textDecoration: "none",
                       transition: "color 0.15s, background 0.15s",
                       fontFamily: "Plus Jakarta Sans, sans-serif",
@@ -143,21 +169,21 @@ export default function Header({
               <button
                 onClick={() => setSearchOpen(true)}
                 aria-label="Abrir buscador (Ctrl+K)"
-                className="hidden md:flex"
                 style={{
                   flex: "1 1 0",
-                  maxWidth: 300,
+                  maxWidth: 260, // ← 300→260
+                  display: "flex",
                   alignItems: "center",
-                  gap: 8,
-                  padding: "7px 12px",
-                  borderRadius: 11,
+                  gap: 7,
+                  padding: "6px 10px", // ← 7/12 → 6/10
+                  borderRadius: 9,
                   border: "1px solid var(--color-border-strong)",
                   background: "rgba(255,255,255,0.025)",
                   color: "var(--color-text-muted)",
                   cursor: "pointer",
                   transition: "all 0.18s",
                   fontFamily: "Plus Jakarta Sans, sans-serif",
-                  fontSize: 12.5,
+                  fontSize: 11.5, // ← 12.5→11.5
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = "rgba(192,255,114,0.25)";
@@ -172,8 +198,8 @@ export default function Header({
                 }}
               >
                 <svg
-                  width="13"
-                  height="13"
+                  width="12"
+                  height="12"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -188,9 +214,9 @@ export default function Header({
                 <span style={{ flex: 1, textAlign: "left" }}>Buscar…</span>
                 <kbd
                   style={{
-                    fontSize: 9.5,
-                    padding: "2px 6px",
-                    borderRadius: 5,
+                    fontSize: 9,
+                    padding: "1px 5px",
+                    borderRadius: 4,
                     border: "1px solid var(--color-border-strong)",
                     background: "rgba(255,255,255,0.04)",
                     color: "var(--color-text-subtle)",
@@ -203,15 +229,22 @@ export default function Header({
               </button>
 
               {/* ── Usuario / acciones ── */}
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  flexShrink: 0,
+                }}
+              >
                 {user ? (
-                  <div className="relative">
+                  <div style={{ position: "relative" }}>
                     <button
                       onClick={() => setMenuOpen((v) => !v)}
                       aria-label="Menú de usuario"
                       style={{
-                        width: 34,
-                        height: 34,
+                        width: 30, // ← 34→30
+                        height: 30,
                         borderRadius: "50%",
                         overflow: "hidden",
                         border: menuOpen
@@ -245,7 +278,7 @@ export default function Header({
                             justifyContent: "center",
                             color: "#02050d",
                             fontWeight: 700,
-                            fontSize: 12,
+                            fontSize: 11, // ← 12→11
                             fontFamily: "Syne, sans-serif",
                           }}
                         >
@@ -259,25 +292,29 @@ export default function Header({
                   </div>
                 ) : (
                   <>
+                    {/* Desktop */}
                     <button
                       onClick={onLoginClick}
                       className="hidden sm:flex btn-secondary"
+                      style={{ fontSize: 12, padding: "5px 12px" }}
                     >
                       Iniciar sesión
                     </button>
                     <button
                       onClick={onRegisterClick}
                       className="hidden md:flex btn-primary"
+                      style={{ fontSize: 12, padding: "5px 12px" }}
                     >
                       Registrarse
                     </button>
+                    {/* Mobile */}
                     <button
                       onClick={onLoginClick}
                       className="md:hidden"
                       style={{
-                        padding: "6px 10px",
-                        borderRadius: 9,
-                        fontSize: 12,
+                        padding: "5px 9px",
+                        borderRadius: 8,
+                        fontSize: 11,
                         fontWeight: 500,
                         fontFamily: "Plus Jakarta Sans, sans-serif",
                         border: "1px solid var(--color-border-strong)",
@@ -292,9 +329,9 @@ export default function Header({
                       onClick={onRegisterClick}
                       className="md:hidden"
                       style={{
-                        padding: "6px 10px",
-                        borderRadius: 9,
-                        fontSize: 12,
+                        padding: "5px 9px",
+                        borderRadius: 8,
+                        fontSize: 11,
                         fontWeight: 700,
                         fontFamily: "Plus Jakarta Sans, sans-serif",
                         border: "none",
@@ -313,7 +350,7 @@ export default function Header({
         </header>
       </div>
 
-      {/* SearchModal: toda la lógica de búsqueda vive en él */}
+      {/* SearchModal */}
       <SearchModal
         open={searchOpen}
         onClose={() => setSearchOpen(false)}

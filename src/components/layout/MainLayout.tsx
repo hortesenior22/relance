@@ -25,7 +25,10 @@ export default function MainLayout({
   }, [location.state, navigate, location.pathname]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-var(--color-bg)">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: "var(--color-bg)" }}
+    >
       <Header
         onLoginClick={() => setShowLogin(true)}
         onRegisterClick={goToRegister}

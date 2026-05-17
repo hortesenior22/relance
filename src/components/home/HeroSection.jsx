@@ -26,7 +26,7 @@ export default function HeroSection({ onRegisterClick }) {
         }}
       />
 
-      {/* Central glow — brand green tinted, very subtle */}
+      {/* Central glow */}
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
         style={{
@@ -40,7 +40,7 @@ export default function HeroSection({ onRegisterClick }) {
         }}
       />
 
-      {/* Bottom-right accent — navy blue glow */}
+      {/* Bottom-right accent */}
       <div
         className="absolute bottom-20 right-10 pointer-events-none"
         style={{
@@ -53,7 +53,7 @@ export default function HeroSection({ onRegisterClick }) {
         }}
       />
 
-      {/* Top-left accent — deep navy */}
+      {/* Top-left accent */}
       <div
         className="absolute top-10 left-0 pointer-events-none"
         style={{
@@ -66,43 +66,103 @@ export default function HeroSection({ onRegisterClick }) {
         }}
       />
 
-      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 text-center">
+      <div
+        style={{
+          position: "relative",
+          zIndex: 10,
+          maxWidth: 860,
+          margin: "0 auto",
+          padding: "0 20px",
+          textAlign: "center",
+        }}
+      >
+        {/* Título — más compacto en portátil */}
         <h1
-          className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.1] tracking-tight mb-6 animate-hero-in opacity-0"
-          style={{ animationDelay: "0.1s" }}
+          className="animate-hero-in opacity-0"
+          style={{
+            fontFamily: "Syne, sans-serif",
+            fontSize: "clamp(2rem, 5vw, 3.5rem)", // ← fluido: 32px → 56px
+            fontWeight: 800,
+            color: "white",
+            lineHeight: 1.1,
+            letterSpacing: "-0.02em",
+            marginBottom: "1.25rem", // ← mb-6 → mb-5
+            animationDelay: "0.1s",
+          }}
         >
           Conecta talento con{" "}
           <span
-            className="text-brand relative inline-block"
+            className="text-brand"
             style={{ textShadow: "0 0 40px rgba(192,255,114,0.3)" }}
           >
             oportunidades reales
           </span>
         </h1>
 
+        {/* Subtítulo */}
         <p
-          className="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed animate-hero-in opacity-0"
-          style={{ animationDelay: "0.2s" }}
+          className="animate-hero-in opacity-0"
+          style={{
+            color: "#9ca3af",
+            fontSize: "clamp(0.9rem, 2vw, 1.1rem)", // ← fluido: 14.4px → 17.6px
+            maxWidth: 560,
+            margin: "0 auto 2rem", // ← mb-10 → mb-8
+            lineHeight: 1.65,
+            animationDelay: "0.2s",
+            fontFamily: "Plus Jakarta Sans, sans-serif",
+          }}
         >
           La plataforma que une{" "}
-          <span className="text-gray-300 font-medium">estudiantes</span>,{" "}
-          <span className="text-gray-300 font-medium">empresas</span> y{" "}
-          <span className="text-gray-300 font-medium">centros educativos</span>{" "}
+          <span style={{ color: "#d1d5db", fontWeight: 500 }}>estudiantes</span>
+          , <span style={{ color: "#d1d5db", fontWeight: 500 }}>empresas</span>{" "}
+          y{" "}
+          <span style={{ color: "#d1d5db", fontWeight: 500 }}>
+            centros educativos
+          </span>{" "}
           en un mismo lugar.
         </p>
 
+        {/* CTAs */}
         <div
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-hero-in opacity-0"
-          style={{ animationDelay: "0.35s" }}
+          className="animate-hero-in opacity-0"
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            animationDelay: "0.35s",
+          }}
         >
           {!user && (
             <button
               onClick={onRegisterClick}
-              className="btn-primary text-base px-8 py-3.5 rounded-xl shadow-lg shadow-brand/20 flex items-center gap-2 hover:shadow-brand/30 transition-shadow duration-300"
+              className="btn-primary"
+              style={{
+                fontSize: 13, // ← text-base(16) → 13
+                padding: "10px 24px", // ← py-3.5 px-8 → más compacto
+                borderRadius: 12,
+                boxShadow: "0 8px 24px rgba(192,255,114,0.2)",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                transition: "box-shadow 0.3s",
+                fontFamily: "Plus Jakarta Sans, sans-serif",
+                fontWeight: 700,
+              }}
             >
               Empieza gratis
-              <svg className="size-6" viewBox="0 0 24 24" strokeWidth="2">
-                <use href="icons.svg#icon-arrowStart" />
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             </button>
           )}
@@ -110,7 +170,19 @@ export default function HeroSection({ onRegisterClick }) {
           {user && (
             <a
               href={profileUrl}
-              className="flex btn-primary text-base px-8 py-3.5 rounded-xl shadow-lg shadow-brand/20 hover:shadow-brand/30 transition-shadow duration-300"
+              className="btn-primary"
+              style={{
+                fontSize: 13,
+                padding: "10px 24px",
+                borderRadius: 12,
+                boxShadow: "0 8px 24px rgba(192,255,114,0.2)",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                textDecoration: "none",
+                fontFamily: "Plus Jakarta Sans, sans-serif",
+                fontWeight: 700,
+              }}
             >
               Ir a mi perfil
               <svg className="size-6" viewBox="0 0 24 24" strokeWidth="2">
@@ -121,19 +193,50 @@ export default function HeroSection({ onRegisterClick }) {
 
           <button
             onClick={scrollToNext}
-            className="flex items-center gap-2 text-gray-400 hover:text-white text-sm font-medium transition-colors duration-200 group"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              color: "#9ca3af",
+              fontSize: 12, // ← text-sm(14) → 12
+              fontWeight: 500,
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              transition: "color 0.2s",
+              fontFamily: "Plus Jakarta Sans, sans-serif",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
           >
-            <span>Saber más</span>
-            <svg className="w-4 h-4 group-hover:translate-y-0.5 transition-transform duration-200">
-              <use href="icons.svg#icon-arrowDown" />
+            Saber más
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 5v14M5 12l7 7 7-7" />
             </svg>
           </button>
         </div>
 
         {/* Stats */}
         <div
-          className="mt-16 flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-12 animate-hero-in opacity-0"
-          style={{ animationDelay: "0.5s" }}
+          className="animate-hero-in opacity-0"
+          style={{
+            marginTop: "3rem", // ← mt-16 → mt-12
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "1.5rem 2.5rem", // ← gap-8 sm:gap-12 → más compacto
+            animationDelay: "0.5s",
+          }}
         >
           {[
             {
@@ -149,18 +252,54 @@ export default function HeroSection({ onRegisterClick }) {
               label: "Centros educativos",
             },
           ].map((stat) => (
-            <div key={stat.label} className="text-center">
-              <div className="font-display text-2xl font-bold text-white">
+            <div key={stat.label} style={{ textAlign: "center" }}>
+              <div
+                style={{
+                  fontFamily: "Syne, sans-serif",
+                  fontSize: "clamp(1.2rem, 2.5vw, 1.6rem)", // ← text-2xl fluido
+                  fontWeight: 700,
+                  color: "white",
+                }}
+              >
                 {stat.value}
               </div>
-              <div className="text-xs text-gray-500 mt-0.5">{stat.label}</div>
+              <div
+                style={{
+                  fontSize: 10.5, // ← text-xs(12) → 10.5
+                  color: "#6b7280",
+                  marginTop: 2,
+                  fontFamily: "Plus Jakarta Sans, sans-serif",
+                }}
+              >
+                {stat.label}
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-gray-600">
-        <div className="w-px h-8 bg-gradient-to-b from-transparent to-brand/40" />
+      {/* Scroll indicator */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 28,
+          left: "50%",
+          transform: "translateX(-50%)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 4,
+          color: "#4b5563",
+        }}
+      >
+        <div
+          style={{
+            width: 1,
+            height: 28,
+            background:
+              "linear-gradient(to bottom, transparent, rgba(192,255,114,0.4))",
+          }}
+        />
       </div>
     </section>
   );

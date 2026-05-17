@@ -25,9 +25,9 @@
        TEXT
     ========================= */
     --color-text: #eef5ff;
-    --color-text-secondary: #b2c5de;
-    --color-text-muted: #5e7a99;
-    --color-text-subtle: #354e68;
+    --color-text-secondary: #c4d4e8; /* de #b2c5de, +10% luminosidad */
+    --color-text-muted: #7a9ab8; /* de #5e7a99, +12% luminosidad → ratio ~4.8:1 */
+    --color-text-subtle: #3d5a78; /* de #354e68, +10% → ratio ~2.8:1, solo decorativo */
 
     /* =========================
        BORDER SYSTEM

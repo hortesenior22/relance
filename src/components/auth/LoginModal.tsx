@@ -28,7 +28,6 @@ export default function LoginModal({
   const [error, setError] = useState<string | null>(null);
   const [forgotSent, setForgotSent] = useState(false);
 
-  // Errores de campo individuales
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
     password?: string;
@@ -132,40 +131,53 @@ export default function LoginModal({
         className="modal-overlay"
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >
-        <div className="modal-card">
+        {/*
+          En móvil: ancho completo con margen, padding generoso.
+          En portátil (lg+): ancho máximo más estrecho, padding y texto reducidos.
+        */}
+        <div
+          className="modal-card w-full max-w-sm lg:max-w-xs"
+          style={{ padding: "clamp(16px, 3vw, 28px)" }}
+        >
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+            className="absolute top-3 right-3 text-gray-500 hover:text-white transition-colors"
             aria-label="Cerrar"
           >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
               <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
             </svg>
           </button>
 
-          <div className="flex justify-center mb-6">
-            <img src={logoUrl} alt="Relance" className="h-8 rounded-md" />
+          {/* Logo */}
+          <div className="flex justify-center mb-4 lg:mb-3">
+            <img
+              src={logoUrl}
+              alt="Relance"
+              className="h-6 lg:h-5 rounded-md"
+            />
           </div>
 
           {/* ── Login ── */}
           {view === "login" && (
             <>
-              <h2 className="font-display text-2xl font-bold text-white text-center mb-1">
+              <h2 className="font-display text-xl lg:text-lg font-bold text-white text-center mb-0.5">
                 Bienvenido de vuelta
               </h2>
-              <p className="text-gray-500 text-sm text-center mb-6">
+              <p className="text-gray-500 text-xs text-center mb-4 lg:mb-3">
                 Inicia sesión en tu cuenta
               </p>
 
+              {/* Google */}
               <button
                 type="button"
                 onClick={handleGoogle}
                 disabled={loadingGoogle}
-                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-800 font-semibold text-sm px-4 py-2.5 rounded-xl border border-gray-200 transition-all duration-200 mb-4 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-800 font-semibold text-xs px-3 py-2 rounded-lg border border-gray-200 transition-all duration-200 mb-3 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loadingGoogle ? (
                   <svg
-                    className="animate-spin w-4 h-4 text-gray-500"
+                    className="animate-spin w-3.5 h-3.5 text-gray-500"
                     viewBox="0 0 24 24"
                     fill="none"
                   >
@@ -184,23 +196,24 @@ export default function LoginModal({
                     />
                   </svg>
                 ) : (
-                  <svg width="18" height="18">
+                  <svg width="15" height="15">
                     <use href="#icon-google-color" />
                   </svg>
                 )}
                 {loadingGoogle ? "Conectando..." : "Continuar con Google"}
               </button>
 
-              <div className="flex items-center gap-3 mb-4">
+              {/* Divider */}
+              <div className="flex items-center gap-2 mb-3">
                 <div className="flex-1 h-px bg-white/10" />
                 <span className="text-gray-600 text-xs">o con correo</span>
                 <div className="flex-1 h-px bg-white/10" />
               </div>
 
-              <form onSubmit={handleLogin} className="space-y-4" noValidate>
+              <form onSubmit={handleLogin} className="space-y-3" noValidate>
                 <div>
                   <label
-                    className="block text-sm text-gray-400 mb-1.5"
+                    className="block text-xs text-gray-400 mb-1"
                     htmlFor="login-email"
                   >
                     Correo electrónico
@@ -214,14 +227,14 @@ export default function LoginModal({
                       setFieldErrors((p) => ({ ...p, email: undefined }));
                     }}
                     placeholder="tu@correo.com"
-                    className={`input-field ${fieldErrors.email ? "border-red-500/50 focus:border-red-500" : ""}`}
+                    className={`input-field text-sm py-2 ${fieldErrors.email ? "border-red-500/50 focus:border-red-500" : ""}`}
                   />
                   <FieldError msg={fieldErrors.email} />
                 </div>
 
                 <div>
                   <label
-                    className="block text-sm text-gray-400 mb-1.5"
+                    className="block text-xs text-gray-400 mb-1"
                     htmlFor="login-password"
                   >
                     Contraseña
@@ -236,18 +249,18 @@ export default function LoginModal({
                         setFieldErrors((p) => ({ ...p, password: undefined }));
                       }}
                       placeholder="••••••••"
-                      className={`input-field pr-10 ${fieldErrors.password ? "border-red-500/50 focus:border-red-500" : ""}`}
+                      className={`input-field text-sm py-2 pr-9 ${fieldErrors.password ? "border-red-500/50 focus:border-red-500" : ""}`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
                       aria-label={showPassword ? "Ocultar" : "Mostrar"}
                     >
                       {showPassword ? (
                         <svg
-                          width="18"
-                          height="18"
+                          width="15"
+                          height="15"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -258,8 +271,8 @@ export default function LoginModal({
                         </svg>
                       ) : (
                         <svg
-                          width="18"
-                          height="18"
+                          width="15"
+                          height="15"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -289,7 +302,7 @@ export default function LoginModal({
                 </div>
 
                 {error && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-red-400 text-xs">
                     {error}
                   </div>
                 )}
@@ -297,12 +310,12 @@ export default function LoginModal({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-primary w-full flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="btn-primary w-full flex justify-center items-center gap-2 text-sm py-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>
                       <svg
-                        className="animate-spin w-4 h-4"
+                        className="animate-spin w-3.5 h-3.5"
                         viewBox="0 0 24 24"
                         fill="none"
                       >
@@ -328,7 +341,7 @@ export default function LoginModal({
                 </button>
               </form>
 
-              <p className="text-center text-sm text-gray-500 mt-6">
+              <p className="text-center text-xs text-gray-500 mt-4">
                 ¿No tienes cuenta?{" "}
                 <button
                   onClick={onSwitchToRegister}
@@ -350,11 +363,11 @@ export default function LoginModal({
                   setForgotSent(false);
                   setFieldErrors({});
                 }}
-                className="flex items-center gap-1.5 text-gray-500 hover:text-white text-sm mb-4 transition-colors"
+                className="flex items-center gap-1 text-gray-500 hover:text-white text-xs mb-3 transition-colors"
               >
                 <svg
-                  width="16"
-                  height="16"
+                  width="13"
+                  height="13"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -365,24 +378,24 @@ export default function LoginModal({
                 Volver al inicio de sesión
               </button>
 
-              <h2 className="font-display text-2xl font-bold text-white text-center mb-1">
+              <h2 className="font-display text-xl lg:text-lg font-bold text-white text-center mb-0.5">
                 Recuperar contraseña
               </h2>
-              <p className="text-gray-500 text-sm text-center mb-6">
+              <p className="text-gray-500 text-xs text-center mb-4 lg:mb-3">
                 Te enviaremos un enlace para restablecerla
               </p>
 
               {forgotSent ? (
                 <div className="text-center">
-                  <div className="mb-4 flex items-center justify-center">
-                    <svg className="size-16">
+                  <div className="mb-3 flex items-center justify-center">
+                    <svg className="size-12">
                       <use href="icons.svg#icon-envelope" />
                     </svg>
                   </div>
-                  <p className="text-white font-semibold mb-2">
+                  <p className="text-white font-semibold text-sm mb-1">
                     Correo enviado
                   </p>
-                  <p className="text-gray-400 text-sm">
+                  <p className="text-gray-400 text-xs">
                     Revisa tu bandeja de entrada en{" "}
                     <span className="text-brand">{email}</span> y sigue las
                     instrucciones.
@@ -392,15 +405,15 @@ export default function LoginModal({
                       setView("login");
                       setForgotSent(false);
                     }}
-                    className="btn-secondary w-full mt-6"
+                    className="btn-secondary w-full mt-4 text-sm py-2"
                   >
                     Volver al inicio de sesión
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleForgot} className="space-y-4" noValidate>
+                <form onSubmit={handleForgot} className="space-y-3" noValidate>
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1.5">
+                    <label className="block text-xs text-gray-400 mb-1">
                       Correo electrónico
                     </label>
                     <input
@@ -411,13 +424,13 @@ export default function LoginModal({
                         setFieldErrors((p) => ({ ...p, email: undefined }));
                       }}
                       placeholder="tu@correo.com"
-                      className={`input-field ${fieldErrors.email ? "border-red-500/50" : ""}`}
+                      className={`input-field text-sm py-2 ${fieldErrors.email ? "border-red-500/50" : ""}`}
                     />
                     <FieldError msg={fieldErrors.email} />
                   </div>
 
                   {error && (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-red-400 text-xs">
                       {error}
                     </div>
                   )}
@@ -425,12 +438,12 @@ export default function LoginModal({
                   <button
                     type="submit"
                     disabled={loading}
-                    className="btn-primary w-full flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="btn-primary w-full flex justify-center items-center gap-2 text-sm py-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <>
                         <svg
-                          className="animate-spin w-4 h-4"
+                          className="animate-spin w-3.5 h-3.5"
                           viewBox="0 0 24 24"
                           fill="none"
                         >

@@ -2,31 +2,79 @@ import logoUrl from "../../assets/logo_relance.jpg";
 
 export default function Footer() {
   return (
-    <footer className="w-full border-t bg-white py-10">
-      <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
+    <footer
+      style={{
+        width: "100%",
+        borderTop: "1px solid var(--color-border)",
+        background: "var(--color-bg)",
+        padding: "28px 0", // ← 40→28 px vertical
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1280,
+          margin: "0 auto",
+          padding: "0 20px",
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+        }}
+      >
         {/* Logo */}
-        <div className="flex items-center gap-3">
-          <img src={logoUrl} alt="Logo" className="h-10 w-auto" />
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <img
+            src={logoUrl}
+            alt="Relance"
+            style={{ height: 22, width: "auto", borderRadius: 5 }} // ← 40→22 px
+          />
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--color-text-muted)",
+              fontFamily: "Syne, sans-serif",
+              letterSpacing: "0.04em",
+            }}
+          >
+            RELANCE
+          </span>
         </div>
 
         {/* Links */}
-        <div className="flex gap-6 text-sm text-gray-500">
-          <a href="#" className="hover:text-gray-900">
-            Inicio
-          </a>
-          {/* <a href="#" className="hover:text-gray-900">
-            Servicios
-          </a>
-          <a href="#" className="hover:text-gray-900">
-            Precios
-          </a>
-          <a href="#" className="hover:text-gray-900">
-            Contacto
-          </a> */}
+        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+          {[{ label: "Inicio", href: "/" }].map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
+              style={{
+                fontSize: 11.5, // ← 14→11.5
+                color: "var(--color-text-subtle)",
+                textDecoration: "none",
+                transition: "color 0.15s",
+                fontFamily: "Plus Jakarta Sans, sans-serif",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = "var(--color-text-secondary)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = "var(--color-text-subtle)")
+              }
+            >
+              {link.label}
+            </a>
+          ))}
         </div>
 
-        {/* Social / extra */}
-        <div className="text-sm text-gray-400">
+        {/* Copyright */}
+        <div
+          style={{
+            fontSize: 11, // ← 14→11
+            color: "var(--color-text-subtle)",
+            fontFamily: "Plus Jakarta Sans, sans-serif",
+          }}
+        >
           © {new Date().getFullYear()} Relance. Todos los derechos reservados.
         </div>
       </div>
