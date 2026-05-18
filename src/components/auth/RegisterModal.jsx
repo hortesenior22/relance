@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
-import logoUrl from "../../assets/logo_relance.jpg";
 import MainLayout from "../../components/layout/MainLayout";
 
 // === Constantes ================================
@@ -44,7 +43,6 @@ function PasswordField({
   minLength = 8,
   showStrength = true,
 }) {
-  const navigate = useNavigate();
   const [show, setShow] = useState(false);
   const score = !value
     ? 0
@@ -707,6 +705,38 @@ function SubmitButton({ loading, label }) {
   );
 }
 
+
+function SuccessModal({ email, role, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-dark/80 backdrop-blur-sm p-4 animate-fade-in">
+      <div className="w-full max-w-md rounded-2xl border border-brand/30 bg-dark-800 p-8 shadow-[0_0_40px_rgba(192,255,114,0.2)] animate-fade-in">
+        <div className="mb-4 flex justify-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand/20 border border-brand/40">
+            <svg className="h-7 w-7 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          </div>
+        </div>
+        <h3 className="text-center font-display text-2xl font-bold text-white mb-2">
+          ¡Cambios guardados!
+        </h3>
+        <p className="text-center text-sm text-gray-400">
+          Se ha creado tu cuenta correctamente.
+        </p>
+        <p className="text-center text-brand text-sm font-semibold mt-2">{email}</p>
+        <p className="text-center text-xs text-gray-500 mt-4">
+          Revisa tu correo para verificar tu cuenta.
+          {(role === "empresa" || role === "centro_educativo") &&
+            " También validaremos los datos corporativos en 24–48 h."}
+        </p>
+        <button onClick={onClose} className="btn-primary w-full mt-6">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // === Página principal ================================
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -821,44 +851,11 @@ export default function RegisterPage() {
   if (success) {
     return (
       <MainLayout>
-        <div className="min-h-screen bg-dark flex items-center justify-center p-4">
-          <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-md p-10 text-center">
-            <div className="mb-5 flex justify-center">
-              <svg className="w-16 h-16 text-brand" viewBox="0 0 640 640">
-                <use href="/icons.svg#icon-party" />
-              </svg>
-            </div>
-            <h2 className="font-display text-2xl font-bold text-white mb-3">
-              ¡Cuenta creada!
-            </h2>
-            <p className="text-gray-400 text-sm mb-2">
-              Hemos enviado un correo de verificación a:
-            </p>
-            <p className="text-brand font-semibold mb-6">{registeredEmail}</p>
-            <p className="text-gray-500 text-xs mb-8">
-              Revisa tu bandeja de entrada (y la carpeta de spam) y haz clic en
-              el enlace para activar tu cuenta.
-              {(selectedRole === "empresa" ||
-                selectedRole === "centro_educativo") && (
-                <span className="block mt-2">
-                  Además, el equipo de Relance verificará tus datos en 24–48 h.
-                </span>
-              )}
-            </p>
-            <button
-              onClick={() => navigate("/")}
-              className="btn-primary w-full"
-            >
-              Ir al inicio
-            </button>
-            <button
-              onClick={() => navigate("/login")}
-              className="btn-secondary w-full mt-3"
-            >
-              Iniciar sesión
-            </button>
-          </div>
-        </div>
+        <SuccessModal
+          email={registeredEmail}
+          role={selectedRole}
+          onClose={() => navigate("/")}
+        />
       </MainLayout>
     );
   }
@@ -919,8 +916,8 @@ export default function RegisterPage() {
               }}
               className={`relative p-4 rounded-2xl border text-left transition-all duration-200 group overflow-hidden ${
                 selectedRole === role.id
-                  ? `border-brand bg-brand/10`
-                  : "border-white/10 hover:border-white/20 bg-dark-800"
+                  ? `border-brand bg-brand/15 shadow-[0_0_25px_rgba(192,255,114,0.15)]`
+                  : "border-brand/20 hover:border-brand/40 bg-dark-800/90"
               }`}
             >
               {/* Glow de fondo si seleccionado */}
@@ -982,7 +979,7 @@ export default function RegisterPage() {
 
         {/* Formulario por rol */}
         {selectedRole && (
-          <div className="bg-dark-800 border border-white/10 rounded-2xl p-6 sm:p-8 animate-fade-in">
+          <div className="bg-dark-800/95 border border-brand/20 rounded-2xl p-6 sm:p-8 animate-fade-in shadow-[0_0_30px_rgba(192,255,114,0.08)]">
             <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/10">
               <span className="text-xl">
                 <svg className="w-6 h-6">
