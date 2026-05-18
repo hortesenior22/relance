@@ -152,6 +152,13 @@ function AppContent() {
         return;
       }
 
+      // Mientras no haya rol en BD, mantenemos el modal abierto de forma forzada
+      // (caso típico en altas automáticas con Google sin completar onboarding).
+      if (!data.rol) {
+        setShowOnboarding(true);
+        return;
+      }
+
       if (ROLES_SIN_ONBOARDING.includes(data.rol)) {
         setShowOnboarding(false);
         return;
@@ -273,10 +280,7 @@ function AppContent() {
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <OnboardingModal
             user={user}
-            onClose={() => {
-              setShowOnboarding(false);
-              lastCheckedUserId.current = null;
-            }}
+            onClose={() => checkOnboarding(user)}
           />
         </div>
       )}
