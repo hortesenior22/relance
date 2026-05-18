@@ -100,6 +100,14 @@ interface SuggestedProfile {
   reason: string;
 }
 
+const ROLE_SUGGESTION_META: Partial<Record<ViewerRole, { title: string; emptyReason: string }>> = {
+  estudiante: { title: "Más estudiantes", emptyReason: "Mismo rol" },
+  empresa: { title: "Más empresas", emptyReason: "Mismo rol" },
+  centro_educativo: { title: "Más centros educativos", emptyReason: "Mismo rol" },
+  tutor_empresa: { title: "Más tutores de empresa", emptyReason: "Mismo rol" },
+  tutor_centro: { title: "Más tutores de centro", emptyReason: "Mismo rol" },
+};
+
 interface Candidatura {
   id_candidatura: number;
   estado: string;
@@ -1766,6 +1774,7 @@ export default function UserProfilePage({
     error: null,
   });
   const [suggestions, setSuggestions] = useState<SuggestedProfile[]>([]);
+  const [sameRoleSuggestions, setSameRoleSuggestions] = useState<SuggestedProfile[]>([]);
   const [candidaturas, setCandidaturas] = useState<Candidatura[]>([]);
   const [stats, setStats] = useState<{
     candidaturas: number;
@@ -2077,6 +2086,29 @@ export default function UserProfilePage({
           }
 
           setSuggestions(sugs.slice(0, 4));
+        })(),
+      );
+
+      loads.push(
+        (async () => {
+          const roleSugs: SuggestedProfile[] = [];
+          if (viewerRole === "estudiante") {
+            const { data } = await supabase.from("estudiante").select("id, nombre, apellidos, titulacion, ciudad, avatar_url").neq("id", entityId).limit(4);
+            (data ?? []).forEach((p) => roleSugs.push({ id: p.id, type: "estudiante", name: `${p.nombre ?? ""} ${p.apellidos ?? ""}`.trim(), subtitle: [p.titulacion, p.ciudad].filter(Boolean).join(" · "), avatarUrl: p.avatar_url ?? undefined, href: `/estudiante/${p.id}`, reason: "Mismo rol" }));
+          } else if (viewerRole === "empresa") {
+            const { data } = await supabase.from("empresa").select("id, nombre, sector, ciudad, logo_url").neq("id", entityId).limit(4);
+            (data ?? []).forEach((e) => roleSugs.push({ id: e.id, type: "empresa", name: e.nombre, subtitle: [e.sector, e.ciudad].filter(Boolean).join(" · "), avatarUrl: e.logo_url ?? undefined, href: `/empresa/${e.id}`, reason: "Mismo rol" }));
+          } else if (viewerRole === "centro_educativo") {
+            const { data } = await supabase.from("centro_educativo").select("id, nombre, tipo_centro, ciudad, avatar_url").neq("id", entityId).limit(4);
+            (data ?? []).forEach((c) => roleSugs.push({ id: c.id, type: "centro_educativo", name: c.nombre, subtitle: [c.tipo_centro, c.ciudad].filter(Boolean).join(" · "), avatarUrl: c.avatar_url ?? undefined, href: `/centro/${c.id}`, reason: "Mismo rol" }));
+          } else if (viewerRole === "tutor_empresa") {
+            const { data } = await supabase.from("tutor_empresa").select("usuario_id, cargo, empresa(nombre, logo_url)").neq("usuario_id", viewerId).limit(4);
+            (data ?? []).forEach((t: any) => roleSugs.push({ id: t.usuario_id, type: "empresa", name: t.empresa?.nombre ?? "Tutor de empresa", subtitle: t.cargo ?? "Tutor de empresa", avatarUrl: t.empresa?.logo_url ?? undefined, href: `/tutor-empresa/${t.usuario_id}`, reason: "Mismo rol" }));
+          } else if (viewerRole === "tutor_centro") {
+            const { data } = await supabase.from("tutor_centro").select("usuario_id, departamento, centro_educativo(nombre, avatar_url)").neq("usuario_id", viewerId).limit(4);
+            (data ?? []).forEach((t: any) => roleSugs.push({ id: t.usuario_id, type: "centro_educativo", name: t.centro_educativo?.nombre ?? "Tutor de centro", subtitle: t.departamento ?? "Tutor de centro", avatarUrl: t.centro_educativo?.avatar_url ?? undefined, href: `/tutor-centro/${t.usuario_id}`, reason: "Mismo rol" }));
+          }
+          setSameRoleSuggestions(roleSugs);
         })(),
       );
 
@@ -3512,6 +3544,19 @@ export default function UserProfilePage({
                   >
                     {suggestions.map((s) => (
                       <SuggestedCard key={s.id} profile={s} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {sameRoleSuggestions.length > 0 && ROLE_SUGGESTION_META[viewerRole] && (
+                <div>
+                  <div className="up-sidebar-label" style={{ marginTop: 8 }}>
+                    {ROLE_SUGGESTION_META[viewerRole]?.title}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {sameRoleSuggestions.map((s) => (
+                      <SuggestedCard key={`role-${s.id}`} profile={s} />
                     ))}
                   </div>
                 </div>
