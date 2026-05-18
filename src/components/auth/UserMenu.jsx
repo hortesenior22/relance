@@ -167,7 +167,7 @@ export default function UserMenu({ onClose }) {
     {
       icon: "icon-briefcase",
       label: "Gestionar ofertas",
-      href: "/admin/ofertas",
+      href: "/ofertas",
       roles: ["admin"],
     },
 

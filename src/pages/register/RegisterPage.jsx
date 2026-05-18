@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
 
-// ── Constantes ─────────────────────────────────────────────────────────────
+// ── Constantes ───────────────────────────────────────────────────────────────
 const ROLES = [
   {
     id: "estudiante",
@@ -25,7 +25,7 @@ const ROLES = [
   },
 ];
 
-// ── Helpers de validación ───────────────────────────────────────────────────
+// ── Validaciones ─────────────────────────────────────────────────────────────
 const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 const isValidUrl = (v) => {
   try {
@@ -54,13 +54,121 @@ function validateCommon(form) {
   return errs;
 }
 
-// ── Componentes auxiliares ──────────────────────────────────────────────────
+// ── Atoms ────────────────────────────────────────────────────────────────────
 function FieldError({ msg }) {
-  return msg ? <p className="text-xs text-red-400 mt-1">{msg}</p> : null;
+  return msg ? (
+    <p style={{ fontSize: 11.5, color: "var(--color-error)", marginTop: 4 }}>
+      {msg}
+    </p>
+  ) : null;
 }
 
-function inputCls(hasError) {
-  return `input-field${hasError ? " border-red-500/50 focus:border-red-500" : ""}`;
+const inputStyle = (hasError = false) => ({
+  width: "100%",
+  background: "var(--color-surface)",
+  border: `1px solid ${hasError ? "rgba(248,113,113,0.5)" : "var(--color-border-strong)"}`,
+  borderRadius: 10,
+  padding: "10px 14px",
+  fontSize: 13,
+  color: "var(--color-text)",
+  fontFamily: "inherit",
+  letterSpacing: "-0.01em",
+  outline: "none",
+  transition: "all 0.18s",
+  boxSizing: "border-box",
+});
+
+const labelStyle = {
+  display: "block",
+  fontSize: 12,
+  color: "var(--color-text-muted)",
+  marginBottom: 6,
+  fontWeight: 500,
+};
+
+function Input({
+  type = "text",
+  value,
+  onChange,
+  placeholder,
+  hasError = false,
+  style: extra = {},
+  min,
+  max,
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      min={min}
+      max={max}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={{
+        ...inputStyle(hasError),
+        borderColor: focused
+          ? "rgba(192,255,114,0.45)"
+          : hasError
+            ? "rgba(248,113,113,0.5)"
+            : "var(--color-border-strong)",
+        boxShadow: focused ? "0 0 0 3px rgba(192,255,114,0.12)" : "none",
+        ...extra,
+      }}
+    />
+  );
+}
+
+function Textarea({ value, onChange, rows = 3, placeholder }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <textarea
+      value={value}
+      onChange={onChange}
+      rows={rows}
+      placeholder={placeholder}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={{
+        ...inputStyle(),
+        resize: "none",
+        lineHeight: 1.6,
+        borderColor: focused
+          ? "rgba(192,255,114,0.45)"
+          : "var(--color-border-strong)",
+        boxShadow: focused ? "0 0 0 3px rgba(192,255,114,0.12)" : "none",
+      }}
+    />
+  );
+}
+
+function Select({ value, onChange, children }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <select
+      value={value}
+      onChange={onChange}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={{
+        ...inputStyle(),
+        borderColor: focused
+          ? "rgba(192,255,114,0.45)"
+          : "var(--color-border-strong)",
+        boxShadow: focused ? "0 0 0 3px rgba(192,255,114,0.12)" : "none",
+        cursor: "pointer",
+        appearance: "none",
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a9ab8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 12px center",
+        paddingRight: 36,
+      }}
+    >
+      {children}
+    </select>
+  );
 }
 
 function PasswordField({
@@ -71,6 +179,7 @@ function PasswordField({
   hasError = false,
 }) {
   const [show, setShow] = useState(false);
+  const [focused, setFocused] = useState(false);
   const score = !value
     ? 0
     : value.length < 6
@@ -80,34 +189,50 @@ function PasswordField({
         : /[A-Z]/.test(value) && /[0-9]/.test(value)
           ? 4
           : 3;
-  const colors = [
-    "",
-    "bg-red-500",
-    "bg-orange-500",
-    "bg-yellow-500",
-    "bg-brand",
-  ];
+  const colors = ["", "#f87171", "#fb923c", "#facc15", "#c0ff72"];
   const labels = ["", "Muy débil", "Débil", "Media", "Fuerte"];
 
   return (
     <div>
-      <div className="relative">
+      <div style={{ position: "relative" }}>
         <input
           type={show ? "text" : "password"}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
-          className={inputCls(hasError) + " pr-10"}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{
+            ...inputStyle(hasError),
+            paddingRight: 44,
+            borderColor: focused
+              ? "rgba(192,255,114,0.45)"
+              : hasError
+                ? "rgba(248,113,113,0.5)"
+                : "var(--color-border-strong)",
+            boxShadow: focused ? "0 0 0 3px rgba(192,255,114,0.12)" : "none",
+          }}
         />
         <button
           type="button"
           onClick={() => setShow(!show)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+          style={{
+            position: "absolute",
+            right: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--color-text-muted)",
+            padding: 4,
+            display: "flex",
+          }}
         >
           {show ? (
             <svg
-              width="18"
-              height="18"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -118,8 +243,8 @@ function PasswordField({
             </svg>
           ) : (
             <svg
-              width="18"
-              height="18"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -132,14 +257,36 @@ function PasswordField({
         </button>
       </div>
       {showStrength && value && (
-        <div className="mt-2 flex items-center gap-2">
+        <div
+          style={{
+            marginTop: 8,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
           {[1, 2, 3, 4].map((lvl) => (
             <div
               key={lvl}
-              className={`h-1 flex-1 rounded-full transition-all duration-300 ${score >= lvl ? colors[score] : "bg-white/10"}`}
+              style={{
+                height: 3,
+                flex: 1,
+                borderRadius: 3,
+                background:
+                  score >= lvl ? colors[score] : "rgba(255,255,255,0.06)",
+                transition: "background 0.3s",
+              }}
             />
           ))}
-          <span className="text-xs text-[var(--color-text-muted)] w-16 text-right">
+          <span
+            style={{
+              fontSize: 10.5,
+              color: "var(--color-text-muted)",
+              width: 60,
+              textAlign: "right",
+              fontFamily: "monospace",
+            }}
+          >
             {labels[score]}
           </span>
         </div>
@@ -153,13 +300,38 @@ function SubmitButton({ loading, label }) {
     <button
       type="submit"
       disabled={loading}
-      className="btn-primary w-full flex justify-center items-center gap-2 py-3.5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{
+        width: "100%",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 8,
+        padding: "12px 24px",
+        background: loading ? "rgba(192,255,114,0.5)" : "var(--color-brand)",
+        color: "#010a00",
+        border: "none",
+        borderRadius: 10,
+        fontSize: 14,
+        fontWeight: 700,
+        fontFamily: "inherit",
+        cursor: loading ? "not-allowed" : "pointer",
+        letterSpacing: "-0.02em",
+        transition: "all 0.16s",
+      }}
     >
       {loading ? (
         <>
-          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+          <svg
+            style={{
+              width: 16,
+              height: 16,
+              animation: "spin 0.8s linear infinite",
+            }}
+            viewBox="0 0 24 24"
+            fill="none"
+          >
             <circle
-              className="opacity-25"
+              style={{ opacity: 0.25 }}
               cx="12"
               cy="12"
               r="10"
@@ -167,7 +339,7 @@ function SubmitButton({ loading, label }) {
               strokeWidth="4"
             />
             <path
-              className="opacity-75"
+              style={{ opacity: 0.75 }}
               fill="currentColor"
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
             />
@@ -177,11 +349,93 @@ function SubmitButton({ loading, label }) {
       ) : (
         label
       )}
+      <style>{`@keyframes spin { to { transform:rotate(360deg) } }`}</style>
     </button>
   );
 }
 
-// ── Formulario ESTUDIANTE ───────────────────────────────────────────────────
+function SectionLabel({ children }) {
+  return (
+    <p
+      style={{
+        fontSize: 10,
+        color: "var(--color-text-muted)",
+        marginBottom: 12,
+        textTransform: "uppercase",
+        letterSpacing: "0.1em",
+        fontWeight: 700,
+        fontFamily: "monospace",
+      }}
+    >
+      {children}
+    </p>
+  );
+}
+
+function InfoNote({ children }) {
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        background: "rgba(192,255,114,0.04)",
+        border: "1px solid rgba(192,255,114,0.12)",
+        borderRadius: 10,
+        padding: "10px 14px",
+      }}
+    >
+      <p
+        style={{
+          fontSize: 11.5,
+          color: "var(--color-text-muted)",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 8,
+          lineHeight: 1.6,
+        }}
+      >
+        <svg
+          width="14"
+          height="14"
+          style={{ flexShrink: 0, marginTop: 2, color: "var(--color-brand)" }}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="16" x2="12" y2="12" />
+          <line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+        {children}
+      </p>
+    </div>
+  );
+}
+
+function ErrorBox({ msg }) {
+  if (!msg) return null;
+  return (
+    <div
+      style={{
+        background: "var(--color-error-bg)",
+        border: "1px solid rgba(248,113,113,0.25)",
+        borderRadius: 10,
+        padding: "12px 14px",
+        color: "var(--color-error)",
+        fontSize: 13,
+      }}
+    >
+      {msg}
+    </div>
+  );
+}
+
+// ── Grid helpers ─────────────────────────────────────────────────────────────
+const formGrid = { display: "grid", gap: 12 };
+const twoCol = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 };
+const fullSpan = { gridColumn: "1 / -1" };
+
+// ── STUDENT FORM ─────────────────────────────────────────────────────────────
 function StudentForm({ onSubmit, loading, error }) {
   const [form, setForm] = useState({
     fullName: "",
@@ -209,124 +463,107 @@ function StudentForm({ onSubmit, loading, error }) {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (validate()) onSubmit({ ...form, role: "estudiante" });
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="sm:col-span-2">
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Nombre completo *
-          </label>
-          <input
-            type="text"
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (validate()) onSubmit({ ...form, role: "estudiante" });
+      }}
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+      noValidate
+    >
+      <div style={formGrid}>
+        <div>
+          <label style={labelStyle}>Nombre completo *</label>
+          <Input
             value={form.fullName}
             onChange={s("fullName")}
             placeholder="Tu nombre y apellidos"
-            className={inputCls(errs.fullName)}
+            hasError={!!errs.fullName}
           />
           <FieldError msg={errs.fullName} />
         </div>
-        <div className="sm:col-span-2">
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Correo electrónico *
-          </label>
-          <input
+        <div>
+          <label style={labelStyle}>Correo electrónico *</label>
+          <Input
             type="email"
             value={form.email}
             onChange={s("email")}
             placeholder="tu@correo.com"
-            className={inputCls(errs.email)}
+            hasError={!!errs.email}
           />
           <FieldError msg={errs.email} />
         </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Contraseña *
-          </label>
-          <PasswordField
-            value={form.password}
-            onChange={s("password")}
-            hasError={!!errs.password}
-          />
-          <FieldError msg={errs.password} />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Confirmar contraseña *
-          </label>
-          <PasswordField
-            value={form.confirmPassword}
-            onChange={s("confirmPassword")}
-            placeholder="Repite la contraseña"
-            showStrength={false}
-            hasError={!!errs.confirmPassword}
-          />
-          <FieldError msg={errs.confirmPassword} />
+        <div style={twoCol}>
+          <div>
+            <label style={labelStyle}>Contraseña *</label>
+            <PasswordField
+              value={form.password}
+              onChange={s("password")}
+              hasError={!!errs.password}
+            />
+            <FieldError msg={errs.password} />
+          </div>
+          <div>
+            <label style={labelStyle}>Confirmar contraseña *</label>
+            <PasswordField
+              value={form.confirmPassword}
+              onChange={s("confirmPassword")}
+              placeholder="Repite la contraseña"
+              showStrength={false}
+              hasError={!!errs.confirmPassword}
+            />
+            <FieldError msg={errs.confirmPassword} />
+          </div>
         </div>
       </div>
 
-      <div className="pt-2 border-t border-white/10">
-        <p className="text-xs text-gray-500 mb-3 uppercase tracking-wider font-semibold">
-          Información académica (opcional)
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="sm:col-span-2">
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Centro educativo
-            </label>
-            <input
-              type="text"
+      <div
+        style={{ paddingTop: 14, borderTop: "1px solid var(--color-border)" }}
+      >
+        <SectionLabel>Información académica (opcional)</SectionLabel>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={labelStyle}>Centro educativo</label>
+            <Input
               value={form.centerName}
               onChange={s("centerName")}
               placeholder="Ej: IES Trassierra"
-              className="input-field"
             />
           </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Titulación / Ciclo
-            </label>
-            <input
-              type="text"
-              value={form.degree}
-              onChange={s("degree")}
-              placeholder="Ej: DAM"
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Año de finalización
-            </label>
-            <input
-              type="number"
-              value={form.graduationYear}
-              onChange={s("graduationYear")}
-              placeholder="2025"
-              min="2020"
-              max="2035"
-              className={inputCls(errs.graduationYear)}
-            />
-            <FieldError msg={errs.graduationYear} />
+          <div style={twoCol}>
+            <div>
+              <label style={labelStyle}>Titulación / Ciclo</label>
+              <Input
+                value={form.degree}
+                onChange={s("degree")}
+                placeholder="Ej: DAM"
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Año de finalización</label>
+              <Input
+                type="number"
+                value={form.graduationYear}
+                onChange={s("graduationYear")}
+                placeholder="2025"
+                min="2020"
+                max="2035"
+                hasError={!!errs.graduationYear}
+              />
+              <FieldError msg={errs.graduationYear} />
+            </div>
           </div>
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
-          {error}
-        </div>
-      )}
+      <ErrorBox msg={error} />
       <SubmitButton loading={loading} label="Crear cuenta de estudiante" />
     </form>
   );
 }
 
-// ── Formulario EMPRESA ──────────────────────────────────────────────────────
+// ── COMPANY FORM ─────────────────────────────────────────────────────────────
 function CompanyForm({ onSubmit, loading, error }) {
   const [form, setForm] = useState({
     fullName: "",
@@ -363,184 +600,163 @@ function CompanyForm({ onSubmit, loading, error }) {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (validate()) onSubmit({ ...form, role: "empresa" });
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="sm:col-span-2">
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Tu nombre completo (representante) *
-          </label>
-          <input
-            type="text"
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (validate()) onSubmit({ ...form, role: "empresa" });
+      }}
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+      noValidate
+    >
+      <div style={formGrid}>
+        <div>
+          <label style={labelStyle}>Tu nombre completo (representante) *</label>
+          <Input
             value={form.fullName}
             onChange={s("fullName")}
             placeholder="Nombre del representante"
-            className={inputCls(errs.fullName)}
+            hasError={!!errs.fullName}
           />
           <FieldError msg={errs.fullName} />
         </div>
-        <div className="sm:col-span-2">
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Correo electrónico corporativo *
-          </label>
-          <input
+        <div>
+          <label style={labelStyle}>Correo electrónico corporativo *</label>
+          <Input
             type="email"
             value={form.email}
             onChange={s("email")}
             placeholder="contacto@empresa.com"
-            className={inputCls(errs.email)}
+            hasError={!!errs.email}
           />
           <FieldError msg={errs.email} />
         </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Contraseña *
-          </label>
-          <PasswordField
-            value={form.password}
-            onChange={s("password")}
-            hasError={!!errs.password}
-          />
-          <FieldError msg={errs.password} />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Confirmar contraseña *
-          </label>
-          <PasswordField
-            value={form.confirmPassword}
-            onChange={s("confirmPassword")}
-            placeholder="Repite la contraseña"
-            showStrength={false}
-            hasError={!!errs.confirmPassword}
-          />
-          <FieldError msg={errs.confirmPassword} />
+        <div style={twoCol}>
+          <div>
+            <label style={labelStyle}>Contraseña *</label>
+            <PasswordField
+              value={form.password}
+              onChange={s("password")}
+              hasError={!!errs.password}
+            />
+            <FieldError msg={errs.password} />
+          </div>
+          <div>
+            <label style={labelStyle}>Confirmar contraseña *</label>
+            <PasswordField
+              value={form.confirmPassword}
+              onChange={s("confirmPassword")}
+              placeholder="Repite la contraseña"
+              showStrength={false}
+              hasError={!!errs.confirmPassword}
+            />
+            <FieldError msg={errs.confirmPassword} />
+          </div>
         </div>
       </div>
 
-      <div className="pt-2 border-t border-white/10">
-        <p className="text-xs text-gray-500 mb-3 uppercase tracking-wider font-semibold">
-          Datos de la empresa
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="sm:col-span-2">
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Nombre de la empresa *
-            </label>
-            <input
-              type="text"
+      <div
+        style={{ paddingTop: 14, borderTop: "1px solid var(--color-border)" }}
+      >
+        <SectionLabel>Datos de la empresa</SectionLabel>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={labelStyle}>Nombre de la empresa *</label>
+            <Input
               value={form.companyName}
               onChange={s("companyName")}
               placeholder="Mi Empresa S.L."
-              className={inputCls(errs.companyName)}
+              hasError={!!errs.companyName}
             />
             <FieldError msg={errs.companyName} />
           </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1.5">CIF *</label>
-            <input
-              type="text"
-              value={form.cif}
-              onChange={s("cif")}
-              placeholder="B12345678"
-              className={inputCls(errs.cif)}
-            />
-            <FieldError msg={errs.cif} />
+          <div style={twoCol}>
+            <div>
+              <label style={labelStyle}>CIF *</label>
+              <Input
+                value={form.cif}
+                onChange={s("cif")}
+                placeholder="B12345678"
+                hasError={!!errs.cif}
+              />
+              <FieldError msg={errs.cif} />
+            </div>
+            <div>
+              <label style={labelStyle}>Sector</label>
+              <Select value={form.sector} onChange={s("sector")}>
+                <option value="">Seleccionar sector</option>
+                {[
+                  "Tecnología",
+                  "Marketing",
+                  "Diseño",
+                  "Finanzas",
+                  "Salud",
+                  "Educación",
+                  "Comercio",
+                  "Industria",
+                  "Otro",
+                ].map((sec) => (
+                  <option key={sec} value={sec}>
+                    {sec}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <div style={twoCol}>
+            <div>
+              <label style={labelStyle}>Tamaño de empresa</label>
+              <Select value={form.tamanio} onChange={s("tamanio")}>
+                <option value="">Seleccionar tamaño</option>
+                {[
+                  "1–10 empleados",
+                  "11–50 empleados",
+                  "51–200 empleados",
+                  "201–500 empleados",
+                  "500+ empleados",
+                ].map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label style={labelStyle}>Ciudad</label>
+              <Input
+                value={form.ciudad}
+                onChange={s("ciudad")}
+                placeholder="Madrid"
+              />
+            </div>
+          </div>
+          <div style={twoCol}>
+            <div>
+              <label style={labelStyle}>Teléfono</label>
+              <Input
+                type="tel"
+                value={form.telefono}
+                onChange={s("telefono")}
+                placeholder="+34 900 000 000"
+                hasError={!!errs.telefono}
+              />
+              <FieldError msg={errs.telefono} />
+            </div>
+            <div>
+              <label style={labelStyle}>Sitio web</label>
+              <Input
+                type="url"
+                value={form.web}
+                onChange={s("web")}
+                placeholder="https://miempresa.com"
+                hasError={!!errs.web}
+              />
+              <FieldError msg={errs.web} />
+            </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">Sector</label>
-            <select
-              value={form.sector}
-              onChange={s("sector")}
-              className="input-field"
-            >
-              <option value="">Seleccionar sector</option>
-              {[
-                "Tecnología",
-                "Marketing",
-                "Diseño",
-                "Finanzas",
-                "Salud",
-                "Educación",
-                "Comercio",
-                "Industria",
-                "Otro",
-              ].map((sec) => (
-                <option key={sec} value={sec}>
-                  {sec}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Tamaño de empresa
-            </label>
-            <select
-              value={form.tamanio}
-              onChange={s("tamanio")}
-              className="input-field"
-            >
-              <option value="">Seleccionar tamaño</option>
-              {[
-                "1–10 empleados",
-                "11–50 empleados",
-                "51–200 empleados",
-                "201–500 empleados",
-                "500+ empleados",
-              ].map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1.5">Ciudad</label>
-            <input
-              type="text"
-              value={form.ciudad}
-              onChange={s("ciudad")}
-              placeholder="Madrid"
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Teléfono
-            </label>
-            <input
-              type="tel"
-              value={form.telefono}
-              onChange={s("telefono")}
-              placeholder="+34 900 000 000"
-              className={inputCls(errs.telefono)}
-            />
-            <FieldError msg={errs.telefono} />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Sitio web
-            </label>
-            <input
-              type="url"
-              value={form.web}
-              onChange={s("web")}
-              placeholder="https://miempresa.com"
-              className={inputCls(errs.web)}
-            />
-            <FieldError msg={errs.web} />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Descripción de la empresa
-            </label>
-            <textarea
+            <label style={labelStyle}>Descripción de la empresa</label>
+            <Textarea
               value={form.descripcion}
               onChange={(e) =>
                 setForm((f) => ({
@@ -548,37 +764,33 @@ function CompanyForm({ onSubmit, loading, error }) {
                   descripcion: e.target.value.slice(0, 500),
                 }))
               }
-              rows={3}
               placeholder="Describe tu empresa, cultura y qué tipo de perfiles buscáis..."
-              className="input-field resize-none"
             />
-            <p className="text-xs text-gray-600 mt-1 text-right">
+            <p
+              style={{
+                fontSize: 11,
+                color: "var(--color-text-muted)",
+                marginTop: 4,
+                textAlign: "right",
+              }}
+            >
               {form.descripcion.length}/500
             </p>
           </div>
-        </div>
-        <div className="mt-3 bg-brand/5 border border-brand/15 rounded-xl px-4 py-3">
-          <p className="text-xs text-gray-500 flex items-start gap-2">
-            <svg className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5">
-              <use href="/icons.svg#icon-info" />
-            </svg>
+          <InfoNote>
             El CIF será verificado por el equipo de Relance en un plazo de 24–48
             h antes de activar la cuenta plenamente.
-          </p>
+          </InfoNote>
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
-          {error}
-        </div>
-      )}
+      <ErrorBox msg={error} />
       <SubmitButton loading={loading} label="Crear cuenta de empresa" />
     </form>
   );
 }
 
-// ── Formulario CENTRO EDUCATIVO ─────────────────────────────────────────────
+// ── CENTER FORM ───────────────────────────────────────────────────────────────
 function CenterForm({ onSubmit, loading, error }) {
   const [form, setForm] = useState({
     fullName: "",
@@ -613,176 +825,145 @@ function CenterForm({ onSubmit, loading, error }) {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (validate()) onSubmit({ ...form, role: "centro_educativo" });
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="sm:col-span-2">
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Tu nombre completo (responsable) *
-          </label>
-          <input
-            type="text"
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (validate()) onSubmit({ ...form, role: "centro_educativo" });
+      }}
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+      noValidate
+    >
+      <div style={formGrid}>
+        <div>
+          <label style={labelStyle}>Tu nombre completo (responsable) *</label>
+          <Input
             value={form.fullName}
             onChange={s("fullName")}
             placeholder="Nombre del responsable"
-            className={inputCls(errs.fullName)}
+            hasError={!!errs.fullName}
           />
           <FieldError msg={errs.fullName} />
         </div>
-        <div className="sm:col-span-2">
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Correo electrónico institucional *
-          </label>
-          <input
+        <div>
+          <label style={labelStyle}>Correo electrónico institucional *</label>
+          <Input
             type="email"
             value={form.email}
             onChange={s("email")}
             placeholder="responsable@centro.edu.es"
-            className={inputCls(errs.email)}
+            hasError={!!errs.email}
           />
           <FieldError msg={errs.email} />
         </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Contraseña *
-          </label>
-          <PasswordField
-            value={form.password}
-            onChange={s("password")}
-            hasError={!!errs.password}
-          />
-          <FieldError msg={errs.password} />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Confirmar contraseña *
-          </label>
-          <PasswordField
-            value={form.confirmPassword}
-            onChange={s("confirmPassword")}
-            placeholder="Repite la contraseña"
-            showStrength={false}
-            hasError={!!errs.confirmPassword}
-          />
-          <FieldError msg={errs.confirmPassword} />
+        <div style={twoCol}>
+          <div>
+            <label style={labelStyle}>Contraseña *</label>
+            <PasswordField
+              value={form.password}
+              onChange={s("password")}
+              hasError={!!errs.password}
+            />
+            <FieldError msg={errs.password} />
+          </div>
+          <div>
+            <label style={labelStyle}>Confirmar contraseña *</label>
+            <PasswordField
+              value={form.confirmPassword}
+              onChange={s("confirmPassword")}
+              placeholder="Repite la contraseña"
+              showStrength={false}
+              hasError={!!errs.confirmPassword}
+            />
+            <FieldError msg={errs.confirmPassword} />
+          </div>
         </div>
       </div>
 
-      <div className="pt-2 border-t border-white/10">
-        <p className="text-xs text-gray-500 mb-3 uppercase tracking-wider font-semibold">
-          Datos del centro
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="sm:col-span-2">
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Nombre del centro *
-            </label>
-            <input
-              type="text"
+      <div
+        style={{ paddingTop: 14, borderTop: "1px solid var(--color-border)" }}
+      >
+        <SectionLabel>Datos del centro</SectionLabel>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={labelStyle}>Nombre del centro *</label>
+            <Input
               value={form.centerName}
               onChange={s("centerName")}
               placeholder="IES Nombre del Centro"
-              className={inputCls(errs.centerName)}
+              hasError={!!errs.centerName}
             />
             <FieldError msg={errs.centerName} />
           </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Código institucional *
-            </label>
-            <input
-              type="text"
-              value={form.institutionalCode}
-              onChange={s("institutionalCode")}
-              placeholder="Ej: IES-COR-2026"
-              className={inputCls(errs.institutionalCode)}
-            />
-            <FieldError msg={errs.institutionalCode} />
+          <div style={twoCol}>
+            <div>
+              <label style={labelStyle}>Código institucional *</label>
+              <Input
+                value={form.institutionalCode}
+                onChange={s("institutionalCode")}
+                placeholder="Ej: IES-COR-2026"
+                hasError={!!errs.institutionalCode}
+              />
+              <FieldError msg={errs.institutionalCode} />
+            </div>
+            <div>
+              <label style={labelStyle}>Tipo de centro</label>
+              <Select value={form.centerType} onChange={s("centerType")}>
+                <option value="">Seleccionar tipo</option>
+                {[
+                  "IES — Instituto de Educación Secundaria",
+                  "FP — Formación Profesional",
+                  "Universidad",
+                  "Centro privado",
+                  "Academia",
+                  "Otro",
+                ].map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <div style={twoCol}>
+            <div>
+              <label style={labelStyle}>Ciudad *</label>
+              <Input
+                value={form.city}
+                onChange={s("city")}
+                placeholder="Córdoba"
+                hasError={!!errs.city}
+              />
+              <FieldError msg={errs.city} />
+            </div>
+            <div>
+              <label style={labelStyle}>Provincia</label>
+              <Input
+                value={form.province}
+                onChange={s("province")}
+                placeholder="Córdoba"
+              />
+            </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Tipo de centro
-            </label>
-            <select
-              value={form.centerType}
-              onChange={s("centerType")}
-              className="input-field"
-            >
-              <option value="">Seleccionar tipo</option>
-              {[
-                "IES — Instituto de Educación Secundaria",
-                "FP — Formación Profesional",
-                "Universidad",
-                "Centro privado",
-                "Academia",
-                "Otro",
-              ].map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Ciudad *
-            </label>
-            <input
-              type="text"
-              value={form.city}
-              onChange={s("city")}
-              placeholder="Córdoba"
-              className={inputCls(errs.city)}
-            />
-            <FieldError msg={errs.city} />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Provincia
-            </label>
-            <input
-              type="text"
-              value={form.province}
-              onChange={s("province")}
-              placeholder="Córdoba"
-              className="input-field"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Sitio web del centro
-            </label>
-            <input
+            <label style={labelStyle}>Sitio web del centro</label>
+            <Input
               type="url"
               value={form.website}
               onChange={s("website")}
               placeholder="https://iesejemplo.edu.es"
-              className={inputCls(errs.website)}
+              hasError={!!errs.website}
             />
             <FieldError msg={errs.website} />
           </div>
-        </div>
-        <div className="mt-3 bg-brand/5 border border-brand/15 rounded-xl px-4 py-3">
-          <p className="text-xs text-gray-500 flex items-start gap-2">
-            <svg className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5">
-              <use href="/icons.svg#icon-info" />
-            </svg>
+          <InfoNote>
             El código institucional será verificado por el equipo de Relance
             antes de activar la cuenta.
-          </p>
+          </InfoNote>
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
-          {error}
-        </div>
-      )}
+      <ErrorBox msg={error} />
       <SubmitButton
         loading={loading}
         label="Crear cuenta de centro educativo"
@@ -791,7 +972,7 @@ function CenterForm({ onSubmit, loading, error }) {
   );
 }
 
-// ── Página principal ────────────────────────────────────────────────────────
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function RegisterPage() {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState(null);
@@ -803,12 +984,7 @@ export default function RegisterPage() {
   const handleSubmit = async (formData) => {
     setLoading(true);
     setError(null);
-
     const { fullName, email, password, role, ...extra } = formData;
-
-    // El trigger handle_new_user() se encarga de insertar en `usuario`
-    // y en la tabla de extensión correspondiente (estudiante / empresa /
-    // centro_educativo) usando los metadatos que pasamos aquí.
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -823,7 +999,6 @@ export default function RegisterPage() {
         },
       },
     });
-
     if (signUpError) {
       setLoading(false);
       setError(
@@ -833,172 +1008,375 @@ export default function RegisterPage() {
       );
       return;
     }
-
-    // Para empresa guardamos los datos extra (sector, tamaño, etc.) que el
-    // trigger no tiene porque no viajan en los metadatos de auth.
-    // Lo hacemos con service_role a través de una edge function, o bien
-    // dejamos que el usuario los complete en su perfil tras verificar el email.
-    // Por ahora simplemente mostramos el estado de éxito.
-
     setLoading(false);
     setRegisteredEmail(email);
     setSuccess(true);
   };
 
+  // ── Success screen ──
   if (success) {
     return (
       <MainLayout>
-        <div className="min-h-screen bg-dark flex items-center justify-center p-4">
-          <div className="bg-dark-800 border border-white/10 rounded-2xl w-full max-w-md p-10 text-center">
-            <div className="mb-5 flex justify-center">
-              <svg className="w-16 h-16 text-brand" viewBox="0 0 640 640">
-                <use href="/icons.svg#icon-party" />
-              </svg>
+        <div
+          style={{
+            minHeight: "100vh",
+            background: "var(--color-bg)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: "var(--color-surface-strong)",
+              border: "1px solid var(--color-border-strong)",
+              borderRadius: 18,
+              width: "100%",
+              maxWidth: 440,
+              padding: "48px 36px",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                marginBottom: 20,
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 16,
+                  background: "rgba(192,255,114,0.08)",
+                  border: "1px solid rgba(192,255,114,0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg className="w-16 h-16 text-brand" viewBox="0 0 640 640">
+                  <use href="/icons.svg#icon-party" />
+                </svg>
+              </div>
             </div>
-            <h2 className="font-display text-2xl font-bold text-white mb-3">
+            <h2
+              style={{
+                fontFamily: "Syne, sans-serif",
+                fontSize: 22,
+                fontWeight: 800,
+                color: "var(--color-text)",
+                marginBottom: 10,
+                letterSpacing: "-0.04em",
+              }}
+            >
               ¡Cuenta creada!
             </h2>
-            <p className="text-gray-400 text-sm mb-2">
+            <p
+              style={{
+                color: "var(--color-text-muted)",
+                fontSize: 13,
+                marginBottom: 6,
+              }}
+            >
               Hemos enviado un correo de verificación a:
             </p>
-            <p className="text-brand font-semibold mb-6">{registeredEmail}</p>
-            <p className="text-gray-500 text-xs mb-8">
+            <p
+              style={{
+                color: "var(--color-brand)",
+                fontWeight: 700,
+                fontSize: 14,
+                marginBottom: 20,
+              }}
+            >
+              {registeredEmail}
+            </p>
+            <p
+              style={{
+                color: "var(--color-text-muted)",
+                fontSize: 12,
+                marginBottom: 28,
+                lineHeight: 1.7,
+              }}
+            >
               Revisa tu bandeja de entrada (y la carpeta de spam) y haz clic en
               el enlace para activar tu cuenta.
               {(selectedRole === "empresa" ||
                 selectedRole === "centro_educativo") && (
-                <span className="block mt-2">
-                  Además, el equipo de Relance verificará tus datos en 24–48 h.
+                <span style={{ display: "block", marginTop: 8 }}>
+                  El equipo de Relance verificará tus datos en 24–48 h.
                 </span>
               )}
             </p>
-            <button
-              onClick={() => navigate("/")}
-              className="btn-primary w-full"
-            >
-              Ir al inicio
-            </button>
-            <button
-              onClick={() => navigate("/login")}
-              className="btn-secondary w-full mt-3"
-            >
-              Iniciar sesión
-            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                onClick={() => navigate("/")}
+                style={{
+                  width: "100%",
+                  padding: "11px 20px",
+                  background: "var(--color-brand)",
+                  color: "#010a00",
+                  border: "none",
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                }}
+              >
+                Ir al inicio
+              </button>
+              <button
+                onClick={() => navigate("/login")}
+                style={{
+                  width: "100%",
+                  padding: "11px 20px",
+                  background: "transparent",
+                  color: "var(--color-brand)",
+                  border: "1px solid rgba(192,255,114,0.25)",
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                }}
+              >
+                Iniciar sesión
+              </button>
+            </div>
           </div>
         </div>
       </MainLayout>
     );
   }
 
+  // ── Register screen ──
   return (
     <MainLayout>
-      {/* Fondo grid */}
+      {/* Background */}
       <div
-        className="absolute inset-0 opacity-[0.03]"
         style={{
+          position: "absolute",
+          inset: 0,
           zIndex: -99,
-          backgroundImage: `linear-gradient(rgba(192,255,114,1) 1px, transparent 1px), linear-gradient(90deg, rgba(192,255,114,1) 1px, transparent 1px)`,
+          opacity: 0.03,
+          backgroundImage:
+            "linear-gradient(rgba(192,255,114,1) 1px, transparent 1px), linear-gradient(90deg, rgba(192,255,114,1) 1px, transparent 1px)",
           backgroundSize: "60px 60px",
         }}
       />
-      {/* Glow central */}
       <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full opacity-[0.06] blur-[120px] pointer-events-none"
-        style={{ background: "#c0ff72" }}
+        style={{
+          position: "absolute",
+          top: "40%",
+          left: "50%",
+          transform: "translate(-50%,-50%)",
+          width: 600,
+          height: 400,
+          borderRadius: "50%",
+          opacity: 0.05,
+          filter: "blur(100px)",
+          background: "var(--color-brand)",
+          pointerEvents: "none",
+          zIndex: -98,
+        }}
       />
 
-      <div className="max-w-xl lg:max-w-2xl mx-auto mb-8 lg:mb-10">
-        <div className="text-center m-10">
-          <h1 className="font-display text-3xl font-extrabold text-white mb-2">
+      <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 20px 60px" }}>
+        {/* Header */}
+        <div style={{ textAlign: "center", padding: "40px 0 28px" }}>
+          <h1
+            style={{
+              fontFamily: "Syne, sans-serif",
+              fontSize: 28,
+              fontWeight: 800,
+              color: "var(--color-text)",
+              marginBottom: 8,
+              letterSpacing: "-0.04em",
+            }}
+          >
             Crea tu cuenta
           </h1>
-          <p className="text-gray-500 text-base">
+          <p style={{ color: "var(--color-text-muted)", fontSize: 14 }}>
             Elige tu tipo de cuenta para empezar
           </p>
         </div>
 
-        {/* Selector de rol */}
-        <div className="grid grid-cols-3 gap-3 mb-8">
-          {ROLES.map((role) => (
-            <button
-              key={role.id}
-              onClick={() => {
-                setSelectedRole(role.id);
-                setError(null);
-              }}
-              className={`relative p-4 rounded-2xl border text-left transition-all duration-200 overflow-hidden ${
-                selectedRole === role.id
-                  ? "border-brand bg-brand/10"
-                  : "border-white/10 hover:border-white/20 bg-dark-800"
-              }`}
-            >
-              {selectedRole === role.id && (
-                <div className="absolute inset-0 bg-brand/5 pointer-events-none" />
-              )}
-              <span className="text-2xl block mb-2">
-                <svg className="w-5 h-5">
-                  <use href={`/icons.svg#${role.icon}`} />
-                </svg>
-              </span>
-              <span
-                className={`block text-sm font-bold font-display ${selectedRole === role.id ? "text-white" : "text-gray-300"}`}
+        {/* Role selector */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 10,
+            marginBottom: 20,
+          }}
+        >
+          {ROLES.map((role) => {
+            const active = selectedRole === role.id;
+            return (
+              <button
+                key={role.id}
+                onClick={() => {
+                  setSelectedRole(role.id);
+                  setError(null);
+                }}
+                style={{
+                  position: "relative",
+                  padding: "16px 12px",
+                  borderRadius: 12,
+                  border: `1px solid ${active ? "rgba(192,255,114,0.35)" : "var(--color-border-strong)"}`,
+                  background: active
+                    ? "rgba(192,255,114,0.06)"
+                    : "var(--color-surface-strong)",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                  outline: "none",
+                }}
               >
-                {role.label}
-              </span>
-              <span className="block text-xs text-gray-500 mt-0.5 leading-tight">
-                {role.desc}
-              </span>
-              {selectedRole === role.id && (
-                <div className="absolute top-2.5 right-2.5">
+                {active && (
+                  <div style={{ position: "absolute", top: 10, right: 10 }}>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#c0ff72"
+                      strokeWidth="3"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                )}
+                <span style={{ display: "block", marginBottom: 8 }}>
                   <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#c0ff72"
-                    strokeWidth="3"
+                    style={{
+                      width: 18,
+                      height: 18,
+                      color: active
+                        ? "var(--color-brand)"
+                        : "var(--color-text-muted)",
+                    }}
                   >
-                    <polyline points="20 6 9 17 4 12" />
+                    <use href={`/icons.svg#${role.icon}`} />
                   </svg>
-                </div>
-              )}
-            </button>
-          ))}
+                </span>
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: active
+                      ? "var(--color-text)"
+                      : "var(--color-text-secondary)",
+                    marginBottom: 2,
+                    fontFamily: "Syne, sans-serif",
+                  }}
+                >
+                  {role.label}
+                </span>
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: 11,
+                    color: "var(--color-text-muted)",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {role.desc}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Aviso tutores */}
-        <div className="mb-6 bg-brand/5 border border-brand/20 rounded-2xl p-4 flex gap-3">
-          <span className="flex-shrink-0">
-            <svg className="text-brand w-5 h-5">
+        {/* Tutor notice */}
+        <div
+          style={{
+            marginBottom: 16,
+            background: "rgba(192,255,114,0.04)",
+            border: "1px solid rgba(192,255,114,0.15)",
+            borderRadius: 12,
+            padding: "14px 16px",
+            display: "flex",
+            gap: 12,
+          }}
+        >
+          <span style={{ flexShrink: 0, color: "var(--color-brand)" }}>
+            <svg style={{ width: 18, height: 18 }}>
               <use href="/icons.svg#icon-tutor" />
             </svg>
           </span>
           <div>
-            <p className="text-brand text-sm font-semibold">¿Eres tutor?</p>
-            <p className="text-gray-500 text-xs mt-1 leading-relaxed">
+            <p
+              style={{
+                color: "var(--color-brand)",
+                fontSize: 13,
+                fontWeight: 600,
+                marginBottom: 4,
+              }}
+            >
+              ¿Eres tutor?
+            </p>
+            <p
+              style={{
+                color: "var(--color-text-muted)",
+                fontSize: 12,
+                lineHeight: 1.6,
+              }}
+            >
               Los tutores se registran únicamente a través del{" "}
-              <strong className="text-gray-400">enlace de invitación QR</strong>{" "}
-              generado por su empresa o centro. Pide a tu responsable que lo
-              genere desde su perfil.
+              <strong style={{ color: "var(--color-text-secondary)" }}>
+                enlace de invitación QR
+              </strong>{" "}
+              generado por su empresa o centro.
             </p>
           </div>
         </div>
 
-        {/* Formulario */}
+        {/* Form card */}
         {selectedRole && (
-          <div className="rounded-2xl p-5 sm:p-6 lg:p-7 border border-[var(--color-border-strong)] bg-[var(--color-surface-strong)]">
-            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[var(--color-border)]">
-              <span className="text-xl">
-                <svg className="w-6 h-6">
+          <div
+            style={{
+              background: "var(--color-surface-strong)",
+              border: "1px solid var(--color-border-strong)",
+              borderRadius: 14,
+              padding: "22px 24px",
+            }}
+          >
+            {/* Form header */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                marginBottom: 20,
+                paddingBottom: 14,
+                borderBottom: "1px solid var(--color-border)",
+              }}
+            >
+              <span style={{ color: "var(--color-text-muted)" }}>
+                <svg style={{ width: 18, height: 18 }}>
                   <use
                     href={`/icons.svg#${ROLES.find((r) => r.id === selectedRole)?.icon}`}
                   />
                 </svg>
               </span>
-              <h2 className="font-display font-bold text-white">
+              <h2
+                style={{
+                  fontFamily: "Syne, sans-serif",
+                  fontWeight: 800,
+                  color: "var(--color-text)",
+                  fontSize: 16,
+                  letterSpacing: "-0.03em",
+                }}
+              >
                 Registro como {ROLES.find((r) => r.id === selectedRole)?.label}
               </h2>
             </div>
+
             {selectedRole === "estudiante" && (
               <StudentForm
                 onSubmit={handleSubmit}
@@ -1023,17 +1401,38 @@ export default function RegisterPage() {
           </div>
         )}
 
+        {/* Empty state */}
         {!selectedRole && (
-          <div className="text-center text-[var(--color-text-muted)] text-sm py-7">
+          <div
+            style={{
+              textAlign: "center",
+              color: "var(--color-text-muted)",
+              fontSize: 13,
+              padding: "28px 0",
+            }}
+          >
             Selecciona un tipo de cuenta para continuar
           </div>
         )}
 
-        <p className="text-center text-sm text-[var(--color-text-muted)] mt-5">
+        {/* Login link */}
+        <p
+          style={{
+            textAlign: "center",
+            fontSize: 13,
+            color: "var(--color-text-muted)",
+            marginTop: 20,
+          }}
+        >
           ¿Ya tienes cuenta?{" "}
           <a
             onClick={() => navigate("/", { state: { openLogin: true } })}
-            className="text-brand hover:text-brand-dark font-medium transition-colors hover:cursor-pointer"
+            style={{
+              color: "var(--color-brand)",
+              fontWeight: 600,
+              cursor: "pointer",
+              textDecoration: "none",
+            }}
           >
             Inicia sesión
           </a>

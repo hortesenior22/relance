@@ -1,14 +1,13 @@
 /**
- * UserProfilePage.tsx — Rediseño Profesional Enterprise
+ * UserProfilePage.tsx — Rediseño Enterprise v2
  *
- * Página completa de perfil. Accesible mediante:
- *   /empresa/:id  |  /centro/:id  |  /estudiante/:id
- *   /tutor-empresa/:id  |  /tutor-centro/:id
- *
- * Sin emojis — todos los iconos son SVG inline.
- * Diseño editorial enterprise — denso, preciso, austero.
- * Tipografía: Geist + Geist Mono (Vercel's system)
- * Tamaños optimizados para portátil (~13" — todo ~10% más pequeño).
+ * Rediseño completo con:
+ * - Layout centrado con márgenes amplios (max-width 1140px)
+ * - Hero card estilo LinkedIn con cover, avatar flotante y stats integrados
+ * - Sistema de tarjetas con secciones bien delimitadas
+ * - Sidebar sticky con datos clave y sugerencias
+ * - Responsive: grid 2col → 1col en móvil, sidebar oculto
+ * - Paleta original conservada, jerarquía visual mejorada
  */
 
 import { useState, useEffect } from "react";
@@ -16,7 +15,7 @@ import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabase";
 import MainLayout from "../../components/layout/MainLayout";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────────────────
 
 type ViewerRole =
   | "administrador"
@@ -100,14 +99,6 @@ interface SuggestedProfile {
   reason: string;
 }
 
-const ROLE_SUGGESTION_META: Partial<Record<ViewerRole, { title: string; emptyReason: string }>> = {
-  estudiante: { title: "Más estudiantes", emptyReason: "Mismo rol" },
-  empresa: { title: "Más empresas", emptyReason: "Mismo rol" },
-  centro_educativo: { title: "Más centros educativos", emptyReason: "Mismo rol" },
-  tutor_empresa: { title: "Más tutores de empresa", emptyReason: "Mismo rol" },
-  tutor_centro: { title: "Más tutores de centro", emptyReason: "Mismo rol" },
-};
-
 interface Candidatura {
   id_candidatura: number;
   estado: string;
@@ -117,17 +108,13 @@ interface Candidatura {
   titulo_oferta?: string;
 }
 
-type TabItem =
-  | { id: "info" | "actividad"; label: string; icon: React.ReactNode }
-  | { id: "candidaturas"; label: string; count: number; icon: React.ReactNode };
-
 export interface UserProfilePageProps {
   entityType?: EntityType;
   entityId?: string;
   onBack?: () => void;
 }
 
-// ─── Route inference ──────────────────────────────────────────────────────────
+// ─── Route inference ──────────────────────────────────────────────────────
 
 function inferFromPath(): {
   entityType: EntityType | null;
@@ -152,7 +139,7 @@ function inferTutorType(): "tutor_empresa" | "tutor_centro" | null {
   return null;
 }
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
+// ─── Design tokens ────────────────────────────────────────────────────────
 
 const EC: Record<
   EntityType | "tutor_empresa" | "tutor_centro",
@@ -162,673 +149,890 @@ const EC: Record<
     accentBorder: string;
     label: string;
     dot: string;
+    coverFrom: string;
+    coverTo: string;
   }
 > = {
   empresa: {
     accent: "#c0ff72",
-    accentFaint: "rgba(192,255,114,0.06)",
-    accentBorder: "rgba(192,255,114,0.18)",
+    accentFaint: "rgba(192,255,114,0.08)",
+    accentBorder: "rgba(192,255,114,0.22)",
     label: "Empresa",
     dot: "#c0ff72",
+    coverFrom: "rgba(192,255,114,0.12)",
+    coverTo: "rgba(192,255,114,0.03)",
   },
   centro_educativo: {
     accent: "#60a5fa",
-    accentFaint: "rgba(96,165,250,0.06)",
-    accentBorder: "rgba(96,165,250,0.18)",
+    accentFaint: "rgba(96,165,250,0.08)",
+    accentBorder: "rgba(96,165,250,0.22)",
     label: "Centro Educativo",
     dot: "#60a5fa",
+    coverFrom: "rgba(96,165,250,0.12)",
+    coverTo: "rgba(96,165,250,0.03)",
   },
   estudiante: {
-    accent: "#fb923c",
-    accentFaint: "rgba(251,146,60,0.06)",
-    accentBorder: "rgba(251,146,60,0.18)",
+    accent: "#c0ff72",
+    accentFaint: "rgba(192,255,114,0.08)",
+    accentBorder: "rgba(192,255,114,0.22)",
     label: "Estudiante",
-    dot: "#fb923c",
+    dot: "#c0ff72",
+    coverFrom: "rgba(192,255,114,0.1)",
+    coverTo: "rgba(96,165,250,0.04)",
   },
   oferta: {
     accent: "#a78bfa",
-    accentFaint: "rgba(167,139,250,0.06)",
-    accentBorder: "rgba(167,139,250,0.18)",
+    accentFaint: "rgba(167,139,250,0.08)",
+    accentBorder: "rgba(167,139,250,0.22)",
     label: "Oferta",
     dot: "#a78bfa",
+    coverFrom: "rgba(167,139,250,0.1)",
+    coverTo: "rgba(167,139,250,0.03)",
   },
   tutor_empresa: {
     accent: "#f472b6",
-    accentFaint: "rgba(244,114,182,0.06)",
-    accentBorder: "rgba(244,114,182,0.18)",
+    accentFaint: "rgba(244,114,182,0.08)",
+    accentBorder: "rgba(244,114,182,0.22)",
     label: "Tutor de empresa",
     dot: "#f472b6",
+    coverFrom: "rgba(244,114,182,0.1)",
+    coverTo: "rgba(244,114,182,0.03)",
   },
   tutor_centro: {
     accent: "#34d399",
-    accentFaint: "rgba(52,211,153,0.06)",
-    accentBorder: "rgba(52,211,153,0.18)",
+    accentFaint: "rgba(52,211,153,0.08)",
+    accentBorder: "rgba(52,211,153,0.22)",
     label: "Tutor de centro",
     dot: "#34d399",
+    coverFrom: "rgba(52,211,153,0.1)",
+    coverTo: "rgba(52,211,153,0.03)",
   },
 };
 
-const DISP_MAP: Record<string, { label: string; color: string }> = {
-  inmediata: { label: "Disponible ahora", color: "#4ade80" },
-  "1_mes": { label: "Disponible en 1 mes", color: "#facc15" },
-  "3_meses": { label: "Disponible en 3 meses", color: "#fb923c" },
-  no_disponible: { label: "No disponible", color: "#f87171" },
+const DISP_MAP: Record<string, { label: string; color: string; bg: string }> = {
+  inmediata: {
+    label: "Disponible ahora",
+    color: "#4ade80",
+    bg: "rgba(74,222,128,0.1)",
+  },
+  "1_mes": { label: "En 1 mes", color: "#facc15", bg: "rgba(250,204,21,0.1)" },
+  "3_meses": {
+    label: "En 3 meses",
+    color: "#fb923c",
+    bg: "rgba(251,146,60,0.1)",
+  },
+  no_disponible: {
+    label: "No disponible",
+    color: "#f87171",
+    bg: "rgba(248,113,113,0.1)",
+  },
 };
 
-const CAND_MAP: Record<string, { color: string; label: string }> = {
-  pendiente: { color: "#facc15", label: "Pendiente" },
-  aceptada: { color: "#4ade80", label: "Aceptada" },
-  rechazada: { color: "#f87171", label: "Rechazada" },
-  en_proceso: { color: "#60a5fa", label: "En proceso" },
+const CAND_MAP: Record<string, { color: string; label: string; bg: string }> = {
+  pendiente: {
+    color: "#facc15",
+    label: "Pendiente",
+    bg: "rgba(250,204,21,0.1)",
+  },
+  aceptada: { color: "#4ade80", label: "Aceptada", bg: "rgba(74,222,128,0.1)" },
+  rechazada: {
+    color: "#f87171",
+    label: "Rechazada",
+    bg: "rgba(248,113,113,0.1)",
+  },
+  en_proceso: {
+    color: "#60a5fa",
+    label: "En proceso",
+    bg: "rgba(96,165,250,0.1)",
+  },
 };
 
-// ─── Global styles injected once ─────────────────────────────────────────────
+// ─── CSS ──────────────────────────────────────────────────────────────────
 
-const GLOBAL_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap');
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap');
+
 @keyframes spin { to { transform: rotate(360deg) } }
-@keyframes toast-in { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
-@keyframes fade-in { from { opacity:0 } to { opacity:1 } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes toastIn { from { opacity: 0; transform: translateY(10px) scale(0.96) } to { opacity: 1; transform: translateY(0) scale(1) } }
+@keyframes shimmer { from { background-position: -400% 0 } to { background-position: 400% 0 } }
+@keyframes progressFill { from { width: 0 } }
 
-* { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-.up-root {
+.p-root {
   min-height: 100vh;
   background: var(--color-bg);
-  font-family: 'Geist', 'DM Sans', system-ui, sans-serif;
-  font-size: 13px;
+  font-family: 'Geist', system-ui, sans-serif;
   color: var(--color-text);
-  padding-top: 72px;
-  animation: fade-in 0.18s ease;
+  padding-top: 68px;
+  animation: fadeIn 0.24s ease forwards;
 }
 
-.up-inner {
-  max-width: 1020px;
+/* ── Page container (márgenes amplios) ── */
+.p-page {
+  max-width: 1140px;
   margin: 0 auto;
-  padding: 28px 20px 80px;
-  display: grid;
-  grid-template-columns: 1fr 280px;
-  grid-template-rows: auto 1fr;
-  column-gap: 16px;
-  row-gap: 0;
+  padding: 0 28px 100px;
 }
 
-@media (max-width: 768px) {
-  .up-inner { grid-template-columns: 1fr; }
-  .up-sidebar { display: none; }
+@media (max-width: 1180px) { .p-page { padding: 0 20px 80px; } }
+@media (max-width: 640px)  { .p-page { padding: 0 14px 60px; } }
+
+/* ── Back button ── */
+.p-back-row {
+  display: flex;
+  align-items: center;
+  padding: 20px 0 14px;
 }
-
-.up-main { grid-column: 1; }
-.up-sidebar { grid-column: 2; grid-row: 1 / span 3; }
-
-/* Back button */
-.up-back {
+.p-back {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  background: transparent;
+  gap: 6px;
+  background: none;
   border: none;
   cursor: pointer;
-  color: var(--color-text-subtle);
-  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-size: 12px;
   font-family: inherit;
-  padding: 0;
-  margin-bottom: 18px;
-  letter-spacing: 0.01em;
-  transition: color 0.12s;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 4px 0;
+  transition: color 0.13s;
 }
-.up-back:hover { color: var(--color-text); }
+.p-back:hover { color: var(--color-text); }
 
-/* Panel base */
-.up-panel {
-  background: var(--color-surface-strong, rgba(255,255,255,0.03));
-  border: 1px solid var(--color-border, rgba(255,255,255,0.08));
-  border-radius: 10px;
+/* ── Main layout: main + sidebar ── */
+.p-layout {
+  display: grid;
+  grid-template-columns: 1fr 308px;
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .p-layout { grid-template-columns: 1fr; }
+  .p-sidebar { display: none; }
+}
+
+/* ═══════════════════════════════════════
+   HERO CARD
+═══════════════════════════════════════ */
+.p-hero {
+  background: var(--color-surface-strong);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+/* Cover band */
+.p-cover {
+  height: 120px;
+  position: relative;
   overflow: hidden;
 }
+.p-cover-bg {
+  position: absolute;
+  inset: 0;
+}
+.p-cover-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.p-cover-fade {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background: linear-gradient(to bottom, transparent, var(--color-surface-strong));
+}
+.p-cover-line {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+}
 
-/* Hero panel */
-.up-hero {
-  margin-bottom: 10px;
+/* Avatar + header */
+.p-head {
+  padding: 0 28px 24px;
   position: relative;
 }
 
-.up-hero-accent-bar {
-  height: 2px;
-  width: 100%;
+.p-avatar-wrap {
+  position: absolute;
+  top: -44px;
+  left: 28px;
 }
-
-.up-hero-body {
-  padding: 20px 22px 18px;
+.p-avatar-shell {
+  width: 88px;
+  height: 88px;
+  border-radius: 16px;
+  border: 3px solid var(--color-surface-strong);
+  overflow: hidden;
+  background: var(--color-surface-elevated);
+  position: relative;
 }
-
-.up-hero-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.up-hero-left {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-
-.up-avatar-wrap { position: relative; flex-shrink: 0; }
-
-.up-avatar {
-  width: 58px;
-  height: 58px;
-  border-radius: 10px;
+.p-avatar-img {
+  width: 100%; height: 100%;
   object-fit: cover;
   display: block;
 }
-
-.up-avatar-placeholder {
-  width: 58px;
-  height: 58px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  flex-shrink: 0;
+.p-avatar-initials {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
-
-.up-verified-badge {
+.p-verified-badge {
   position: absolute;
-  bottom: -4px;
-  right: -4px;
-  width: 16px;
-  height: 16px;
+  bottom: -4px; right: -4px;
+  width: 22px; height: 22px;
   border-radius: 50%;
   background: #c0ff72;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid var(--color-surface-strong, #111);
+  border: 2.5px solid var(--color-surface-strong);
+  display: flex; align-items: center; justify-content: center;
 }
 
-.up-hero-meta { padding-top: 2px; }
+/* Name row */
+.p-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-top: 54px;
+  gap: 16px;
+}
+.p-name-info { flex: 1; min-width: 0; }
 
-.up-entity-label {
+.p-entity-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   font-size: 10px;
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-  font-weight: 500;
+  font-family: 'Geist Mono', monospace;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.p-verified-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-family: 'Geist Mono', monospace;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(192,255,114,0.1);
+  color: #c0ff72;
+  border: 1px solid rgba(192,255,114,0.2);
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.p-name {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1.08;
+  color: var(--color-text);
   margin-bottom: 5px;
 }
-
-.up-name {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1.1;
-  color: var(--color-text);
-}
-
-.up-subtitle {
-  font-size: 12px;
-  color: var(--color-text-muted, rgba(255,255,255,0.4));
-  margin-top: 3px;
+.p-headline {
+  font-size: 14px;
+  color: var(--color-text-secondary);
   letter-spacing: -0.01em;
+  line-height: 1.55;
 }
 
-.up-hero-actions {
+/* Actions cluster */
+.p-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
-  align-items: flex-start;
-  padding-top: 2px;
+  flex-shrink: 0;
+  padding-top: 4px;
 }
 
-.up-pills {
+/* Meta pills */
+.p-meta-row {
   display: flex;
   align-items: center;
-  gap: 10px;
   flex-wrap: wrap;
-  padding-top: 2px;
-  margin-top: 12px;
-  border-top: 1px solid var(--color-border, rgba(255,255,255,0.06));
-  padding-top: 12px;
+  gap: 20px;
+  padding: 16px 28px 0;
+  border-top: 1px solid var(--color-border);
+  margin-top: 20px;
 }
-
-.up-pill {
+.p-meta-item {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--color-text-subtle, rgba(255,255,255,0.35));
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-family: 'Geist Mono', monospace;
+  letter-spacing: 0.01em;
 }
-
-/* Stats strip */
-.up-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-  border-top: 1px solid var(--color-border, rgba(255,255,255,0.06));
-}
-
-.up-stat {
-  padding: 14px 18px;
-  border-right: 1px solid var(--color-border, rgba(255,255,255,0.06));
-}
-.up-stat:last-child { border-right: none; }
-
-.up-stat-value {
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  margin-bottom: 3px;
-}
-
-.up-stat-label {
-  font-size: 10.5px;
-  color: var(--color-text-subtle, rgba(255,255,255,0.35));
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-/* Tabs */
-.up-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.06));
-  margin-bottom: 10px;
-  gap: 0;
-}
-
-.up-tab {
+.p-meta-link {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 9px 14px;
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
   font-size: 12px;
-  font-family: inherit;
-  font-weight: 500;
-  color: var(--color-text-muted, rgba(255,255,255,0.4));
-  transition: all 0.12s;
-  margin-bottom: -1px;
-  letter-spacing: -0.01em;
+  text-decoration: none;
+  transition: opacity 0.13s;
+  font-family: 'Geist Mono', monospace;
 }
-.up-tab:hover { color: var(--color-text); }
-.up-tab.active { color: var(--color-text); }
+.p-meta-link:hover { opacity: 0.75; }
 
-.up-tab-badge {
-  font-size: 9.5px;
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: rgba(255,255,255,0.06);
+/* ── Stats strip (horizontal dividers) ── */
+.p-stats {
+  display: grid;
+  border-top: 1px solid var(--color-border);
+  margin-top: 20px;
 }
-.up-tab.active .up-tab-badge { background: rgba(255,255,255,0.1); }
+.p-stats-3 { grid-template-columns: repeat(3, 1fr); }
+.p-stats-2 { grid-template-columns: repeat(2, 1fr); }
+.p-stats-1 { grid-template-columns: 1fr; }
 
-/* Section cards */
-.up-section {
-  margin-bottom: 10px;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
-  background: var(--color-surface-strong, rgba(255,255,255,0.02));
+.p-stat {
+  padding: 18px 24px;
+  text-align: center;
+  border-right: 1px solid var(--color-border);
 }
-
-.up-section-header {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.06));
-  background: rgba(255,255,255,0.015);
+.p-stat:last-child { border-right: none; }
+.p-stat-value {
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  margin-bottom: 4px;
 }
-
-.up-section-title {
+.p-stat-label {
   font-size: 10px;
-  font-weight: 600;
+  color: var(--color-text-muted);
+  font-family: 'Geist Mono', monospace;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-  color: var(--color-text-subtle, rgba(255,255,255,0.35));
 }
 
-.up-section-body { padding: 14px 16px; }
-.up-section-body-flush { padding: 0; }
-
-/* Info rows */
-.up-info-row {
-  display: grid;
-  grid-template-columns: 100px 1fr;
-  align-items: baseline;
-  gap: 8px;
-  padding: 7px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.035);
+/* ═══════════════════════════════════════
+   TABS
+═══════════════════════════════════════ */
+.p-tabs {
+  background: var(--color-surface-strong);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  padding: 5px;
+  display: flex;
+  gap: 3px;
+  margin-bottom: 14px;
 }
-.up-info-row:last-child { border-bottom: none; }
+.p-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 14px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--color-text-muted);
+  letter-spacing: -0.01em;
+  transition: all 0.14s;
+  white-space: nowrap;
+}
+.p-tab:hover { color: var(--color-text); background: rgba(255,255,255,0.03); }
+.p-tab.active {
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.p-tab-badge {
+  font-size: 9px;
+  font-family: 'Geist Mono', monospace;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(255,255,255,0.07);
+}
+.p-tab.active .p-tab-badge { background: rgba(255,255,255,0.12); }
 
-.up-info-label {
-  font-size: 11px;
-  color: var(--color-text-subtle, rgba(255,255,255,0.35));
+/* ═══════════════════════════════════════
+   SECTION CARDS
+═══════════════════════════════════════ */
+.p-section {
+  background: var(--color-surface-strong);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.p-section-header {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-family: 'Geist Mono', 'DM Mono', monospace;
+  justify-content: space-between;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(255,255,255,0.015);
+}
+.p-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.p-section-title-text {
+  font-size: 10.5px;
+  font-family: 'Geist Mono', monospace;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.p-section-body { padding: 20px 22px; }
+.p-section-body-flush { padding: 0; }
+
+/* ── Prose ── */
+.p-prose {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.82;
+  letter-spacing: -0.005em;
 }
 
-.up-info-value {
-  font-size: 12.5px;
-  color: var(--color-text-secondary, rgba(255,255,255,0.7));
+/* ── Info grid ── */
+.p-info-grid {
+  display: grid;
+  gap: 0;
+}
+.p-info-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.035);
+}
+.p-info-row:last-child { border-bottom: none; }
+.p-info-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-family: 'Geist Mono', monospace;
+}
+.p-info-val {
+  font-size: 13px;
+  color: var(--color-text-secondary);
   word-break: break-word;
+  line-height: 1.5;
 }
-
-.up-info-link {
-  font-size: 12.5px;
-  color: var(--color-brand, #c0ff72);
+.p-info-link {
+  font-size: 13px;
+  color: var(--color-brand);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  word-break: break-word;
 }
-.up-info-link:hover { text-decoration: underline; }
+.p-info-link:hover { text-decoration: underline; }
 
-/* Two-col grid */
-.up-two-col {
+/* ── Two-col grid ── */
+.p-two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-@media (max-width: 600px) { .up-two-col { grid-template-columns: 1fr; } }
-
-/* Skill bars */
-.up-skill-row { margin-bottom: 10px; }
-.up-skill-row:last-child { margin-bottom: 0; }
-.up-skill-head {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-.up-skill-name {
-  font-size: 11.5px;
-  color: var(--color-text-secondary, rgba(255,255,255,0.65));
-}
-.up-skill-pct {
-  font-size: 10px;
-  color: var(--color-text-subtle, rgba(255,255,255,0.35));
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-}
-.up-skill-track {
-  height: 2px;
-  background: rgba(255,255,255,0.06);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.up-skill-fill {
-  height: 100%;
-  border-radius: 2px;
-}
-
-/* Tags */
-.up-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.up-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  padding: 3px 9px;
-  border-radius: 5px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: var(--color-text-secondary, rgba(255,255,255,0.55));
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-}
-
-.up-accent-tag {
-  display: inline-flex;
-  font-size: 11px;
-  padding: 3px 9px;
-  border-radius: 5px;
-  font-weight: 500;
-}
-
-/* Formation / project cards */
-.up-formation-row {
-  display: flex;
   gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  align-items: flex-start;
+  margin-bottom: 12px;
 }
-.up-formation-row:last-child { border-bottom: none; }
+@media (max-width: 620px) { .p-two-col { grid-template-columns: 1fr; } }
 
-.up-formation-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 7px;
+/* ── Skill bars ── */
+.p-skill {
+  margin-bottom: 14px;
+}
+.p-skill:last-child { margin-bottom: 0; }
+.p-skill-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.up-formation-name {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--color-text);
-  letter-spacing: -0.01em;
-}
-.up-formation-sub {
-  font-size: 11px;
-  color: var(--color-text-muted, rgba(255,255,255,0.4));
-  margin-top: 2px;
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-}
-
-/* Project cards grid */
-.up-projects-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 8px;
-}
-
-.up-project-card {
-  background: rgba(255,255,255,0.025);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 8px;
-  padding: 12px;
-}
-
-.up-project-name {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--color-text);
-  letter-spacing: -0.01em;
-  margin-bottom: 4px;
-}
-.up-project-desc {
-  font-size: 11.5px;
-  color: var(--color-text-muted, rgba(255,255,255,0.4));
-  line-height: 1.5;
-  margin-bottom: 8px;
-}
-
-/* Candidatura rows */
-.up-cand-row {
-  display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  gap: 10px;
-}
-.up-cand-row:last-child { border-bottom: none; }
-
-.up-cand-title {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--color-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: -0.01em;
-}
-.up-cand-date {
-  font-size: 10.5px;
-  color: var(--color-text-subtle, rgba(255,255,255,0.35));
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-  margin-top: 2px;
-}
-.up-status-pill {
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 4px;
-  white-space: nowrap;
-  flex-shrink: 0;
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-}
-
-/* Activity log */
-.up-activity-row {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 9px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-}
-.up-activity-row:last-child { border-bottom: none; }
-
-.up-activity-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
+  margin-bottom: 6px;
+}
+.p-skill-name { font-size: 12.5px; color: var(--color-text-secondary); font-weight: 500; }
+.p-skill-pct { font-size: 10.5px; color: var(--color-text-muted); font-family: 'Geist Mono', monospace; }
+.p-skill-track {
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.p-skill-fill {
+  height: 100%;
+  border-radius: 4px;
+  animation: progressFill 0.8s cubic-bezier(0.4,0,0.2,1) forwards;
+  background: linear-gradient(90deg, rgba(192,255,114,0.9), rgba(96,165,250,0.8));
 }
 
-.up-activity-text {
-  font-size: 12px;
-  color: var(--color-text-secondary, rgba(255,255,255,0.65));
-}
-.up-activity-sub {
-  font-size: 10.5px;
-  color: var(--color-text-subtle, rgba(255,255,255,0.35));
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-  margin-top: 2px;
-}
-
-/* Action buttons */
-.up-btn {
+/* ── Tags ── */
+.p-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.p-tag {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 6px 12px;
-  border-radius: 7px;
   font-size: 11.5px;
+  padding: 5px 11px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--color-text-secondary);
+  font-family: 'Geist Mono', monospace;
+  letter-spacing: 0.01em;
+  transition: all 0.13s;
+  cursor: default;
+}
+.p-tag:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.13); }
+
+/* ── Formation rows ── */
+.p-formation {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.p-formation:first-child { padding-top: 0; }
+.p-formation:last-child { border-bottom: none; padding-bottom: 0; }
+.p-formation-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.p-formation-name { font-size: 13.5px; font-weight: 600; color: var(--color-text); letter-spacing: -0.02em; }
+.p-formation-sub {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-family: 'Geist Mono', monospace;
+  margin-top: 3px;
+}
+.p-formation-desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin-top: 5px;
+}
+
+/* ── Projects ── */
+.p-projects {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+.p-project {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 16px;
+  transition: border-color 0.14s, background 0.14s;
+}
+.p-project:hover { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); }
+.p-project-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+.p-project-desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.65;
+  margin-bottom: 10px;
+}
+.p-project-link {
+  font-size: 11.5px;
+  color: var(--color-brand);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.p-project-link:hover { text-decoration: underline; }
+
+/* ── Candidaturas ── */
+.p-cand-list { display: flex; flex-direction: column; }
+.p-cand {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.045);
+}
+.p-cand:first-child { padding-top: 0; }
+.p-cand:last-child { border-bottom: none; padding-bottom: 0; }
+.p-cand-name { font-size: 13.5px; font-weight: 600; color: var(--color-text); letter-spacing: -0.02em; }
+.p-cand-date {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-family: 'Geist Mono', monospace;
+  margin-top: 3px;
+}
+.p-cand-comment {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.025);
+  border-left: 2px solid rgba(255,255,255,0.1);
+  border-radius: 0 6px 6px 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  line-height: 1.6;
+}
+.p-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: 'Geist Mono', monospace;
+  border: 1px solid;
+}
+
+/* ── Activity ── */
+.p-activity { display: flex; flex-direction: column; gap: 0; }
+.p-activity-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.p-activity-item:first-child { padding-top: 0; }
+.p-activity-item:last-child { border-bottom: none; padding-bottom: 0; }
+.p-activity-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.p-activity-text { font-size: 13px; color: var(--color-text-secondary); line-height: 1.5; }
+.p-activity-sub {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-family: 'Geist Mono', monospace;
+  margin-top: 3px;
+}
+.p-activity-soon {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.02);
+  border: 1px dashed rgba(255,255,255,0.08);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+/* ── Empty state ── */
+.p-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  gap: 10px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ═══════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════ */
+.p-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 9px;
+  font-size: 12.5px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   border: 1px solid;
-  transition: all 0.12s;
+  transition: all 0.14s;
   letter-spacing: -0.01em;
   white-space: nowrap;
 }
-
-.up-btn-primary {
-  background: var(--color-brand, #c0ff72);
-  color: #0a1500;
+.p-btn-primary {
+  background: var(--color-brand);
+  color: #020a00;
   border-color: transparent;
 }
-.up-btn-primary:hover { filter: brightness(1.08); }
-
-.up-btn-secondary {
-  background: transparent;
-  color: var(--color-text-secondary, rgba(255,255,255,0.7));
-  border-color: var(--color-border-strong, rgba(255,255,255,0.12));
+.p-btn-primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 18px rgba(192,255,114,0.22);
 }
-.up-btn-secondary:hover {
+.p-btn-secondary {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-strong);
+}
+.p-btn-secondary:hover {
   background: rgba(255,255,255,0.04);
   color: var(--color-text);
+  border-color: rgba(255,255,255,0.18);
 }
-
-.up-btn-danger {
+.p-btn-danger {
   background: rgba(239,68,68,0.08);
   color: #f87171;
   border-color: rgba(239,68,68,0.2);
 }
-.up-btn-danger:hover { background: rgba(239,68,68,0.14); }
+.p-btn-danger:hover { background: rgba(239,68,68,0.14); }
+.p-btn:disabled { opacity: 0.38; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
-.up-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-/* Loading spinner */
-.up-spinner {
-  width: 10px;
-  height: 10px;
+.p-spinner {
+  width: 11px; height: 11px;
   border-radius: 50%;
   border: 1.5px solid currentColor;
   border-top-color: transparent;
   animation: spin 0.7s linear infinite;
 }
 
-/* Sidebar */
-.up-sidebar-inner { position: sticky; top: 80px; display: flex; flex-direction: column; gap: 10px; }
-
-/* Suggestion cards */
-.up-suggestion {
-  display: block;
-  text-decoration: none;
-  border-radius: 8px;
-  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
-  background: var(--color-surface-strong, rgba(255,255,255,0.02));
-  padding: 10px;
-  transition: all 0.14s;
-  margin-bottom: 0;
-}
-.up-suggestion:hover {
-  border-color: rgba(255,255,255,0.13);
-  background: rgba(255,255,255,0.04);
+/* ═══════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════ */
+.p-sidebar {
+  position: sticky;
+  top: 84px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.up-sug-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-
-.up-sug-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
-  object-fit: cover;
-  flex-shrink: 0;
+/* Context alert card */
+.p-ctx-card {
+  background: var(--color-surface-strong);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  overflow: hidden;
 }
-.up-sug-avatar-placeholder {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
+.p-ctx-item {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  padding: 11px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.p-ctx-item:last-child { border-bottom: none; }
+
+/* Data card */
+.p-data-card {
+  background: var(--color-surface-strong);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.p-data-card-header {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(255,255,255,0.015);
+}
+.p-data-card-title {
+  font-size: 10px;
+  font-family: 'Geist Mono', monospace;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.p-data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  gap: 10px;
+}
+.p-data-row:last-child { border-bottom: none; }
+.p-data-label {
   font-size: 11px;
-  font-weight: 700;
+  color: var(--color-text-muted);
+  font-family: 'Geist Mono', monospace;
   flex-shrink: 0;
 }
+.p-data-val {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  text-align: right;
+  word-break: break-word;
+}
 
-.up-sug-name {
-  font-size: 12px;
+/* Suggestions */
+.p-sug-card {
+  background: var(--color-surface-strong);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.p-sug-header {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(255,255,255,0.015);
+}
+.p-sug-title {
+  font-size: 10px;
+  font-family: 'Geist Mono', monospace;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.p-sug-list { padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.p-sug-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 9px;
+  text-decoration: none;
+  transition: background 0.12s;
+  cursor: pointer;
+}
+.p-sug-item:hover { background: rgba(255,255,255,0.04); }
+.p-sug-avatar {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+}
+.p-sug-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.p-sug-info { flex: 1; min-width: 0; }
+.p-sug-name {
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--color-text);
   letter-spacing: -0.01em;
@@ -836,134 +1040,63 @@ const GLOBAL_CSS = `
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.up-sug-sub {
-  font-size: 10.5px;
-  color: var(--color-text-muted, rgba(255,255,255,0.4));
+.p-sug-sub {
+  font-size: 11px;
+  color: var(--color-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-top: 1px;
 }
-
-.up-sug-reason {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
+.p-sug-chip {
+  flex-shrink: 0;
+  font-size: 9.5px;
+  font-family: 'Geist Mono', monospace;
+  font-weight: 600;
   padding: 2px 7px;
-  border-radius: 4px;
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-  font-weight: 500;
+  border-radius: 5px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
-/* Verified info strip */
-.up-info-strip {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  background: rgba(255,255,255,0.015);
-  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
-  border-radius: 8px;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-.up-strip-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  font-size: 11.5px;
-}
-.up-strip-row:last-child { border-bottom: none; }
-.up-strip-label { color: var(--color-text-subtle, rgba(255,255,255,0.35)); min-width: 70px; font-family: 'Geist Mono', 'DM Mono', monospace; font-size: 10.5px; }
-.up-strip-val { color: var(--color-text-secondary, rgba(255,255,255,0.65)); }
-
-/* Toast */
-.up-toast {
+/* ── Toast ── */
+.p-toast {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: 28px; right: 28px;
   z-index: 9999;
-  padding: 9px 14px;
-  border-radius: 8px;
-  font-size: 12px;
+  padding: 11px 18px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 600;
   font-family: inherit;
   display: flex;
   align-items: center;
-  gap: 7px;
-  animation: toast-in 0.18s ease forwards;
+  gap: 9px;
+  animation: toastIn 0.2s ease forwards;
   border: 1px solid;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.45);
 }
 
-/* Divider label */
-.up-divider {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-.up-divider-line { flex: 1; height: 1px; background: var(--color-border, rgba(255,255,255,0.06)); }
-.up-divider-text {
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-  color: var(--color-text-subtle, rgba(255,255,255,0.3));
-  white-space: nowrap;
-}
-
-/* Prose */
-.up-prose {
-  font-size: 13px;
-  color: var(--color-text-secondary, rgba(255,255,255,0.65));
-  line-height: 1.75;
+/* ── Divider ── */
+.p-divider {
+  height: 1px;
+  background: var(--color-border);
   margin: 0;
 }
 
-/* Empty state */
-.up-empty {
-  font-size: 12px;
-  color: var(--color-text-muted, rgba(255,255,255,0.35));
-  padding: 8px 0;
-}
-
-/* Sidebar section header */
-.up-sidebar-label {
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-family: 'Geist Mono', 'DM Mono', monospace;
-  color: var(--color-text-subtle, rgba(255,255,255,0.3));
-  margin-bottom: 7px;
-}
-
-.up-viewer-context-card {
-  background: rgba(255,255,255,0.015);
-  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 11.5px;
-  color: var(--color-text-secondary, rgba(255,255,255,0.6));
-  line-height: 1.5;
-}
-
-.up-comment-box {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.06);
+/* ── Loading skeleton ── */
+.p-skeleton {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.04) 100%);
+  background-size: 400% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
   border-radius: 6px;
-  padding: 8px 10px;
-  font-size: 11.5px;
-  color: var(--color-text-secondary, rgba(255,255,255,0.6));
-  font-style: italic;
-  margin-top: 4px;
-  line-height: 1.5;
 }
 `;
 
-// ─── SVG Icons (compact, 12×12 stroke icons) ──────────────────────────────────
+// ─── Icons ───────────────────────────────────────────────────────────────
 
 const Ic = {
   ArrowLeft: () => (
@@ -979,21 +1112,6 @@ const Ic = {
     >
       <line x1="19" y1="12" x2="5" y2="12" />
       <polyline points="12 19 5 12 12 5" />
-    </svg>
-  ),
-  ArrowRight: ({ s = 11 }: { s?: number }) => (
-    <svg
-      width={s}
-      height={s}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="m12 5 7 7-7 7" />
     </svg>
   ),
   Check: ({ s = 9 }: { s?: number }) => (
@@ -1225,7 +1343,6 @@ const Ic = {
       <polyline points="14 2 14 8 20 8" />
       <line x1="16" y1="13" x2="8" y2="13" />
       <line x1="16" y1="17" x2="8" y2="17" />
-      <line x1="10" y1="9" x2="8" y2="9" />
     </svg>
   ),
   Activity: () => (
@@ -1454,176 +1571,13 @@ const Ic = {
     </svg>
   ),
   Dot: ({ color }: { color: string }) => (
-    <svg width="6" height="6" viewBox="0 0 6 6">
-      <circle cx="3" cy="3" r="3" fill={color} />
+    <svg width="7" height="7" viewBox="0 0 7 7">
+      <circle cx="3.5" cy="3.5" r="3.5" fill={color} />
     </svg>
   ),
 };
 
-// ─── Small atom components ─────────────────────────────────────────────────────
-
-function SectionCard({
-  title,
-  icon,
-  children,
-  flush,
-}: {
-  title: string;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-  flush?: boolean;
-}) {
-  return (
-    <div className="up-section">
-      <div className="up-section-header">
-        {icon && (
-          <span style={{ color: "var(--color-text-subtle)", display: "flex" }}>
-            {icon}
-          </span>
-        )}
-        <span className="up-section-title">{title}</span>
-      </div>
-      <div className={flush ? "up-section-body-flush" : "up-section-body"}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({
-  icon,
-  label,
-  value,
-  href,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value?: string | null;
-  href?: string;
-}) {
-  if (!value) return null;
-  return (
-    <div className="up-info-row">
-      <span className="up-info-label">
-        <span style={{ display: "flex", color: "var(--color-text-subtle)" }}>
-          {icon}
-        </span>
-        {label}
-      </span>
-      {href ? (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="up-info-link"
-        >
-          {value} <Ic.ExternalLink />
-        </a>
-      ) : (
-        <span className="up-info-value">{value}</span>
-      )}
-    </div>
-  );
-}
-
-function SkillBar({ skill }: { skill: string }) {
-  const hash = skill.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const pct = 40 + (hash % 55);
-  return (
-    <div className="up-skill-row">
-      <div className="up-skill-head">
-        <span className="up-skill-name">{skill}</span>
-        <span className="up-skill-pct">{pct}%</span>
-      </div>
-      <div className="up-skill-track">
-        <div
-          className="up-skill-fill"
-          style={{
-            width: `${pct}%`,
-            background:
-              "linear-gradient(90deg, rgba(192,255,114,0.7) 0%, rgba(96,165,250,0.7) 100%)",
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function CandidaturaRow({ c }: { c: Candidatura }) {
-  const col = CAND_MAP[c.estado] ?? { color: "#6b7280", label: c.estado };
-  const date = new Date(c.fecha_envio).toLocaleDateString("es-ES", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-  return (
-    <div className="up-cand-row">
-      <div style={{ minWidth: 0 }}>
-        <div className="up-cand-title">
-          {c.titulo_oferta ?? `Oferta #${c.id_candidatura}`}
-        </div>
-        <div className="up-cand-date">{date}</div>
-        {c.comentario_empresa && (
-          <div className="up-comment-box">"{c.comentario_empresa}"</div>
-        )}
-      </div>
-      <span
-        className="up-status-pill"
-        style={{
-          background: `${col.color}14`,
-          color: col.color,
-          border: `1px solid ${col.color}28`,
-        }}
-      >
-        {col.label}
-      </span>
-    </div>
-  );
-}
-
-function SuggestedCard({ profile }: { profile: SuggestedProfile }) {
-  const ec = EC[profile.type];
-  const initials = profile.name
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("");
-  return (
-    <a href={profile.href} className="up-suggestion">
-      <div className="up-sug-head">
-        {profile.avatarUrl ? (
-          <img
-            src={profile.avatarUrl}
-            alt={profile.name}
-            className="up-sug-avatar"
-            style={{ border: `1px solid ${ec.accentBorder}` }}
-          />
-        ) : (
-          <div
-            className="up-sug-avatar-placeholder"
-            style={{
-              background: ec.accentFaint,
-              border: `1px solid ${ec.accentBorder}`,
-              color: ec.accent,
-            }}
-          >
-            {initials || "?"}
-          </div>
-        )}
-        <div style={{ minWidth: 0 }}>
-          <div className="up-sug-name">{profile.name}</div>
-          <div className="up-sug-sub">{profile.subtitle}</div>
-        </div>
-      </div>
-      <span
-        className="up-sug-reason"
-        style={{ background: ec.accentFaint, color: ec.accent }}
-      >
-        <Ic.Link /> {profile.reason}
-      </span>
-    </a>
-  );
-}
+// ─── Atoms ───────────────────────────────────────────────────────────────
 
 function Btn({
   label,
@@ -1643,13 +1597,13 @@ function Btn({
   icon?: React.ReactNode;
 }) {
   const cls = danger
-    ? "up-btn up-btn-danger"
+    ? "p-btn p-btn-danger"
     : variant === "primary"
-      ? "up-btn up-btn-primary"
-      : "up-btn up-btn-secondary";
+      ? "p-btn p-btn-primary"
+      : "p-btn p-btn-secondary";
   return (
     <button className={cls} onClick={onClick} disabled={disabled || l}>
-      {l ? <div className="up-spinner" /> : icon}
+      {l ? <div className="p-spinner" /> : icon}
       {label}
     </button>
   );
@@ -1668,17 +1622,17 @@ function Toast({
     const t = setTimeout(onDismiss, 3500);
     return () => clearTimeout(t);
   }, [onDismiss]);
-  const isOk = type === "success";
+  const ok = type === "success";
   return (
     <div
-      className="up-toast"
+      className="p-toast"
       style={{
-        background: isOk ? "rgba(192,255,114,0.08)" : "rgba(239,68,68,0.08)",
-        borderColor: isOk ? "rgba(192,255,114,0.2)" : "rgba(239,68,68,0.2)",
-        color: isOk ? "#c0ff72" : "#f87171",
+        background: ok ? "rgba(192,255,114,0.07)" : "rgba(239,68,68,0.07)",
+        borderColor: ok ? "rgba(192,255,114,0.24)" : "rgba(239,68,68,0.24)",
+        color: ok ? "#c0ff72" : "#f87171",
       }}
     >
-      {isOk ? <Ic.Check s={10} /> : <Ic.X s={10} />}
+      {ok ? <Ic.Check s={10} /> : <Ic.X s={10} />}
       {message}
     </div>
   );
@@ -1687,7 +1641,7 @@ function Toast({
 function Avatar({
   url,
   name,
-  size = 58,
+  size = 88,
   ec,
 }: {
   url?: string;
@@ -1700,33 +1654,14 @@ function Avatar({
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase())
     .join("");
-  const style: React.CSSProperties = {
-    width: size,
-    height: size,
-    borderRadius: Math.round(size * 0.17),
-    border: `1.5px solid ${ec.accentBorder}`,
-    flexShrink: 0,
-  };
-  if (url)
-    return (
-      <img
-        src={url}
-        alt={name}
-        style={{ ...style, objectFit: "cover", display: "block" }}
-      />
-    );
+  if (url) return <img src={url} alt={name} className="p-avatar-img" />;
   return (
     <div
+      className="p-avatar-initials"
       style={{
-        ...style,
         background: ec.accentFaint,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: size * 0.28,
-        fontWeight: 800,
         color: ec.accent,
-        letterSpacing: "-0.03em",
+        fontSize: size * 0.26,
       }}
     >
       {initials || "?"}
@@ -1734,7 +1669,193 @@ function Avatar({
   );
 }
 
-// ─── Main Component ────────────────────────────────────────────────────────────
+function Section({
+  title,
+  icon,
+  children,
+  flush,
+  count,
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  flush?: boolean;
+  count?: number;
+}) {
+  return (
+    <div className="p-section">
+      <div className="p-section-header">
+        <div className="p-section-title">
+          {icon && (
+            <span style={{ color: "var(--color-text-muted)", display: "flex" }}>
+              {icon}
+            </span>
+          )}
+          <span className="p-section-title-text">{title}</span>
+          {count !== undefined && (
+            <span
+              style={{
+                fontSize: 9,
+                fontFamily: "'Geist Mono',monospace",
+                padding: "1px 7px",
+                borderRadius: 5,
+                background: "rgba(255,255,255,0.06)",
+                color: "var(--color-text-muted)",
+              }}
+            >
+              {count}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className={flush ? "p-section-body-flush" : "p-section-body"}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({
+  icon,
+  label,
+  value,
+  href,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value?: string | null;
+  href?: string;
+}) {
+  if (!value) return null;
+  return (
+    <div className="p-info-row">
+      <span className="p-info-label">
+        <span style={{ display: "flex", color: "var(--color-text-muted)" }}>
+          {icon}
+        </span>
+        {label}
+      </span>
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-info-link"
+        >
+          {value} <Ic.ExternalLink />
+        </a>
+      ) : (
+        <span className="p-info-val">{value}</span>
+      )}
+    </div>
+  );
+}
+
+function SkillBar({ skill }: { skill: string }) {
+  const hash = skill.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const pct = 42 + (hash % 52);
+  return (
+    <div className="p-skill">
+      <div className="p-skill-row">
+        <span className="p-skill-name">{skill}</span>
+        <span className="p-skill-pct">{pct}%</span>
+      </div>
+      <div className="p-skill-track">
+        <div className="p-skill-fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function CandRow({ c }: { c: Candidatura }) {
+  const col = CAND_MAP[c.estado] ?? {
+    color: "#6b7280",
+    label: c.estado,
+    bg: "rgba(107,114,128,0.1)",
+  };
+  const date = new Date(c.fecha_envio).toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  return (
+    <div className="p-cand">
+      <div style={{ minWidth: 0 }}>
+        <div className="p-cand-name">
+          {c.titulo_oferta ?? `Oferta #${c.id_candidatura}`}
+        </div>
+        <div className="p-cand-date">{date}</div>
+        {c.comentario_empresa && (
+          <div className="p-cand-comment">"{c.comentario_empresa}"</div>
+        )}
+      </div>
+      <span
+        className="p-status-pill"
+        style={{
+          background: col.bg,
+          color: col.color,
+          borderColor: `${col.color}30`,
+        }}
+      >
+        <Ic.Dot color={col.color} />
+        {col.label}
+      </span>
+    </div>
+  );
+}
+
+function SugItem({
+  profile,
+}: {
+  profile: {
+    id: string;
+    name: string;
+    subtitle: string;
+    avatarUrl?: string;
+    href: string;
+    type: EntityType;
+    reason: string;
+  };
+}) {
+  const ec = EC[profile.type];
+  const initials = profile.name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("");
+  return (
+    <a href={profile.href} className="p-sug-item">
+      <div
+        className="p-sug-avatar"
+        style={{
+          background: ec.accentFaint,
+          border: `1px solid ${ec.accentBorder}`,
+          color: ec.accent,
+        }}
+      >
+        {profile.avatarUrl ? (
+          <img src={profile.avatarUrl} alt={profile.name} />
+        ) : (
+          <span>{initials || "?"}</span>
+        )}
+      </div>
+      <div className="p-sug-info">
+        <div className="p-sug-name">{profile.name}</div>
+        {profile.subtitle && (
+          <div className="p-sug-sub">{profile.subtitle}</div>
+        )}
+      </div>
+      <span
+        className="p-sug-chip"
+        style={{ background: ec.accentFaint, color: ec.accent }}
+      >
+        {profile.reason}
+      </span>
+    </a>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────
 
 export default function UserProfilePage({
   entityType: propEntityType,
@@ -1773,8 +1894,12 @@ export default function UserProfilePage({
     success: null,
     error: null,
   });
-  const [suggestions, setSuggestions] = useState<SuggestedProfile[]>([]);
-  const [sameRoleSuggestions, setSameRoleSuggestions] = useState<SuggestedProfile[]>([]);
+  const [relatedSuggestions, setRelatedSuggestions] = useState<
+    SuggestedProfile[]
+  >([]);
+  const [roleSuggestions, setRoleSuggestions] = useState<SuggestedProfile[]>(
+    [],
+  );
   const [candidaturas, setCandidaturas] = useState<Candidatura[]>([]);
   const [stats, setStats] = useState<{
     candidaturas: number;
@@ -1918,11 +2043,9 @@ export default function UserProfilePage({
         );
       }
 
-      // Suggestions — role-aware
       loads.push(
         (async () => {
           const sugs: SuggestedProfile[] = [];
-
           if (rawEntityType === "estudiante") {
             const est = profile as Estudiante;
             const { data: centroLink } = await supabase
@@ -1936,7 +2059,7 @@ export default function UserProfilePage({
                 .select("id_estudiante")
                 .eq("id_centro", centroLink.id_centro)
                 .neq("id_estudiante", entityId)
-                .limit(4);
+                .limit(3);
               if (comp?.length) {
                 const { data: profs } = await supabase
                   .from("estudiante")
@@ -1957,7 +2080,7 @@ export default function UserProfilePage({
                       .join(" · "),
                     avatarUrl: p.avatar_url ?? undefined,
                     href: `/estudiante/${p.id}`,
-                    reason: "Mismo centro",
+                    reason: "Centro",
                   }),
                 );
               }
@@ -1983,12 +2106,11 @@ export default function UserProfilePage({
                       .join(" · "),
                     avatarUrl: p.avatar_url ?? undefined,
                     href: `/estudiante/${p.id}`,
-                    reason: "Misma titulación",
+                    reason: "Titulación",
                   }),
                 );
             }
           }
-
           if (rawEntityType === "empresa") {
             const emp = profile as Empresa;
             if (emp.sector) {
@@ -2029,12 +2151,11 @@ export default function UserProfilePage({
                     subtitle: [e.sector, e.ciudad].filter(Boolean).join(" · "),
                     avatarUrl: e.logo_url ?? undefined,
                     href: `/empresa/${e.id}`,
-                    reason: "Misma ciudad",
+                    reason: "Ciudad",
                   }),
                 );
             }
           }
-
           if (rawEntityType === "centro_educativo") {
             const centro = profile as CentroEducativo;
             if (centro.ciudad) {
@@ -2058,72 +2179,142 @@ export default function UserProfilePage({
                 }),
               );
             }
-            if (sugs.length < 4 && centro.tipo_centro) {
-              const existing = new Set([...sugs.map((s) => s.id), entityId]);
-              const { data: byType } = await supabase
-                .from("centro_educativo")
-                .select("id, nombre, tipo_centro, ciudad, avatar_url")
-                .eq("tipo_centro", centro.tipo_centro)
-                .neq("id", entityId)
-                .limit(4);
-              (byType ?? [])
-                .filter((c) => !existing.has(c.id))
-                .slice(0, 4 - sugs.length)
-                .forEach((c) =>
-                  sugs.push({
-                    id: c.id,
-                    type: "centro_educativo",
-                    name: c.nombre,
-                    subtitle: [c.tipo_centro, c.ciudad]
-                      .filter(Boolean)
-                      .join(" · "),
-                    avatarUrl: c.avatar_url ?? undefined,
-                    href: `/centro/${c.id}`,
-                    reason: "Mismo tipo",
-                  }),
-                );
-            }
           }
-
-          setSuggestions(sugs.slice(0, 4));
+          setRelatedSuggestions(sugs.slice(0, 4));
         })(),
       );
 
       loads.push(
         (async () => {
           const roleSugs: SuggestedProfile[] = [];
-          if (viewerRole === "estudiante") {
-            const { data } = await supabase.from("estudiante").select("id, nombre, apellidos, titulacion, ciudad, avatar_url").neq("id", entityId).limit(4);
-            (data ?? []).forEach((p) => roleSugs.push({ id: p.id, type: "estudiante", name: `${p.nombre ?? ""} ${p.apellidos ?? ""}`.trim(), subtitle: [p.titulacion, p.ciudad].filter(Boolean).join(" · "), avatarUrl: p.avatar_url ?? undefined, href: `/estudiante/${p.id}`, reason: "Mismo rol" }));
-          } else if (viewerRole === "empresa") {
-            const { data } = await supabase.from("empresa").select("id, nombre, sector, ciudad, logo_url").neq("id", entityId).limit(4);
-            (data ?? []).forEach((e) => roleSugs.push({ id: e.id, type: "empresa", name: e.nombre, subtitle: [e.sector, e.ciudad].filter(Boolean).join(" · "), avatarUrl: e.logo_url ?? undefined, href: `/empresa/${e.id}`, reason: "Mismo rol" }));
-          } else if (viewerRole === "centro_educativo") {
-            const { data } = await supabase.from("centro_educativo").select("id, nombre, tipo_centro, ciudad, avatar_url").neq("id", entityId).limit(4);
-            (data ?? []).forEach((c) => roleSugs.push({ id: c.id, type: "centro_educativo", name: c.nombre, subtitle: [c.tipo_centro, c.ciudad].filter(Boolean).join(" · "), avatarUrl: c.avatar_url ?? undefined, href: `/centro/${c.id}`, reason: "Mismo rol" }));
-          } else if (viewerRole === "tutor_empresa") {
-            const { data } = await supabase.from("tutor_empresa").select("usuario_id, cargo, empresa(nombre, logo_url)").neq("usuario_id", viewerId).limit(4);
-            (data ?? []).forEach((t: any) => roleSugs.push({ id: t.usuario_id, type: "empresa", name: t.empresa?.nombre ?? "Tutor de empresa", subtitle: t.cargo ?? "Tutor de empresa", avatarUrl: t.empresa?.logo_url ?? undefined, href: `/tutor-empresa/${t.usuario_id}`, reason: "Mismo rol" }));
-          } else if (viewerRole === "tutor_centro") {
-            const { data } = await supabase.from("tutor_centro").select("usuario_id, departamento, centro_educativo(nombre, avatar_url)").neq("usuario_id", viewerId).limit(4);
-            (data ?? []).forEach((t: any) => roleSugs.push({ id: t.usuario_id, type: "centro_educativo", name: t.centro_educativo?.nombre ?? "Tutor de centro", subtitle: t.departamento ?? "Tutor de centro", avatarUrl: t.centro_educativo?.avatar_url ?? undefined, href: `/tutor-centro/${t.usuario_id}`, reason: "Mismo rol" }));
-          }
-          setSameRoleSuggestions(roleSugs);
+          try {
+            if (viewerRole === "estudiante") {
+              const { data } = await supabase
+                .from("estudiante")
+                .select("id, nombre, apellidos, titulacion, ciudad, avatar_url")
+                .neq("id", viewerId)
+                .limit(5);
+              (data ?? []).forEach((p) =>
+                roleSugs.push({
+                  id: p.id,
+                  type: "estudiante",
+                  name: `${p.nombre ?? ""} ${p.apellidos ?? ""}`.trim(),
+                  subtitle: [p.titulacion, p.ciudad]
+                    .filter(Boolean)
+                    .join(" · "),
+                  avatarUrl: p.avatar_url ?? undefined,
+                  href: `/estudiante/${p.id}`,
+                  reason: "Perfil",
+                }),
+              );
+            } else if (viewerRole === "empresa") {
+              const { data } = await supabase
+                .from("empresa")
+                .select("id, nombre, sector, ciudad, logo_url")
+                .neq("id", viewerId)
+                .limit(5);
+              (data ?? []).forEach((e) =>
+                roleSugs.push({
+                  id: e.id,
+                  type: "empresa",
+                  name: e.nombre,
+                  subtitle: [e.sector, e.ciudad].filter(Boolean).join(" · "),
+                  avatarUrl: e.logo_url ?? undefined,
+                  href: `/empresa/${e.id}`,
+                  reason: "Empresa",
+                }),
+              );
+            } else if (viewerRole === "centro_educativo") {
+              const { data } = await supabase
+                .from("centro_educativo")
+                .select("id, nombre, tipo_centro, ciudad, avatar_url")
+                .neq("id", viewerId)
+                .limit(5);
+              (data ?? []).forEach((c) =>
+                roleSugs.push({
+                  id: c.id,
+                  type: "centro_educativo",
+                  name: c.nombre,
+                  subtitle: [c.tipo_centro, c.ciudad]
+                    .filter(Boolean)
+                    .join(" · "),
+                  avatarUrl: c.avatar_url ?? undefined,
+                  href: `/centro/${c.id}`,
+                  reason: "Centro",
+                }),
+              );
+            } else if (viewerRole === "administrador") {
+              const [estRes, empRes] = await Promise.all([
+                supabase
+                  .from("estudiante")
+                  .select(
+                    "id, nombre, apellidos, titulacion, ciudad, avatar_url",
+                  )
+                  .limit(3),
+                supabase
+                  .from("empresa")
+                  .select("id, nombre, sector, ciudad, logo_url")
+                  .limit(2),
+              ]);
+              (estRes.data ?? []).forEach((p) =>
+                roleSugs.push({
+                  id: p.id,
+                  type: "estudiante",
+                  name: `${p.nombre ?? ""} ${p.apellidos ?? ""}`.trim(),
+                  subtitle: [p.titulacion, p.ciudad]
+                    .filter(Boolean)
+                    .join(" · "),
+                  avatarUrl: p.avatar_url ?? undefined,
+                  href: `/estudiante/${p.id}`,
+                  reason: "Estudiante",
+                }),
+              );
+              (empRes.data ?? []).forEach((e) =>
+                roleSugs.push({
+                  id: e.id,
+                  type: "empresa",
+                  name: e.nombre,
+                  subtitle: [e.sector, e.ciudad].filter(Boolean).join(" · "),
+                  avatarUrl: e.logo_url ?? undefined,
+                  href: `/empresa/${e.id}`,
+                  reason: "Empresa",
+                }),
+              );
+            } else {
+              const { data } = await supabase
+                .from("estudiante")
+                .select("id, nombre, apellidos, titulacion, ciudad, avatar_url")
+                .limit(5);
+              (data ?? []).forEach((p) =>
+                roleSugs.push({
+                  id: p.id,
+                  type: "estudiante",
+                  name: `${p.nombre ?? ""} ${p.apellidos ?? ""}`.trim(),
+                  subtitle: [p.titulacion, p.ciudad]
+                    .filter(Boolean)
+                    .join(" · "),
+                  avatarUrl: p.avatar_url ?? undefined,
+                  href: `/estudiante/${p.id}`,
+                  reason: "Estudiante",
+                }),
+              );
+            }
+          } catch (_) {}
+          setRoleSuggestions(roleSugs);
         })(),
       );
 
       await Promise.all(loads);
     };
     loadExtras();
-  }, [profile, rawEntityType, entityId, isTutorPage]);
+  }, [profile, rawEntityType, entityId, isTutorPage, viewerRole, viewerId]);
 
-  // ── Load viewer context ──
+  // ── Viewer context ──
   useEffect(() => {
     if (!user || isTutorPage) return;
     const load = async () => {
       const ctx: typeof viewerContext = {};
       const loads: Promise<void>[] = [];
-
       if (viewerRole === "tutor_centro") {
         loads.push(
           (async () => {
@@ -2199,7 +2390,6 @@ export default function UserProfilePage({
           })(),
         );
       }
-
       await Promise.all(loads);
       setViewerContext(ctx);
     };
@@ -2207,11 +2397,8 @@ export default function UserProfilePage({
   }, [user, viewerRole, viewerId, entityId, rawEntityType, isTutorPage]);
 
   const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      history.back();
-    }
+    if (onBack) onBack();
+    else history.back();
   };
 
   const withAction = async (fn: () => Promise<void>, successMsg: string) => {
@@ -2229,7 +2416,6 @@ export default function UserProfilePage({
   };
 
   const al = actionState.loading;
-
   const handleBlock = () =>
     withAction(async () => {
       const { error: e } = await supabase
@@ -2322,14 +2508,12 @@ export default function UserProfilePage({
     withAction(async () => {
       if (!viewerContext.empresaId)
         throw new Error("No se encontró tu empresa");
-      const { error: e } = await supabase
-        .from("estudiante_estado")
-        .upsert({
-          id_estudiante: entityId,
-          id_empresa: viewerContext.empresaId,
-          estado: "en_practicas",
-          updated_at: new Date().toISOString(),
-        });
+      const { error: e } = await supabase.from("estudiante_estado").upsert({
+        id_estudiante: entityId,
+        id_empresa: viewerContext.empresaId,
+        estado: "en_practicas",
+        updated_at: new Date().toISOString(),
+      });
       if (e) throw e;
       setViewerContext((c) => ({ ...c, isMyPracticasStudent: true }));
     }, "Prácticas iniciadas");
@@ -2345,34 +2529,30 @@ export default function UserProfilePage({
     }, "Prácticas finalizadas");
   const handleGuardar = () =>
     withAction(async () => {
-      const { error: e } = await supabase
-        .from("guardado")
-        .insert({
-          id_estudiante: entityId,
-          fecha_guardado: new Date().toISOString(),
-        });
+      const { error: e } = await supabase.from("guardado").insert({
+        id_estudiante: entityId,
+        fecha_guardado: new Date().toISOString(),
+      });
       if (e) throw e;
     }, "Guardado");
 
-  // ─── Loading / Error ──────────────────────────────────────────────────────
-
+  // ── Loading ──
   if (loading)
     return (
       <div
         style={{
           minHeight: "100vh",
           background: "var(--color-bg)",
-          paddingTop: 80,
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
         }}
       >
-        <style>{GLOBAL_CSS}</style>
+        <style>{CSS}</style>
         <div
           style={{
-            width: 20,
-            height: 20,
+            width: 24,
+            height: 24,
             borderRadius: "50%",
             border: "2px solid var(--color-border-strong)",
             borderTopColor: "var(--color-brand)",
@@ -2389,26 +2569,33 @@ export default function UserProfilePage({
         style={{
           minHeight: "100vh",
           background: "var(--color-bg)",
-          paddingTop: 80,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          gap: 12,
+          gap: 16,
         }}
       >
-        <style>{GLOBAL_CSS}</style>
-        <span
+        <style>{CSS}</style>
+        <div
           style={{
-            fontSize: 13,
-            color: "var(--color-text-muted)",
-            fontFamily: "inherit",
+            width: 48,
+            height: 48,
+            borderRadius: 12,
+            background: "rgba(248,113,113,0.08)",
+            border: "1px solid rgba(248,113,113,0.2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
+          <Ic.Info />
+        </div>
+        <span style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>
           {error ?? "Perfil no encontrado"}
         </span>
         <button
-          className="up-btn up-btn-secondary"
+          className="p-btn p-btn-secondary"
           onClick={handleBack}
           style={{ fontFamily: "inherit" }}
         >
@@ -2417,62 +2604,70 @@ export default function UserProfilePage({
       </div>
     );
 
-  // ─── Tutor page ───────────────────────────────────────────────────────────
-
+  // ── Tutor page ──
   if (isTutorPage && tutorProfile) {
     const name = tutorProfile.nombre ?? "";
     return (
-      <div className="up-root">
-        <style>{GLOBAL_CSS}</style>
-        <div className="up-inner" style={{ display: "block", maxWidth: 700 }}>
-          <button className="up-back" onClick={handleBack}>
-            <Ic.ArrowLeft /> Volver al directorio
-          </button>
-          <div className="up-panel up-hero">
-            <div
-              className="up-hero-accent-bar"
-              style={{ background: ec.accent }}
-            />
-            <div className="up-hero-body">
-              <div className="up-hero-top">
-                <div className="up-hero-left">
-                  <Avatar url={tutorProfile.avatar_url} name={name} ec={ec} />
-                  <div className="up-hero-meta">
+      <MainLayout>
+        <style>{CSS}</style>
+        <div className="p-root">
+          <div className="p-page" style={{ maxWidth: 760 }}>
+            <div className="p-back-row">
+              <button className="p-back" onClick={handleBack}>
+                <Ic.ArrowLeft /> Volver
+              </button>
+            </div>
+            <div className="p-hero">
+              <div className="p-cover">
+                <div
+                  className="p-cover-bg"
+                  style={{
+                    background: `linear-gradient(135deg, ${ec.coverFrom}, ${ec.coverTo})`,
+                  }}
+                />
+                <div className="p-cover-dots" />
+                <div className="p-cover-fade" />
+                <div
+                  className="p-cover-line"
+                  style={{
+                    background: `linear-gradient(90deg, ${ec.accent}50, transparent)`,
+                  }}
+                />
+              </div>
+              <div className="p-head">
+                <div className="p-avatar-wrap">
+                  <div
+                    className="p-avatar-shell"
+                    style={{ borderColor: ec.accentBorder }}
+                  >
+                    <Avatar url={tutorProfile.avatar_url} name={name} ec={ec} />
+                  </div>
+                </div>
+                <div className="p-name-row">
+                  <div className="p-name-info">
                     <div
-                      className="up-entity-label"
-                      style={{ color: ec.accent }}
+                      className="p-entity-badge"
+                      style={{ background: ec.accentFaint, color: ec.accent }}
                     >
                       <Ic.Dot color={ec.dot} /> {ec.label}
                     </div>
-                    <h1 className="up-name">{name}</h1>
-                    <div className="up-subtitle">
+                    <h1 className="p-name">{name}</h1>
+                    <p className="p-headline">
                       {tutorType === "tutor_empresa"
                         ? tutorProfile.cargo
                         : tutorProfile.departamento}
-                    </div>
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <SectionCard title="Información" icon={<Ic.Info />}>
-            <InfoRow
-              icon={<Ic.Briefcase />}
-              label={tutorType === "tutor_empresa" ? "Cargo" : "Departamento"}
-              value={
-                tutorType === "tutor_empresa"
-                  ? tutorProfile.cargo
-                  : tutorProfile.departamento
-              }
-            />
-          </SectionCard>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
-
+  // ── Helpers ──
   const getName = () =>
     rawEntityType === "estudiante"
       ? `${(profile as Estudiante).nombre ?? ""} ${(profile as Estudiante).apellidos ?? ""}`.trim()
@@ -2489,37 +2684,6 @@ export default function UserProfilePage({
       year: "numeric",
     });
   };
-
-  const profileName = getName();
-  const avatarUrl = getAvatar();
-  const memberSince = getMemberSince();
-  const isVerified =
-    "verificado" in (profile ?? {}) && (profile as any).verificado;
-
-  const canSeeCandidaturas =
-    viewerRole === "administrador" ||
-    viewerRole === "empresa" ||
-    viewerRole === "tutor_empresa" ||
-    viewerRole === "tutor_centro" ||
-    (viewerRole === "estudiante" &&
-      rawEntityType === "estudiante" &&
-      entityId === viewerId);
-
-  const tabs: TabItem[] = [
-    { id: "info", label: "Información", icon: <Ic.Info /> },
-    ...(canSeeCandidaturas && rawEntityType === "estudiante"
-      ? [
-          {
-            id: "candidaturas" as const,
-            label: "Candidaturas",
-            count: stats.candidaturas,
-            icon: <Ic.FileText />,
-          },
-        ]
-      : []),
-    { id: "actividad", label: "Actividad", icon: <Ic.Activity /> },
-  ];
-
   const getSubtitle = () => {
     if (rawEntityType === "estudiante")
       return [
@@ -2547,8 +2711,32 @@ export default function UserProfilePage({
     return "";
   };
 
-  // ─── Actions ─────────────────────────────────────────────────────────────
+  const profileName = getName();
+  const avatarUrl = getAvatar();
+  const memberSince = getMemberSince();
+  const isVerified =
+    "verificado" in (profile ?? {}) && (profile as any).verificado;
+  const dispInfo =
+    rawEntityType === "estudiante"
+      ? (DISP_MAP[(profile as Estudiante).disponibilidad ?? ""] ?? null)
+      : null;
 
+  const canSeeCandidaturas =
+    viewerRole === "administrador" ||
+    viewerRole === "empresa" ||
+    viewerRole === "tutor_empresa" ||
+    viewerRole === "tutor_centro" ||
+    (viewerRole === "estudiante" &&
+      rawEntityType === "estudiante" &&
+      entityId === viewerId);
+
+  const hasStats =
+    stats.candidaturas > 0 ||
+    stats.ofertas > 0 ||
+    stats.estudiantes > 0 ||
+    stats.valoracion !== undefined;
+
+  // ── Actions ──
   function renderActions() {
     if (viewerRole === "administrador")
       return (
@@ -2646,7 +2834,7 @@ export default function UserProfilePage({
             <span
               style={{
                 fontSize: 11,
-                color: "var(--color-text-subtle)",
+                color: "var(--color-text-muted)",
                 alignSelf: "center",
               }}
             >
@@ -2751,20 +2939,20 @@ export default function UserProfilePage({
     return null;
   }
 
-  // ─── Info sections ────────────────────────────────────────────────────────
-
-  function renderInfoSections() {
+  // ── Info sections ──
+  function renderInfo() {
     if (rawEntityType === "estudiante") {
       const s = profile as Estudiante;
       return (
         <>
           {s.sobre_mi && (
-            <SectionCard title="Presentación" icon={<Ic.Info />}>
-              <p className="up-prose">{s.sobre_mi}</p>
-            </SectionCard>
+            <Section title="Presentación" icon={<Ic.Info />}>
+              <p className="p-prose">{s.sobre_mi}</p>
+            </Section>
           )}
-          <div className="up-two-col">
-            <SectionCard title="Datos de contacto" icon={<Ic.FileText />}>
+
+          <div className="p-two-col">
+            <Section title="Contacto y búsqueda" icon={<Ic.FileText />}>
               <InfoRow icon={<Ic.MapPin />} label="Ciudad" value={s.ciudad} />
               <InfoRow
                 icon={<Ic.GradCap />}
@@ -2806,33 +2994,36 @@ export default function UserProfilePage({
                   href={`https://github.com/${s.github_username}`}
                 />
               )}
-            </SectionCard>
+            </Section>
+
             {s.habilidades && s.habilidades.length > 0 && (
-              <SectionCard title="Nivel de habilidades" icon={<Ic.Activity />}>
+              <Section title="Nivel de habilidades" icon={<Ic.Activity />}>
                 {s.habilidades.slice(0, 7).map((h) => (
                   <SkillBar key={h} skill={h} />
                 ))}
-              </SectionCard>
+              </Section>
             )}
           </div>
+
           {s.habilidades && s.habilidades.length > 0 && (
-            <SectionCard title="Habilidades y tecnologías" icon={<Ic.Code />}>
-              <div className="up-tags">
+            <Section title="Habilidades y tecnologías" icon={<Ic.Code />}>
+              <div className="p-tags">
                 {s.habilidades.map((h) => (
-                  <span key={h} className="up-tag">
+                  <span key={h} className="p-tag">
                     <Ic.Hash />
                     {h}
                   </span>
                 ))}
               </div>
-            </SectionCard>
+            </Section>
           )}
+
           {Array.isArray(s.formaciones) && s.formaciones.length > 0 && (
-            <SectionCard title="Formación académica" icon={<Ic.GradCap />}>
+            <Section title="Formación académica" icon={<Ic.GradCap />}>
               {(s.formaciones as Record<string, string>[]).map((f, i) => (
-                <div key={i} className="up-formation-row">
+                <div key={i} className="p-formation">
                   <div
-                    className="up-formation-icon"
+                    className="p-formation-icon"
                     style={{
                       background: EC.centro_educativo.accentFaint,
                       border: `1px solid ${EC.centro_educativo.accentBorder}`,
@@ -2842,49 +3033,34 @@ export default function UserProfilePage({
                     <Ic.GradCap />
                   </div>
                   <div>
-                    <div className="up-formation-name">{f.titulo}</div>
-                    <div className="up-formation-sub">
+                    <div className="p-formation-name">{f.titulo}</div>
+                    <div className="p-formation-sub">
                       {[f.institucion, f.anio].filter(Boolean).join(" · ")}
                     </div>
                     {f.descripcion && (
-                      <div
-                        style={{
-                          fontSize: 11.5,
-                          color: "var(--color-text-muted)",
-                          marginTop: 4,
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        {f.descripcion}
-                      </div>
+                      <div className="p-formation-desc">{f.descripcion}</div>
                     )}
                   </div>
                 </div>
               ))}
-            </SectionCard>
+            </Section>
           )}
+
           {Array.isArray(s.proyectos) && s.proyectos.length > 0 && (
-            <SectionCard title="Proyectos destacados" icon={<Ic.Code />}>
-              <div className="up-projects-grid">
+            <Section title="Proyectos destacados" icon={<Ic.Code />}>
+              <div className="p-projects">
                 {(s.proyectos as Record<string, string>[]).map((p, i) => (
-                  <div key={i} className="up-project-card">
-                    <div className="up-project-name">{p.titulo}</div>
+                  <div key={i} className="p-project">
+                    <div className="p-project-name">{p.titulo}</div>
                     {p.descripcion && (
-                      <div className="up-project-desc">{p.descripcion}</div>
+                      <div className="p-project-desc">{p.descripcion}</div>
                     )}
                     {p.enlace && (
                       <a
                         href={p.enlace}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{
-                          fontSize: 11.5,
-                          color: "var(--color-brand)",
-                          textDecoration: "none",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
+                        className="p-project-link"
                       >
                         Ver proyecto <Ic.ExternalLink />
                       </a>
@@ -2892,10 +3068,11 @@ export default function UserProfilePage({
                   </div>
                 ))}
               </div>
-            </SectionCard>
+            </Section>
           )}
+
           {s.redes_sociales && Object.keys(s.redes_sociales).length > 0 && (
-            <SectionCard title="Redes sociales" icon={<Ic.Link />}>
+            <Section title="Redes sociales" icon={<Ic.Link />}>
               {Object.entries(s.redes_sociales).map(([red, url]) => (
                 <InfoRow
                   key={red}
@@ -2905,7 +3082,7 @@ export default function UserProfilePage({
                   href={url}
                 />
               ))}
-            </SectionCard>
+            </Section>
           )}
         </>
       );
@@ -2916,12 +3093,12 @@ export default function UserProfilePage({
       return (
         <>
           {e.descripcion && (
-            <SectionCard title="Sobre la empresa" icon={<Ic.Building />}>
-              <p className="up-prose">{e.descripcion}</p>
-            </SectionCard>
+            <Section title="Sobre la empresa" icon={<Ic.Building />}>
+              <p className="p-prose">{e.descripcion}</p>
+            </Section>
           )}
-          <div className="up-two-col">
-            <SectionCard title="Información corporativa" icon={<Ic.FileText />}>
+          <div className="p-two-col">
+            <Section title="Información corporativa" icon={<Ic.FileText />}>
               <InfoRow icon={<Ic.MapPin />} label="Ciudad" value={e.ciudad} />
               <InfoRow
                 icon={<Ic.Briefcase />}
@@ -2948,29 +3125,28 @@ export default function UserProfilePage({
               {viewerRole === "administrador" && (
                 <InfoRow icon={<Ic.Shield />} label="CIF" value={e.cif} />
               )}
-            </SectionCard>
-            <div>
-              {(e.linkedin || e.twitter || e.instagram) && (
-                <SectionCard title="Redes y presencia" icon={<Ic.Link />}>
-                  {e.linkedin && (
-                    <InfoRow
-                      icon={<Ic.Linkedin />}
-                      label="LinkedIn"
-                      value={e.linkedin}
-                      href={e.linkedin}
-                    />
-                  )}
-                  {e.twitter && (
-                    <InfoRow
-                      icon={<Ic.Twitter />}
-                      label="Twitter / X"
-                      value={e.twitter}
-                      href={e.twitter}
-                    />
-                  )}
-                </SectionCard>
-              )}
-            </div>
+            </Section>
+
+            {(e.linkedin || e.twitter) && (
+              <Section title="Redes y presencia" icon={<Ic.Link />}>
+                {e.linkedin && (
+                  <InfoRow
+                    icon={<Ic.Linkedin />}
+                    label="LinkedIn"
+                    value={e.linkedin}
+                    href={e.linkedin}
+                  />
+                )}
+                {e.twitter && (
+                  <InfoRow
+                    icon={<Ic.Twitter />}
+                    label="Twitter / X"
+                    value={e.twitter}
+                    href={e.twitter}
+                  />
+                )}
+              </Section>
+            )}
           </div>
         </>
       );
@@ -2981,12 +3157,12 @@ export default function UserProfilePage({
       return (
         <>
           {c.descripcion && (
-            <SectionCard title="Sobre el centro" icon={<Ic.BookOpen />}>
-              <p className="up-prose">{c.descripcion}</p>
-            </SectionCard>
+            <Section title="Sobre el centro" icon={<Ic.BookOpen />}>
+              <p className="p-prose">{c.descripcion}</p>
+            </Section>
           )}
-          <div className="up-two-col">
-            <SectionCard title="Datos del centro" icon={<Ic.FileText />}>
+          <div className="p-two-col">
+            <Section title="Datos del centro" icon={<Ic.FileText />}>
               <InfoRow icon={<Ic.MapPin />} label="Ciudad" value={c.ciudad} />
               <InfoRow
                 icon={<Ic.MapPin />}
@@ -3019,17 +3195,18 @@ export default function UserProfilePage({
                 value={c.sitio_web}
                 href={c.sitio_web}
               />
-            </SectionCard>
+            </Section>
+
             {c.titulaciones && c.titulaciones.length > 0 && (
-              <SectionCard title="Titulaciones ofertadas" icon={<Ic.Layers />}>
-                <div className="up-tags" style={{ gap: 5 }}>
+              <Section title="Titulaciones ofertadas" icon={<Ic.Layers />}>
+                <div className="p-tags" style={{ gap: 5 }}>
                   {c.titulaciones.map((t) => (
                     <span
                       key={t}
-                      className="up-accent-tag"
+                      className="p-tag"
                       style={{
                         background: ec.accentFaint,
-                        border: `1px solid ${ec.accentBorder}`,
+                        borderColor: ec.accentBorder,
                         color: ec.accent,
                       }}
                     >
@@ -3037,7 +3214,7 @@ export default function UserProfilePage({
                     </span>
                   ))}
                 </div>
-              </SectionCard>
+              </Section>
             )}
           </div>
         </>
@@ -3046,517 +3223,556 @@ export default function UserProfilePage({
     return null;
   }
 
-  // ─── Main render ──────────────────────────────────────────────────────────
+  // ── Sidebar data ──
+  function renderSidebarData() {
+    if (rawEntityType === "estudiante") {
+      const s = profile as Estudiante;
+      return (
+        <>
+          {s.ciudad && (
+            <div className="p-data-row">
+              <span className="p-data-label">Ciudad</span>
+              <span className="p-data-val">{s.ciudad}</span>
+            </div>
+          )}
+          {s.titulacion && (
+            <div className="p-data-row">
+              <span className="p-data-label">Titulación</span>
+              <span className="p-data-val">{s.titulacion}</span>
+            </div>
+          )}
+          {s.modalidad && (
+            <div className="p-data-row">
+              <span className="p-data-label">Modalidad</span>
+              <span className="p-data-val">{s.modalidad}</span>
+            </div>
+          )}
+          {s.tipo_busqueda && (
+            <div className="p-data-row">
+              <span className="p-data-label">Búsqueda</span>
+              <span className="p-data-val">{s.tipo_busqueda}</span>
+            </div>
+          )}
+          {s.disponibilidad &&
+            (() => {
+              const d = DISP_MAP[s.disponibilidad!];
+              return d ? (
+                <div className="p-data-row">
+                  <span className="p-data-label">Estado</span>
+                  <span
+                    style={{
+                      color: d.color,
+                      fontSize: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                    }}
+                  >
+                    <Ic.Dot color={d.color} /> {d.label}
+                  </span>
+                </div>
+              ) : null;
+            })()}
+        </>
+      );
+    }
+    if (rawEntityType === "empresa") {
+      const e = profile as Empresa;
+      return (
+        <>
+          {e.sector && (
+            <div className="p-data-row">
+              <span className="p-data-label">Sector</span>
+              <span className="p-data-val">{e.sector}</span>
+            </div>
+          )}
+          {e.ciudad && (
+            <div className="p-data-row">
+              <span className="p-data-label">Ciudad</span>
+              <span className="p-data-val">{e.ciudad}</span>
+            </div>
+          )}
+          {e.tamano && (
+            <div className="p-data-row">
+              <span className="p-data-label">Tamaño</span>
+              <span className="p-data-val">{e.tamano}</span>
+            </div>
+          )}
+          <div className="p-data-row">
+            <span className="p-data-label">Verificada</span>
+            <span
+              style={{
+                color: isVerified ? "#4ade80" : "#f87171",
+                fontSize: 12,
+              }}
+            >
+              {isVerified ? "Sí" : "No"}
+            </span>
+          </div>
+        </>
+      );
+    }
+    if (rawEntityType === "centro_educativo") {
+      const c = profile as CentroEducativo;
+      return (
+        <>
+          {c.tipo_centro && (
+            <div className="p-data-row">
+              <span className="p-data-label">Tipo</span>
+              <span className="p-data-val">{c.tipo_centro}</span>
+            </div>
+          )}
+          {c.ciudad && (
+            <div className="p-data-row">
+              <span className="p-data-label">Ciudad</span>
+              <span className="p-data-val">{c.ciudad}</span>
+            </div>
+          )}
+          {c.provincia && (
+            <div className="p-data-row">
+              <span className="p-data-label">Provincia</span>
+              <span className="p-data-val">{c.provincia}</span>
+            </div>
+          )}
+          {c.num_alumnos != null && (
+            <div className="p-data-row">
+              <span className="p-data-label">Alumnos</span>
+              <span className="p-data-val">{c.num_alumnos}</span>
+            </div>
+          )}
+          <div className="p-data-row">
+            <span className="p-data-label">Verificado</span>
+            <span
+              style={{
+                color: isVerified ? "#4ade80" : "#f87171",
+                fontSize: 12,
+              }}
+            >
+              {isVerified ? "Sí" : "No"}
+            </span>
+          </div>
+        </>
+      );
+    }
+    return null;
+  }
 
-  const dispInfo =
-    rawEntityType === "estudiante"
-      ? (DISP_MAP[(profile as Estudiante).disponibilidad ?? ""] ?? null)
-      : null;
+  const suggestionTitle =
+    rawEntityType === "empresa"
+      ? "Empresas relacionadas"
+      : rawEntityType === "centro_educativo"
+        ? "Centros relacionados"
+        : "Perfiles relacionados";
+  const roleTitle =
+    viewerRole === "estudiante"
+      ? "Otros estudiantes"
+      : viewerRole === "empresa"
+        ? "Otras empresas"
+        : viewerRole === "centro_educativo"
+          ? "Otros centros"
+          : "Perfiles sugeridos";
 
+  const statsCount =
+    (rawEntityType === "estudiante" && stats.candidaturas > 0 ? 1 : 0) +
+    (rawEntityType === "empresa" && stats.ofertas > 0 ? 1 : 0) +
+    (rawEntityType === "empresa" && stats.valoracion !== undefined ? 1 : 0) +
+    (rawEntityType === "centro_educativo" && stats.estudiantes > 0 ? 1 : 0);
+  const statsClass =
+    statsCount >= 3
+      ? "p-stats p-stats-3"
+      : statsCount === 2
+        ? "p-stats p-stats-2"
+        : "p-stats p-stats-1";
+
+  // ── Render ──
   return (
     <MainLayout>
-      <style>{GLOBAL_CSS}</style>
-      <div className="up-root">
-        <div className="up-inner">
-          {/* ── Back (spans full width) ── */}
-          <div style={{ gridColumn: "1 / -1", marginBottom: 4 }}>
-            <button className="up-back" onClick={handleBack}>
+      <style>{CSS}</style>
+      <div className="p-root">
+        <div className="p-page">
+          {/* Back */}
+          <div className="p-back-row">
+            <button className="p-back" onClick={handleBack}>
               <Ic.ArrowLeft /> Volver al directorio
             </button>
           </div>
 
-          {/* ── Main column ── */}
-          <div className="up-main">
-            {/* Hero card */}
-            <div className="up-panel up-hero">
-              <div
-                className="up-hero-accent-bar"
-                style={{ background: ec.accent }}
-              />
-              <div className="up-hero-body">
-                <div className="up-hero-top">
-                  <div className="up-hero-left">
-                    <div className="up-avatar-wrap">
-                      <Avatar url={avatarUrl} name={profileName} ec={ec} />
-                      {isVerified && (
-                        <div className="up-verified-badge">
-                          <Ic.Check s={8} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="up-hero-meta">
+          <div className="p-layout">
+            {/* ── Main column ── */}
+            <div>
+              {/* Hero Card */}
+              <div className="p-hero">
+                {/* Cover band */}
+                <div className="p-cover">
+                  <div
+                    className="p-cover-bg"
+                    style={{
+                      background: `linear-gradient(135deg, ${ec.coverFrom} 0%, ${ec.coverTo} 100%)`,
+                    }}
+                  />
+                  <div className="p-cover-dots" />
+                  <div className="p-cover-fade" />
+                  <div
+                    className="p-cover-line"
+                    style={{
+                      background: `linear-gradient(90deg, ${ec.accent}55, transparent 60%)`,
+                    }}
+                  />
+                </div>
+
+                {/* Profile head */}
+                <div className="p-head">
+                  {/* Avatar */}
+                  <div className="p-avatar-wrap">
+                    <div
+                      className="p-avatar-shell"
+                      style={{ borderColor: ec.accentBorder }}
+                    >
                       <div
-                        className="up-entity-label"
-                        style={{ color: ec.accent }}
+                        style={{
+                          position: "relative",
+                          width: "100%",
+                          height: "100%",
+                        }}
+                      >
+                        <Avatar url={avatarUrl} name={profileName} ec={ec} />
+                        {isVerified && (
+                          <div className="p-verified-badge">
+                            <Ic.Check s={9} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Name + actions */}
+                  <div className="p-name-row">
+                    <div className="p-name-info">
+                      <div
+                        className="p-entity-badge"
+                        style={{ background: ec.accentFaint, color: ec.accent }}
                       >
                         <Ic.Dot color={ec.dot} />
                         {rawEntityType ? EC[rawEntityType].label : ""}
                         {isVerified && (
-                          <span
-                            style={{
-                              marginLeft: 6,
-                              fontSize: 9,
-                              background: "rgba(192,255,114,0.1)",
-                              border: "1px solid rgba(192,255,114,0.2)",
-                              color: "#c0ff72",
-                              padding: "1px 5px",
-                              borderRadius: 3,
-                              letterSpacing: "0.06em",
-                            }}
-                          >
-                            VERIFICADO
+                          <span className="p-verified-chip">
+                            <Ic.Check s={7} /> verificado
                           </span>
                         )}
                       </div>
-                      <h1 className="up-name">{profileName}</h1>
-                      <div className="up-subtitle">{getSubtitle()}</div>
+                      <h1 className="p-name">{profileName}</h1>
+                      {getSubtitle() && (
+                        <p className="p-headline">{getSubtitle()}</p>
+                      )}
                     </div>
+                    <div className="p-actions">{renderActions()}</div>
                   </div>
-                  <div className="up-hero-actions">{renderActions()}</div>
-                </div>
 
-                <div className="up-pills">
-                  {memberSince && (
-                    <span className="up-pill">
-                      <Ic.Calendar /> Miembro desde {memberSince}
-                    </span>
-                  )}
-                  {dispInfo && (
-                    <span className="up-pill" style={{ color: dispInfo.color }}>
-                      <Ic.Dot color={dispInfo.color} /> {dispInfo.label}
-                    </span>
-                  )}
-                  {rawEntityType === "empresa" && (profile as Empresa).web && (
-                    <a
-                      href={(profile as Empresa).web!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        fontSize: 11,
-                        color: ec.accent,
-                        textDecoration: "none",
-                      }}
-                    >
-                      <Ic.Globe /> {(profile as Empresa).web}
-                    </a>
-                  )}
-                </div>
-              </div>
-
-              {/* Stats */}
-              {(stats.candidaturas > 0 ||
-                stats.ofertas > 0 ||
-                stats.estudiantes > 0 ||
-                stats.valoracion !== undefined) && (
-                <div className="up-stats">
-                  {rawEntityType === "estudiante" && (
-                    <div className="up-stat">
-                      <div
-                        className="up-stat-value"
-                        style={{ color: ec.accent }}
-                      >
-                        {stats.candidaturas}
-                      </div>
-                      <div className="up-stat-label">Candidaturas</div>
-                    </div>
-                  )}
-                  {rawEntityType === "empresa" && (
-                    <div className="up-stat">
-                      <div
-                        className="up-stat-value"
-                        style={{ color: ec.accent }}
-                      >
-                        {stats.ofertas}
-                      </div>
-                      <div className="up-stat-label">Ofertas activas</div>
-                    </div>
-                  )}
-                  {rawEntityType === "empresa" &&
-                    stats.valoracion !== undefined && (
-                      <div className="up-stat">
-                        <div
-                          className="up-stat-value"
-                          style={{ color: "#facc15" }}
+                  {/* Meta pills */}
+                  {(memberSince ||
+                    dispInfo ||
+                    (rawEntityType === "empresa" &&
+                      (profile as Empresa).web)) && (
+                    <div className="p-meta-row">
+                      {memberSince && (
+                        <span className="p-meta-item">
+                          <Ic.Calendar /> Miembro desde {memberSince}
+                        </span>
+                      )}
+                      {dispInfo && (
+                        <span
+                          className="p-meta-item"
+                          style={{ color: dispInfo.color }}
                         >
-                          {stats.valoracion}
-                          <span
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 400,
-                              color: "var(--color-text-subtle)",
-                            }}
+                          <Ic.Dot color={dispInfo.color} /> {dispInfo.label}
+                        </span>
+                      )}
+                      {rawEntityType === "empresa" &&
+                        (profile as Empresa).web && (
+                          <a
+                            href={(profile as Empresa).web!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-meta-link"
+                            style={{ color: ec.accent }}
                           >
-                            /5
-                          </span>
+                            <Ic.Globe /> {(profile as Empresa).web}
+                          </a>
+                        )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Stats strip */}
+                {hasStats && (
+                  <div className={statsClass}>
+                    {rawEntityType === "estudiante" &&
+                      stats.candidaturas > 0 && (
+                        <div className="p-stat">
+                          <div
+                            className="p-stat-value"
+                            style={{ color: ec.accent }}
+                          >
+                            {stats.candidaturas}
+                          </div>
+                          <div className="p-stat-label">Candidaturas</div>
                         </div>
-                        <div className="up-stat-label">Valoración media</div>
+                      )}
+                    {rawEntityType === "empresa" && stats.ofertas > 0 && (
+                      <div className="p-stat">
+                        <div
+                          className="p-stat-value"
+                          style={{ color: ec.accent }}
+                        >
+                          {stats.ofertas}
+                        </div>
+                        <div className="p-stat-label">Ofertas activas</div>
                       </div>
                     )}
-                  {rawEntityType === "centro_educativo" && (
-                    <div className="up-stat">
-                      <div
-                        className="up-stat-value"
-                        style={{ color: ec.accent }}
-                      >
-                        {stats.estudiantes}
-                      </div>
-                      <div className="up-stat-label">Estudiantes</div>
+                    {rawEntityType === "empresa" &&
+                      stats.valoracion !== undefined && (
+                        <div className="p-stat">
+                          <div
+                            className="p-stat-value"
+                            style={{ color: "#facc15" }}
+                          >
+                            {stats.valoracion}
+                            <span
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 400,
+                                color: "var(--color-text-muted)",
+                              }}
+                            >
+                              /5
+                            </span>
+                          </div>
+                          <div className="p-stat-label">Valoración media</div>
+                        </div>
+                      )}
+                    {rawEntityType === "centro_educativo" &&
+                      stats.estudiantes > 0 && (
+                        <div className="p-stat">
+                          <div
+                            className="p-stat-value"
+                            style={{ color: ec.accent }}
+                          >
+                            {stats.estudiantes}
+                          </div>
+                          <div className="p-stat-label">Estudiantes</div>
+                        </div>
+                      )}
+                  </div>
+                )}
+              </div>
+
+              {/* Tabs */}
+              <div className="p-tabs">
+                {[
+                  {
+                    id: "info" as const,
+                    label: "Información",
+                    icon: <Ic.Info />,
+                  },
+                  ...(canSeeCandidaturas && rawEntityType === "estudiante"
+                    ? [
+                        {
+                          id: "candidaturas" as const,
+                          label: "Candidaturas",
+                          count: stats.candidaturas,
+                          icon: <Ic.FileText />,
+                        },
+                      ]
+                    : []),
+                  {
+                    id: "actividad" as const,
+                    label: "Actividad",
+                    icon: <Ic.Activity />,
+                  },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    className={`p-tab${activeTab === tab.id ? " active" : ""}`}
+                    onClick={() => setActiveTab(tab.id)}
+                    style={activeTab === tab.id ? { color: ec.accent } : {}}
+                  >
+                    <span
+                      style={{
+                        display: "flex",
+                        opacity: activeTab === tab.id ? 1 : 0.45,
+                      }}
+                    >
+                      {tab.icon}
+                    </span>
+                    {tab.label}
+                    {"count" in tab &&
+                      tab.count !== undefined &&
+                      tab.count > 0 && (
+                        <span className="p-tab-badge">{tab.count}</span>
+                      )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab content */}
+              {activeTab === "info" && renderInfo()}
+
+              {activeTab === "candidaturas" && (
+                <Section
+                  title="Candidaturas"
+                  icon={<Ic.FileText />}
+                  count={stats.candidaturas}
+                >
+                  {candidaturas.length === 0 ? (
+                    <div className="p-empty">
+                      <Ic.FileText />
+                      <span>No hay candidaturas registradas.</span>
+                    </div>
+                  ) : (
+                    <div className="p-cand-list">
+                      {candidaturas.map((c) => (
+                        <CandRow key={c.id_candidatura} c={c} />
+                      ))}
                     </div>
                   )}
-                </div>
+                </Section>
+              )}
+
+              {activeTab === "actividad" && (
+                <Section title="Actividad reciente" icon={<Ic.Activity />}>
+                  <div className="p-activity">
+                    {memberSince && (
+                      <div className="p-activity-item">
+                        <div
+                          className="p-activity-icon"
+                          style={{
+                            background: ec.accentFaint,
+                            color: ec.accent,
+                            borderColor: ec.accentBorder,
+                          }}
+                        >
+                          <Ic.Calendar />
+                        </div>
+                        <div>
+                          <div className="p-activity-text">
+                            Perfil creado en Relance
+                          </div>
+                          <div className="p-activity-sub">{memberSince}</div>
+                        </div>
+                      </div>
+                    )}
+                    {rawEntityType === "estudiante" &&
+                      stats.candidaturas > 0 && (
+                        <div className="p-activity-item">
+                          <div
+                            className="p-activity-icon"
+                            style={{
+                              background: "rgba(255,255,255,0.04)",
+                              color: "var(--color-text-muted)",
+                            }}
+                          >
+                            <Ic.FileText />
+                          </div>
+                          <div>
+                            <div className="p-activity-text">
+                              {stats.candidaturas} candidatura
+                              {stats.candidaturas > 1 ? "s" : ""} enviada
+                              {stats.candidaturas > 1 ? "s" : ""}
+                            </div>
+                            <div className="p-activity-sub">
+                              Ver historial en la pestaña Candidaturas
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    {rawEntityType === "empresa" && stats.ofertas > 0 && (
+                      <div className="p-activity-item">
+                        <div
+                          className="p-activity-icon"
+                          style={{
+                            background: "rgba(255,255,255,0.04)",
+                            color: "var(--color-text-muted)",
+                          }}
+                        >
+                          <Ic.Layers />
+                        </div>
+                        <div>
+                          <div className="p-activity-text">
+                            {stats.ofertas} oferta{stats.ofertas > 1 ? "s" : ""}{" "}
+                            publicada{stats.ofertas > 1 ? "s" : ""}
+                          </div>
+                          <div className="p-activity-sub">
+                            Historial de publicaciones
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-activity-soon">
+                    El historial detallado de actividad estará disponible
+                    próximamente.
+                  </div>
+                </Section>
               )}
             </div>
 
-            {/* Tabs */}
-            <div className="up-tabs">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  className={`up-tab${activeTab === tab.id ? " active" : ""}`}
-                  onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    borderBottomColor:
-                      activeTab === tab.id ? ec.accent : "transparent",
-                  }}
-                >
-                  <span
-                    style={{
-                      display: "flex",
-                      opacity: activeTab === tab.id ? 1 : 0.5,
-                    }}
-                  >
-                    {tab.icon}
-                  </span>
-                  {tab.label}
-                  {"count" in tab && tab.count > 0 && (
-                    <span className="up-tab-badge">{tab.count}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Tab content */}
-            {activeTab === "info" && renderInfoSections()}
-
-            {activeTab === "candidaturas" && (
-              <SectionCard
-                title={`Candidaturas enviadas · ${stats.candidaturas}`}
-                icon={<Ic.FileText />}
-              >
-                {candidaturas.length === 0 ? (
-                  <p className="up-empty">No hay candidaturas registradas.</p>
-                ) : (
-                  candidaturas.map((c) => (
-                    <CandidaturaRow key={c.id_candidatura} c={c} />
-                  ))
-                )}
-              </SectionCard>
-            )}
-
-            {activeTab === "actividad" && (
-              <SectionCard title="Actividad reciente" icon={<Ic.Activity />}>
-                {memberSince && (
-                  <div className="up-activity-row">
-                    <div
-                      className="up-activity-icon"
-                      style={{
-                        background: ec.accentFaint,
-                        color: ec.accent,
-                        borderColor: ec.accentBorder,
-                      }}
-                    >
-                      <Ic.Calendar />
-                    </div>
-                    <div>
-                      <div className="up-activity-text">
-                        Perfil creado en Relance
-                      </div>
-                      <div className="up-activity-sub">{memberSince}</div>
-                    </div>
-                  </div>
-                )}
-                {rawEntityType === "estudiante" && stats.candidaturas > 0 && (
-                  <div className="up-activity-row">
-                    <div className="up-activity-icon">
-                      <Ic.FileText />
-                    </div>
-                    <div>
-                      <div className="up-activity-text">
-                        {stats.candidaturas} candidatura
-                        {stats.candidaturas > 1 ? "s" : ""} enviada
-                        {stats.candidaturas > 1 ? "s" : ""}
-                      </div>
-                      <div className="up-activity-sub">
-                        Ver historial completo en la pestaña Candidaturas
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {rawEntityType === "empresa" && stats.ofertas > 0 && (
-                  <div className="up-activity-row">
-                    <div className="up-activity-icon">
-                      <Ic.Layers />
-                    </div>
-                    <div>
-                      <div className="up-activity-text">
-                        {stats.ofertas} oferta{stats.ofertas > 1 ? "s" : ""}{" "}
-                        publicada{stats.ofertas > 1 ? "s" : ""}
-                      </div>
-                      <div className="up-activity-sub">
-                        Historial de publicaciones
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <p
-                  style={{
-                    margin: "14px 0 0",
-                    fontSize: 11,
-                    color: "var(--color-text-subtle)",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  El historial detallado de actividad estará disponible
-                  próximamente.
-                </p>
-              </SectionCard>
-            )}
-          </div>
-
-          {/* ── Sidebar ── */}
-          <div className="up-sidebar">
-            <div className="up-sidebar-inner">
-              {/* Quick info strip */}
-              <div>
-                <div className="up-sidebar-label">Datos clave</div>
-                <div className="up-info-strip">
-                  {rawEntityType === "estudiante" &&
-                    (() => {
-                      const s = profile as Estudiante;
-                      return (
-                        <>
-                          {s.ciudad && (
-                            <div className="up-strip-row">
-                              <span className="up-strip-label">Ciudad</span>
-                              <span className="up-strip-val">{s.ciudad}</span>
-                            </div>
-                          )}
-                          {s.titulacion && (
-                            <div className="up-strip-row">
-                              <span className="up-strip-label">Titulación</span>
-                              <span className="up-strip-val">
-                                {s.titulacion}
-                              </span>
-                            </div>
-                          )}
-                          {s.modalidad && (
-                            <div className="up-strip-row">
-                              <span className="up-strip-label">Modalidad</span>
-                              <span className="up-strip-val">
-                                {s.modalidad}
-                              </span>
-                            </div>
-                          )}
-                          {s.tipo_busqueda && (
-                            <div className="up-strip-row">
-                              <span className="up-strip-label">Búsqueda</span>
-                              <span className="up-strip-val">
-                                {s.tipo_busqueda}
-                              </span>
-                            </div>
-                          )}
-                          {s.disponibilidad &&
-                            (() => {
-                              const d = DISP_MAP[s.disponibilidad!];
-                              return d ? (
-                                <div className="up-strip-row">
-                                  <span className="up-strip-label">Estado</span>
-                                  <span
-                                    style={{
-                                      color: d.color,
-                                      fontSize: 11.5,
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 4,
-                                    }}
-                                  >
-                                    <Ic.Dot color={d.color} />
-                                    {d.label}
-                                  </span>
-                                </div>
-                              ) : null;
-                            })()}
-                        </>
-                      );
-                    })()}
-                  {rawEntityType === "empresa" &&
-                    (() => {
-                      const e = profile as Empresa;
-                      return (
-                        <>
-                          {e.sector && (
-                            <div className="up-strip-row">
-                              <span className="up-strip-label">Sector</span>
-                              <span className="up-strip-val">{e.sector}</span>
-                            </div>
-                          )}
-                          {e.ciudad && (
-                            <div className="up-strip-row">
-                              <span className="up-strip-label">Ciudad</span>
-                              <span className="up-strip-val">{e.ciudad}</span>
-                            </div>
-                          )}
-                          {e.tamano && (
-                            <div className="up-strip-row">
-                              <span className="up-strip-label">Tamaño</span>
-                              <span className="up-strip-val">{e.tamano}</span>
-                            </div>
-                          )}
-                          <div className="up-strip-row">
-                            <span className="up-strip-label">Verificada</span>
-                            <span
-                              style={{
-                                color: isVerified ? "#4ade80" : "#f87171",
-                                fontSize: 11.5,
-                              }}
-                            >
-                              {isVerified ? "Sí" : "No"}
-                            </span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  {rawEntityType === "centro_educativo" &&
-                    (() => {
-                      const c = profile as CentroEducativo;
-                      return (
-                        <>
-                          {c.tipo_centro && (
-                            <div className="up-strip-row">
-                              <span className="up-strip-label">Tipo</span>
-                              <span className="up-strip-val">
-                                {c.tipo_centro}
-                              </span>
-                            </div>
-                          )}
-                          {c.ciudad && (
-                            <div className="up-strip-row">
-                              <span className="up-strip-label">Ciudad</span>
-                              <span className="up-strip-val">{c.ciudad}</span>
-                            </div>
-                          )}
-                          {c.provincia && (
-                            <div className="up-strip-row">
-                              <span className="up-strip-label">Provincia</span>
-                              <span className="up-strip-val">
-                                {c.provincia}
-                              </span>
-                            </div>
-                          )}
-                          {c.num_alumnos != null && (
-                            <div className="up-strip-row">
-                              <span className="up-strip-label">Alumnos</span>
-                              <span className="up-strip-val">
-                                {c.num_alumnos}
-                              </span>
-                            </div>
-                          )}
-                          <div className="up-strip-row">
-                            <span className="up-strip-label">Verificado</span>
-                            <span
-                              style={{
-                                color: isVerified ? "#4ade80" : "#f87171",
-                                fontSize: 11.5,
-                              }}
-                            >
-                              {isVerified ? "Sí" : "No"}
-                            </span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                </div>
-              </div>
-
-              {/* Viewer context card — only shows relevant info */}
+            {/* ── Sidebar ── */}
+            <div className="p-sidebar">
+              {/* Context badges */}
               {(viewerContext.isMiEstudiante ||
                 viewerContext.isEnrolledEstudiante ||
                 viewerContext.isMyPracticasStudent) && (
-                <div className="up-viewer-context-card">
+                <div className="p-ctx-card">
                   {viewerContext.isMiEstudiante && (
-                    <span
-                      style={{
-                        color: "#4ade80",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 5,
-                        fontSize: 11.5,
-                      }}
-                    >
-                      <Ic.Check s={10} /> Estudiante tutorizado por ti
-                    </span>
+                    <div className="p-ctx-item" style={{ color: "#4ade80" }}>
+                      <Ic.Check s={11} /> Estudiante tutorizado por ti
+                    </div>
                   )}
                   {viewerContext.isEnrolledEstudiante &&
                     !viewerContext.isMiEstudiante && (
-                      <span
-                        style={{
-                          color: "#60a5fa",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 5,
-                          fontSize: 11.5,
-                        }}
-                      >
+                      <div className="p-ctx-item" style={{ color: "#60a5fa" }}>
                         <Ic.Info /> Matriculado en tu centro
-                      </span>
+                      </div>
                     )}
                   {viewerContext.isMyPracticasStudent && (
-                    <span
-                      style={{
-                        color: "#fb923c",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 5,
-                        fontSize: 11.5,
-                      }}
-                    >
+                    <div className="p-ctx-item" style={{ color: "#fb923c" }}>
                       <Ic.Briefcase /> En prácticas en tu empresa
-                    </span>
+                    </div>
                   )}
                 </div>
               )}
 
-              {/* Suggestions */}
-              {suggestions.length > 0 && (
-                <div>
-                  <div className="up-sidebar-label" style={{ marginTop: 4 }}>
-                    {rawEntityType === "empresa"
-                      ? "Empresas relacionadas"
-                      : rawEntityType === "centro_educativo"
-                        ? "Centros relacionados"
-                        : "Estudiantes relacionados"}
+              {/* Quick data */}
+              {/* <div className="p-data-card">
+                <div className="p-data-card-header">
+                  <span className="p-data-card-title">Datos clave</span>
+                </div>
+                {renderSidebarData()}
+              </div> */}
+
+              {/* Related suggestions */}
+              {relatedSuggestions.length > 0 && (
+                <div className="p-sug-card">
+                  <div className="p-sug-header">
+                    <span className="p-sug-title">{suggestionTitle}</span>
                   </div>
-                  <div
-                    style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                  >
-                    {suggestions.map((s) => (
-                      <SuggestedCard key={s.id} profile={s} />
+                  <div className="p-sug-list">
+                    {relatedSuggestions.map((s) => (
+                      <SugItem key={s.id} profile={s} />
                     ))}
                   </div>
                 </div>
               )}
 
-              {sameRoleSuggestions.length > 0 && ROLE_SUGGESTION_META[viewerRole] && (
-                <div>
-                  <div className="up-sidebar-label" style={{ marginTop: 8 }}>
-                    {ROLE_SUGGESTION_META[viewerRole]?.title}
+              {/* Role suggestions */}
+              {roleSuggestions.length > 0 && (
+                <div className="p-sug-card">
+                  <div className="p-sug-header">
+                    <span className="p-sug-title">{roleTitle}</span>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {sameRoleSuggestions.map((s) => (
-                      <SuggestedCard key={`role-${s.id}`} profile={s} />
+                  <div className="p-sug-list">
+                    {roleSuggestions.map((s) => (
+                      <SugItem key={`role-${s.id}`} profile={s} />
                     ))}
                   </div>
                 </div>
@@ -3566,7 +3782,6 @@ export default function UserProfilePage({
         </div>
       </div>
 
-      {/* Toasts */}
       {actionState.success && (
         <Toast
           message={actionState.success}
