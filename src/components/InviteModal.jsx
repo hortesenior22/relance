@@ -218,6 +218,8 @@ export default function InviteModal({
     setGenerating(true);
     setError(null);
     const token = crypto.randomUUID();
+    console.log("SUPABASE URL:", import.meta.env.VITE_SUPABASE_URL);
+    console.log("TOKEN:", token);
     const expires = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
 
     const { error: dbError } = await supabase.from("invite_tokens").insert({
@@ -236,7 +238,8 @@ export default function InviteModal({
     }
     const BASE_URL = "https://relance-platform.vercel.app"; // TODO: extraer a config
 
-    const url = `${BASE_URL}${inviteRoute}?token=${token}&entity=${user.id}`;
+    const url = `${BASE_URL}${inviteRoute}?token=${token}&entity=${user.id}&type=${entityType}`;
+
     console.log(url);
 
     setInviteUrl(url);
