@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import UserMenu from "../auth/UserMenu";
 import logoUrl from "../../assets/logo_relance.jpg";
-import { supabase } from "../../lib/supabase";
 import SearchModal, { type Role } from "../search/SearchModal";
 
 type HeaderProps = {
@@ -10,22 +9,30 @@ type HeaderProps = {
   onRegisterClick?: () => void;
 };
 
-const navLinks = [{ label: "Inicio", href: "/" }];
+// const navLinks = [{ label: "Inicio", href: "/" }];
 
 export default function Header({
   onLoginClick,
   onRegisterClick,
 }: HeaderProps): JSX.Element {
-  const { user } = useAuth();
+  // Avatar y rol vienen directamente del contexto, sin estado local duplicado
+  const { user, userRole, avatarUrl } = useAuth();
 
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(
-    user?.user_metadata?.avatar_url,
-  );
 
-  const role: Role = (user?.user_metadata?.role as Role) ?? "estudiante";
+  // Rol desde el contexto, no desde user_metadata (que puede estar vacío)
+  const roleMap: Record<string, Role> = {
+    admin: "administrador",
+    estudiante: "estudiante",
+    empresa: "empresa",
+    centro_educativo: "centro_educativo",
+    tutor_centro: "tutor_centro",
+    tutor_empresa: "tutor_empresa",
+    // tutor: "estudiante",
+  };
+  const role: Role = roleMap[userRole ?? ""] ?? "estudiante";
   const userId: string = user?.id ?? "";
   const fullName: string = user?.user_metadata?.full_name ?? user?.email ?? "";
   const initials: string = fullName
@@ -40,19 +47,6 @@ export default function Header({
     window.addEventListener("scroll", h, { passive: true });
     return () => window.removeEventListener("scroll", h);
   }, []);
-
-  // ── Avatar desde BD ───────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("usuario")
-      .select("avatar_url")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.avatar_url) setAvatarUrl(data.avatar_url);
-      });
-  }, [user]);
 
   // ── Ctrl+K / Cmd+K ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -106,7 +100,7 @@ export default function Header({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                height: 48, // ← 56→48 px en portátil
+                height: 48,
                 gap: 10,
               }}
             >
@@ -125,7 +119,7 @@ export default function Header({
                   src={logoUrl}
                   alt="Relance"
                   style={{
-                    height: 24, // ← 28→24 px
+                    height: 24,
                     width: "auto",
                     borderRadius: 6,
                     transition: "opacity 0.2s",
@@ -134,14 +128,14 @@ export default function Header({
               </a>
 
               {/* ── Nav ── */}
-              <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
+              {/* <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
                 {navLinks.map((link) => (
                   <a
                     key={link.label}
                     href={link.href}
                     style={{
-                      padding: "5px 11px", // ← 6/13 → 5/11
-                      fontSize: 12, // ← 13→12
+                      padding: "5px 11px",
+                      fontSize: 12,
                       fontWeight: 500,
                       color: "var(--color-text-muted)",
                       borderRadius: 8,
@@ -163,7 +157,7 @@ export default function Header({
                     {link.label}
                   </a>
                 ))}
-              </nav>
+              </nav> */}
 
               {/* ── Search trigger ── */}
               <button
@@ -171,11 +165,11 @@ export default function Header({
                 aria-label="Abrir buscador (Ctrl+K)"
                 style={{
                   flex: "1 1 0",
-                  maxWidth: 260, // ← 300→260
+                  maxWidth: 260,
                   display: "flex",
                   alignItems: "center",
                   gap: 7,
-                  padding: "6px 10px", // ← 7/12 → 6/10
+                  padding: "6px 10px",
                   borderRadius: 9,
                   border: "1px solid var(--color-border-strong)",
                   background: "rgba(255,255,255,0.025)",
@@ -183,7 +177,7 @@ export default function Header({
                   cursor: "pointer",
                   transition: "all 0.18s",
                   fontFamily: "Plus Jakarta Sans, sans-serif",
-                  fontSize: 11.5, // ← 12.5→11.5
+                  fontSize: 11.5,
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = "rgba(192,255,114,0.25)";
@@ -243,10 +237,12 @@ export default function Header({
                       onClick={() => setMenuOpen((v) => !v)}
                       aria-label="Menú de usuario"
                       style={{
-                        width: 30, // ← 34→30
+                        width: 30,
                         height: 30,
                         borderRadius: "50%",
                         overflow: "hidden",
+                        // ✅ El borde brand solo cuando el menú está abierto,
+                        // nunca por loading
                         border: menuOpen
                           ? "2px solid var(--color-brand)"
                           : "2px solid rgba(255,255,255,0.1)",
@@ -257,6 +253,7 @@ export default function Header({
                         background: "transparent",
                       }}
                     >
+                      {/* ✅ avatarUrl viene del contexto, siempre actualizado */}
                       {avatarUrl ? (
                         <img
                           src={avatarUrl}
@@ -278,7 +275,7 @@ export default function Header({
                             justifyContent: "center",
                             color: "#02050d",
                             fontWeight: 700,
-                            fontSize: 11, // ← 12→11
+                            fontSize: 11,
                             fontFamily: "Syne, sans-serif",
                           }}
                         >
@@ -308,23 +305,6 @@ export default function Header({
                       Registrarse
                     </button>
                     {/* Mobile */}
-                    <button
-                      onClick={onLoginClick}
-                      className="md:hidden"
-                      style={{
-                        padding: "5px 9px",
-                        borderRadius: 8,
-                        fontSize: 11,
-                        fontWeight: 500,
-                        fontFamily: "Plus Jakarta Sans, sans-serif",
-                        border: "1px solid var(--color-border-strong)",
-                        background: "transparent",
-                        color: "var(--color-text-muted)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Entrar
-                    </button>
                     <button
                       onClick={onRegisterClick}
                       className="md:hidden"

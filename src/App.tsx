@@ -80,19 +80,36 @@ function OfertaDirecta() {
 function AppContent() {
   const { user, loading } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+
+  // safeLoading: solo bloquea la UI en la carga inicial.
+  // hasLoadedOnce: una vez que loading baja a false por primera vez,
+  // ya nunca volvemos a mostrar el spinner (ni por TOKEN_REFRESHED ni por nada).
   const [safeLoading, setSafeLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   useEffect(() => {
     if (!loading) {
+      // Primera (o cualquier) vez que loading pasa a false
+      setHasLoadedOnce(true);
       setSafeLoading(false);
       return;
     }
+
+    // loading es true: solo bloqueamos si NUNCA hemos cargado antes
+    if (hasLoadedOnce) {
+      // Ya cargó una vez → ignoramos futuros ciclos de loading
+      // (TOKEN_REFRESHED, USER_UPDATED, etc.) sin mostrar spinner
+      return;
+    }
+
+    // Primera carga: ponemos un fallback por si Supabase tarda demasiado
     const fallback = setTimeout(() => {
       console.warn("Loading timeout: desbloqueando UI");
       setSafeLoading(false);
     }, 8000);
+
     return () => clearTimeout(fallback);
-  }, [loading]);
+  }, [loading, hasLoadedOnce]);
 
   const lastCheckedUserId = useRef<string | null>(null);
   const retryTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -164,7 +181,8 @@ function AppContent() {
     };
   }, [user, loading]);
 
-  if (safeLoading) {
+  // Solo mostramos el spinner en la carga inicial (nunca si ya cargó una vez)
+  if (safeLoading && !hasLoadedOnce) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark">
         <div className="w-20 h-20 text-[#C0FF72]">

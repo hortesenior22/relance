@@ -1,17 +1,20 @@
 /**
- * UserProfilePage.tsx — v4 Rediseño profesional
+ * UserProfilePage.tsx — Rediseño Profesional Enterprise
  *
  * Página completa de perfil. Accesible mediante:
  *   /empresa/:id  |  /centro/:id  |  /estudiante/:id
  *   /tutor-empresa/:id  |  /tutor-centro/:id
  *
  * Sin emojis — todos los iconos son SVG inline.
- * Diseño editorial refinado, tipografía DM Sans + DM Mono.
+ * Diseño editorial enterprise — denso, preciso, austero.
+ * Tipografía: Geist + Geist Mono (Vercel's system)
+ * Tamaños optimizados para portátil (~13" — todo ~10% más pequeño).
  */
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabase";
+import MainLayout from "../../components/layout/MainLayout";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,6 +89,7 @@ interface ActionState {
   success: string | null;
   error: string | null;
 }
+
 interface SuggestedProfile {
   id: string;
   name: string;
@@ -95,6 +99,7 @@ interface SuggestedProfile {
   type: EntityType;
   reason: string;
 }
+
 interface Candidatura {
   id_candidatura: number;
   estado: string;
@@ -103,11 +108,10 @@ interface Candidatura {
   id_oferta: string;
   titulo_oferta?: string;
 }
-interface Valoracion {
-  id: string;
-  puntuacion: number;
-  created_at: string;
-}
+
+type TabItem =
+  | { id: "info" | "actividad"; label: string; icon: React.ReactNode }
+  | { id: "candidaturas"; label: string; count: number; icon: React.ReactNode };
 
 export interface UserProfilePageProps {
   entityType?: EntityType;
@@ -140,87 +144,828 @@ function inferTutorType(): "tutor_empresa" | "tutor_centro" | null {
   return null;
 }
 
-// ─── Constants & Tokens ───────────────────────────────────────────────────────
-
-const ENTITY_LABELS: Record<
-  EntityType | "tutor_empresa" | "tutor_centro",
-  string
-> = {
-  empresa: "Empresa",
-  centro_educativo: "Centro Educativo",
-  estudiante: "Estudiante",
-  oferta: "Oferta",
-  tutor_empresa: "Tutor de empresa",
-  tutor_centro: "Tutor de centro",
-};
+// ─── Design tokens ────────────────────────────────────────────────────────────
 
 const EC: Record<
   EntityType | "tutor_empresa" | "tutor_centro",
-  { accent: string; accentDim: string; accentMid: string; accentGlow: string }
+  {
+    accent: string;
+    accentFaint: string;
+    accentBorder: string;
+    label: string;
+    dot: string;
+  }
 > = {
   empresa: {
     accent: "#c0ff72",
-    accentDim: "rgba(192,255,114,0.07)",
-    accentMid: "rgba(192,255,114,0.2)",
-    accentGlow: "rgba(192,255,114,0.08)",
+    accentFaint: "rgba(192,255,114,0.06)",
+    accentBorder: "rgba(192,255,114,0.18)",
+    label: "Empresa",
+    dot: "#c0ff72",
   },
   centro_educativo: {
     accent: "#60a5fa",
-    accentDim: "rgba(96,165,250,0.07)",
-    accentMid: "rgba(96,165,250,0.2)",
-    accentGlow: "rgba(96,165,250,0.08)",
+    accentFaint: "rgba(96,165,250,0.06)",
+    accentBorder: "rgba(96,165,250,0.18)",
+    label: "Centro Educativo",
+    dot: "#60a5fa",
   },
   estudiante: {
     accent: "#fb923c",
-    accentDim: "rgba(251,146,60,0.07)",
-    accentMid: "rgba(251,146,60,0.2)",
-    accentGlow: "rgba(251,146,60,0.08)",
+    accentFaint: "rgba(251,146,60,0.06)",
+    accentBorder: "rgba(251,146,60,0.18)",
+    label: "Estudiante",
+    dot: "#fb923c",
   },
   oferta: {
     accent: "#a78bfa",
-    accentDim: "rgba(167,139,250,0.07)",
-    accentMid: "rgba(167,139,250,0.2)",
-    accentGlow: "rgba(167,139,250,0.08)",
+    accentFaint: "rgba(167,139,250,0.06)",
+    accentBorder: "rgba(167,139,250,0.18)",
+    label: "Oferta",
+    dot: "#a78bfa",
   },
   tutor_empresa: {
     accent: "#f472b6",
-    accentDim: "rgba(244,114,182,0.07)",
-    accentMid: "rgba(244,114,182,0.2)",
-    accentGlow: "rgba(244,114,182,0.08)",
+    accentFaint: "rgba(244,114,182,0.06)",
+    accentBorder: "rgba(244,114,182,0.18)",
+    label: "Tutor de empresa",
+    dot: "#f472b6",
   },
   tutor_centro: {
     accent: "#34d399",
-    accentDim: "rgba(52,211,153,0.07)",
-    accentMid: "rgba(52,211,153,0.2)",
-    accentGlow: "rgba(52,211,153,0.08)",
+    accentFaint: "rgba(52,211,153,0.06)",
+    accentBorder: "rgba(52,211,153,0.18)",
+    label: "Tutor de centro",
+    dot: "#34d399",
   },
 };
 
-const DISP_COLOR: Record<string, { label: string; color: string }> = {
+const DISP_MAP: Record<string, { label: string; color: string }> = {
   inmediata: { label: "Disponible ahora", color: "#4ade80" },
   "1_mes": { label: "Disponible en 1 mes", color: "#facc15" },
   "3_meses": { label: "Disponible en 3 meses", color: "#fb923c" },
   no_disponible: { label: "No disponible", color: "#f87171" },
 };
 
-const CAND_COLOR: Record<string, { color: string; label: string }> = {
+const CAND_MAP: Record<string, { color: string; label: string }> = {
   pendiente: { color: "#facc15", label: "Pendiente" },
   aceptada: { color: "#4ade80", label: "Aceptada" },
   rechazada: { color: "#f87171", label: "Rechazada" },
   en_proceso: { color: "#60a5fa", label: "En proceso" },
 };
 
-// ─── SVG Icons ────────────────────────────────────────────────────────────────
+// ─── Global styles injected once ─────────────────────────────────────────────
 
-const I = {
+const GLOBAL_CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap');
+@keyframes spin { to { transform: rotate(360deg) } }
+@keyframes toast-in { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
+@keyframes fade-in { from { opacity:0 } to { opacity:1 } }
+
+* { box-sizing: border-box; }
+
+.up-root {
+  min-height: 100vh;
+  background: var(--color-bg);
+  font-family: 'Geist', 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--color-text);
+  padding-top: 72px;
+  animation: fade-in 0.18s ease;
+}
+
+.up-inner {
+  max-width: 1020px;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  grid-template-rows: auto 1fr;
+  column-gap: 16px;
+  row-gap: 0;
+}
+
+@media (max-width: 768px) {
+  .up-inner { grid-template-columns: 1fr; }
+  .up-sidebar { display: none; }
+}
+
+.up-main { grid-column: 1; }
+.up-sidebar { grid-column: 2; grid-row: 1 / span 3; }
+
+/* Back button */
+.up-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-subtle);
+  font-size: 11.5px;
+  font-family: inherit;
+  padding: 0;
+  margin-bottom: 18px;
+  letter-spacing: 0.01em;
+  transition: color 0.12s;
+}
+.up-back:hover { color: var(--color-text); }
+
+/* Panel base */
+.up-panel {
+  background: var(--color-surface-strong, rgba(255,255,255,0.03));
+  border: 1px solid var(--color-border, rgba(255,255,255,0.08));
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Hero panel */
+.up-hero {
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.up-hero-accent-bar {
+  height: 2px;
+  width: 100%;
+}
+
+.up-hero-body {
+  padding: 20px 22px 18px;
+}
+
+.up-hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.up-hero-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.up-avatar-wrap { position: relative; flex-shrink: 0; }
+
+.up-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 10px;
+  object-fit: cover;
+  display: block;
+}
+
+.up-avatar-placeholder {
+  width: 58px;
+  height: 58px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+
+.up-verified-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #c0ff72;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-surface-strong, #111);
+}
+
+.up-hero-meta { padding-top: 2px; }
+
+.up-entity-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.up-name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  color: var(--color-text);
+}
+
+.up-subtitle {
+  font-size: 12px;
+  color: var(--color-text-muted, rgba(255,255,255,0.4));
+  margin-top: 3px;
+  letter-spacing: -0.01em;
+}
+
+.up-hero-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding-top: 2px;
+}
+
+.up-pills {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+  margin-top: 12px;
+  border-top: 1px solid var(--color-border, rgba(255,255,255,0.06));
+  padding-top: 12px;
+}
+
+.up-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-subtle, rgba(255,255,255,0.35));
+}
+
+/* Stats strip */
+.up-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  border-top: 1px solid var(--color-border, rgba(255,255,255,0.06));
+}
+
+.up-stat {
+  padding: 14px 18px;
+  border-right: 1px solid var(--color-border, rgba(255,255,255,0.06));
+}
+.up-stat:last-child { border-right: none; }
+
+.up-stat-value {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+
+.up-stat-label {
+  font-size: 10.5px;
+  color: var(--color-text-subtle, rgba(255,255,255,0.35));
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Tabs */
+.up-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.06));
+  margin-bottom: 10px;
+  gap: 0;
+}
+
+.up-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--color-text-muted, rgba(255,255,255,0.4));
+  transition: all 0.12s;
+  margin-bottom: -1px;
+  letter-spacing: -0.01em;
+}
+.up-tab:hover { color: var(--color-text); }
+.up-tab.active { color: var(--color-text); }
+
+.up-tab-badge {
+  font-size: 9.5px;
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.06);
+}
+.up-tab.active .up-tab-badge { background: rgba(255,255,255,0.1); }
+
+/* Section cards */
+.up-section {
+  margin-bottom: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
+  background: var(--color-surface-strong, rgba(255,255,255,0.02));
+}
+
+.up-section-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.06));
+  background: rgba(255,255,255,0.015);
+}
+
+.up-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+  color: var(--color-text-subtle, rgba(255,255,255,0.35));
+}
+
+.up-section-body { padding: 14px 16px; }
+.up-section-body-flush { padding: 0; }
+
+/* Info rows */
+.up-info-row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.035);
+}
+.up-info-row:last-child { border-bottom: none; }
+
+.up-info-label {
+  font-size: 11px;
+  color: var(--color-text-subtle, rgba(255,255,255,0.35));
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+}
+
+.up-info-value {
+  font-size: 12.5px;
+  color: var(--color-text-secondary, rgba(255,255,255,0.7));
+  word-break: break-word;
+}
+
+.up-info-link {
+  font-size: 12.5px;
+  color: var(--color-brand, #c0ff72);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  word-break: break-word;
+}
+.up-info-link:hover { text-decoration: underline; }
+
+/* Two-col grid */
+.up-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+@media (max-width: 600px) { .up-two-col { grid-template-columns: 1fr; } }
+
+/* Skill bars */
+.up-skill-row { margin-bottom: 10px; }
+.up-skill-row:last-child { margin-bottom: 0; }
+.up-skill-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.up-skill-name {
+  font-size: 11.5px;
+  color: var(--color-text-secondary, rgba(255,255,255,0.65));
+}
+.up-skill-pct {
+  font-size: 10px;
+  color: var(--color-text-subtle, rgba(255,255,255,0.35));
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+}
+.up-skill-track {
+  height: 2px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.up-skill-fill {
+  height: 100%;
+  border-radius: 2px;
+}
+
+/* Tags */
+.up-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.up-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 5px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--color-text-secondary, rgba(255,255,255,0.55));
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+}
+
+.up-accent-tag {
+  display: inline-flex;
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-weight: 500;
+}
+
+/* Formation / project cards */
+.up-formation-row {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  align-items: flex-start;
+}
+.up-formation-row:last-child { border-bottom: none; }
+
+.up-formation-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.up-formation-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+.up-formation-sub {
+  font-size: 11px;
+  color: var(--color-text-muted, rgba(255,255,255,0.4));
+  margin-top: 2px;
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+}
+
+/* Project cards grid */
+.up-projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.up-project-card {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.up-project-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+.up-project-desc {
+  font-size: 11.5px;
+  color: var(--color-text-muted, rgba(255,255,255,0.4));
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+/* Candidatura rows */
+.up-cand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  gap: 10px;
+}
+.up-cand-row:last-child { border-bottom: none; }
+
+.up-cand-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+.up-cand-date {
+  font-size: 10.5px;
+  color: var(--color-text-subtle, rgba(255,255,255,0.35));
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+  margin-top: 2px;
+}
+.up-status-pill {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+}
+
+/* Activity log */
+.up-activity-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.up-activity-row:last-child { border-bottom: none; }
+
+.up-activity-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
+}
+
+.up-activity-text {
+  font-size: 12px;
+  color: var(--color-text-secondary, rgba(255,255,255,0.65));
+}
+.up-activity-sub {
+  font-size: 10.5px;
+  color: var(--color-text-subtle, rgba(255,255,255,0.35));
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+  margin-top: 2px;
+}
+
+/* Action buttons */
+.up-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.12s;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.up-btn-primary {
+  background: var(--color-brand, #c0ff72);
+  color: #0a1500;
+  border-color: transparent;
+}
+.up-btn-primary:hover { filter: brightness(1.08); }
+
+.up-btn-secondary {
+  background: transparent;
+  color: var(--color-text-secondary, rgba(255,255,255,0.7));
+  border-color: var(--color-border-strong, rgba(255,255,255,0.12));
+}
+.up-btn-secondary:hover {
+  background: rgba(255,255,255,0.04);
+  color: var(--color-text);
+}
+
+.up-btn-danger {
+  background: rgba(239,68,68,0.08);
+  color: #f87171;
+  border-color: rgba(239,68,68,0.2);
+}
+.up-btn-danger:hover { background: rgba(239,68,68,0.14); }
+
+.up-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Loading spinner */
+.up-spinner {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Sidebar */
+.up-sidebar-inner { position: sticky; top: 80px; display: flex; flex-direction: column; gap: 10px; }
+
+/* Suggestion cards */
+.up-suggestion {
+  display: block;
+  text-decoration: none;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
+  background: var(--color-surface-strong, rgba(255,255,255,0.02));
+  padding: 10px;
+  transition: all 0.14s;
+  margin-bottom: 0;
+}
+.up-suggestion:hover {
+  border-color: rgba(255,255,255,0.13);
+  background: rgba(255,255,255,0.04);
+}
+
+.up-sug-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+
+.up-sug-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.up-sug-avatar-placeholder {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.up-sug-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.up-sug-sub {
+  font-size: 10.5px;
+  color: var(--color-text-muted, rgba(255,255,255,0.4));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.up-sug-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+  font-weight: 500;
+}
+
+/* Verified info strip */
+.up-info-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: rgba(255,255,255,0.015);
+  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.up-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 11.5px;
+}
+.up-strip-row:last-child { border-bottom: none; }
+.up-strip-label { color: var(--color-text-subtle, rgba(255,255,255,0.35)); min-width: 70px; font-family: 'Geist Mono', 'DM Mono', monospace; font-size: 10.5px; }
+.up-strip-val { color: var(--color-text-secondary, rgba(255,255,255,0.65)); }
+
+/* Toast */
+.up-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  animation: toast-in 0.18s ease forwards;
+  border: 1px solid;
+}
+
+/* Divider label */
+.up-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.up-divider-line { flex: 1; height: 1px; background: var(--color-border, rgba(255,255,255,0.06)); }
+.up-divider-text {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+  color: var(--color-text-subtle, rgba(255,255,255,0.3));
+  white-space: nowrap;
+}
+
+/* Prose */
+.up-prose {
+  font-size: 13px;
+  color: var(--color-text-secondary, rgba(255,255,255,0.65));
+  line-height: 1.75;
+  margin: 0;
+}
+
+/* Empty state */
+.up-empty {
+  font-size: 12px;
+  color: var(--color-text-muted, rgba(255,255,255,0.35));
+  padding: 8px 0;
+}
+
+/* Sidebar section header */
+.up-sidebar-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: 'Geist Mono', 'DM Mono', monospace;
+  color: var(--color-text-subtle, rgba(255,255,255,0.3));
+  margin-bottom: 7px;
+}
+
+.up-viewer-context-card {
+  background: rgba(255,255,255,0.015);
+  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  color: var(--color-text-secondary, rgba(255,255,255,0.6));
+  line-height: 1.5;
+}
+
+.up-comment-box {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  color: var(--color-text-secondary, rgba(255,255,255,0.6));
+  font-style: italic;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+`;
+
+// ─── SVG Icons (compact, 12×12 stroke icons) ──────────────────────────────────
+
+const Ic = {
   ArrowLeft: () => (
     <svg
-      width="15"
-      height="15"
+      width="13"
+      height="13"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -228,19 +973,13 @@ const I = {
       <polyline points="12 19 5 12 12 5" />
     </svg>
   ),
-  ArrowRight: ({
-    size = 13,
-    color = "currentColor",
-  }: {
-    size?: number;
-    color?: string;
-  }) => (
+  ArrowRight: ({ s = 11 }: { s?: number }) => (
     <svg
-      width={size}
-      height={size}
+      width={s}
+      height={s}
       viewBox="0 0 24 24"
       fill="none"
-      stroke={color}
+      stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -249,10 +988,10 @@ const I = {
       <path d="m12 5 7 7-7 7" />
     </svg>
   ),
-  Check: ({ size = 10 }: { size?: number }) => (
+  Check: ({ s = 9 }: { s?: number }) => (
     <svg
-      width={size}
-      height={size}
+      width={s}
+      height={s}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -263,14 +1002,29 @@ const I = {
       <polyline points="20 6 9 17 4 12" />
     </svg>
   ),
-  MapPin: () => (
+  X: ({ s = 10 }: { s?: number }) => (
     <svg
-      width="13"
-      height="13"
+      width={s}
+      height={s}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+  MapPin: () => (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -280,12 +1034,12 @@ const I = {
   ),
   Mail: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -295,12 +1049,12 @@ const I = {
   ),
   Phone: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -309,12 +1063,12 @@ const I = {
   ),
   Globe: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -323,14 +1077,14 @@ const I = {
       <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
     </svg>
   ),
-  GraduationCap: () => (
+  GradCap: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -340,12 +1094,12 @@ const I = {
   ),
   Briefcase: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -355,12 +1109,12 @@ const I = {
   ),
   GitHub: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -370,12 +1124,12 @@ const I = {
   ),
   Linkedin: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -386,12 +1140,12 @@ const I = {
   ),
   Twitter: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -400,12 +1154,12 @@ const I = {
   ),
   Building: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -416,12 +1170,12 @@ const I = {
   ),
   Users: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -433,12 +1187,12 @@ const I = {
   ),
   Calendar: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -448,28 +1202,14 @@ const I = {
       <line x1="3" y1="10" x2="21" y2="10" />
     </svg>
   ),
-  Star: () => (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  ),
   FileText: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -482,12 +1222,12 @@ const I = {
   ),
   Activity: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -496,12 +1236,12 @@ const I = {
   ),
   Info: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -512,8 +1252,8 @@ const I = {
   ),
   ExternalLink: () => (
     <svg
-      width="11"
-      height="11"
+      width="10"
+      height="10"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -528,12 +1268,12 @@ const I = {
   ),
   Shield: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -542,12 +1282,12 @@ const I = {
   ),
   Layers: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -558,12 +1298,12 @@ const I = {
   ),
   Link: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -571,14 +1311,14 @@ const I = {
       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
     </svg>
   ),
-  MessageSquare: () => (
+  Message: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -587,12 +1327,12 @@ const I = {
   ),
   Trash: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -602,12 +1342,12 @@ const I = {
   ),
   Lock: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -617,12 +1357,12 @@ const I = {
   ),
   Unlock: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -632,12 +1372,12 @@ const I = {
   ),
   BookOpen: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -647,12 +1387,12 @@ const I = {
   ),
   Code: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -662,12 +1402,12 @@ const I = {
   ),
   Bookmark: () => (
     <svg
-      width="13"
-      height="13"
+      width="11"
+      height="11"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -676,12 +1416,12 @@ const I = {
   ),
   Hash: () => (
     <svg
-      width="13"
-      height="13"
+      width="10"
+      height="10"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -691,114 +1431,53 @@ const I = {
       <line x1="16" y1="3" x2="14" y2="21" />
     </svg>
   ),
+  Star: () => (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  ),
+  Dot: ({ color }: { color: string }) => (
+    <svg width="6" height="6" viewBox="0 0 6 6">
+      <circle cx="3" cy="3" r="3" fill={color} />
+    </svg>
+  ),
 };
 
-// ─── Atom Components ──────────────────────────────────────────────────────────
-
-function Avatar({
-  url,
-  name,
-  size = 80,
-  ec,
-}: {
-  url?: string;
-  name: string;
-  size?: number;
-  ec: (typeof EC)[keyof typeof EC];
-}) {
-  const initials = name
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("");
-  if (url)
-    return (
-      <img
-        src={url}
-        alt={name}
-        style={{
-          width: size,
-          height: size,
-          borderRadius: Math.round(size * 0.2),
-          objectFit: "cover",
-          border: `1.5px solid ${ec.accentMid}`,
-          flexShrink: 0,
-        }}
-      />
-    );
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: Math.round(size * 0.2),
-        background: ec.accentDim,
-        border: `1.5px solid ${ec.accentMid}`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: size * 0.28,
-        fontWeight: 700,
-        color: ec.accent,
-        fontFamily: "'DM Sans', sans-serif",
-        flexShrink: 0,
-        letterSpacing: "-0.02em",
-      }}
-    >
-      {initials || "?"}
-    </div>
-  );
-}
+// ─── Small atom components ─────────────────────────────────────────────────────
 
 function SectionCard({
   title,
   icon,
   children,
-  noPad,
+  flush,
 }: {
   title: string;
   icon?: React.ReactNode;
   children: React.ReactNode;
-  noPad?: boolean;
+  flush?: boolean;
 }) {
   return (
-    <div
-      style={{
-        background: "var(--color-surface-strong)",
-        border: "1px solid var(--color-border)",
-        borderRadius: 14,
-        overflow: "hidden",
-        marginBottom: 12,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "13px 20px 11px",
-          borderBottom: "1px solid var(--color-border)",
-        }}
-      >
+    <div className="up-section">
+      <div className="up-section-header">
         {icon && (
           <span style={{ color: "var(--color-text-subtle)", display: "flex" }}>
             {icon}
           </span>
         )}
-        <span
-          style={{
-            fontSize: 10.5,
-            fontWeight: 600,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            color: "var(--color-text-subtle)",
-            fontFamily: "'DM Mono', monospace",
-          }}
-        >
-          {title}
-        </span>
+        <span className="up-section-title">{title}</span>
       </div>
-      <div style={noPad ? {} : { padding: "16px 20px" }}>{children}</div>
+      <div className={flush ? "up-section-body-flush" : "up-section-body"}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -816,34 +1495,11 @@ function InfoRow({
 }) {
   if (!value) return null;
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 12,
-        padding: "9px 0",
-        borderBottom: "1px solid rgba(255,255,255,0.04)",
-      }}
-    >
-      <span
-        style={{
-          color: "var(--color-text-subtle)",
-          flexShrink: 0,
-          marginTop: 1,
-          display: "flex",
-        }}
-      >
-        {icon}
-      </span>
-      <span
-        style={{
-          fontSize: 11.5,
-          minWidth: 90,
-          color: "var(--color-text-subtle)",
-          fontFamily: "'DM Sans', sans-serif",
-          flexShrink: 0,
-        }}
-      >
+    <div className="up-info-row">
+      <span className="up-info-label">
+        <span style={{ display: "flex", color: "var(--color-text-subtle)" }}>
+          {icon}
+        </span>
         {label}
       </span>
       {href ? (
@@ -851,130 +1507,117 @@ function InfoRow({
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          style={{
-            fontSize: 13,
-            color: "var(--color-brand, #c0ff72)",
-            fontFamily: "'DM Sans', sans-serif",
-            wordBreak: "break-word",
-            textDecoration: "none",
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-          }}
+          className="up-info-link"
         >
-          {value} <I.ExternalLink />
+          {value} <Ic.ExternalLink />
         </a>
       ) : (
-        <span
-          style={{
-            fontSize: 13,
-            color: "var(--color-text-secondary)",
-            fontFamily: "'DM Sans', sans-serif",
-            wordBreak: "break-word",
-          }}
-        >
-          {value}
-        </span>
+        <span className="up-info-value">{value}</span>
       )}
     </div>
   );
 }
 
-function Tag({ label }: { label: string }) {
+function SkillBar({ skill }: { skill: string }) {
+  const hash = skill.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const pct = 40 + (hash % 55);
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        fontSize: 12,
-        padding: "4px 11px",
-        borderRadius: 6,
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.09)",
-        color: "var(--color-text-secondary)",
-        fontFamily: "'DM Sans', sans-serif",
-      }}
-    >
-      <I.Hash />
-      {label}
-    </span>
-  );
-}
-
-function AccentTag({
-  label,
-  ec,
-}: {
-  label: string;
-  ec: (typeof EC)[keyof typeof EC];
-}) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        fontSize: 12,
-        padding: "4px 11px",
-        borderRadius: 6,
-        background: ec.accentDim,
-        border: `1px solid ${ec.accentMid}`,
-        color: ec.accent,
-        fontFamily: "'DM Sans', sans-serif",
-        fontWeight: 500,
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
-function StatBadge({
-  value,
-  label,
-  color,
-}: {
-  value: string | number;
-  label: string;
-  color?: string;
-}) {
-  return (
-    <div
-      style={{
-        background: "var(--color-surface-elevated)",
-        border: "1px solid var(--color-border)",
-        borderRadius: 10,
-        padding: "14px 18px",
-        flex: 1,
-        minWidth: 80,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 22,
-          fontWeight: 800,
-          color: color ?? "var(--color-text)",
-          fontFamily: "'DM Sans', sans-serif",
-          lineHeight: 1,
-          letterSpacing: "-0.03em",
-        }}
-      >
-        {value}
+    <div className="up-skill-row">
+      <div className="up-skill-head">
+        <span className="up-skill-name">{skill}</span>
+        <span className="up-skill-pct">{pct}%</span>
       </div>
-      <div
-        style={{
-          fontSize: 11,
-          color: "var(--color-text-subtle)",
-          fontFamily: "'DM Sans', sans-serif",
-          marginTop: 4,
-        }}
-      >
-        {label}
+      <div className="up-skill-track">
+        <div
+          className="up-skill-fill"
+          style={{
+            width: `${pct}%`,
+            background:
+              "linear-gradient(90deg, rgba(192,255,114,0.7) 0%, rgba(96,165,250,0.7) 100%)",
+          }}
+        />
       </div>
     </div>
   );
 }
 
-function ActionBtn({
+function CandidaturaRow({ c }: { c: Candidatura }) {
+  const col = CAND_MAP[c.estado] ?? { color: "#6b7280", label: c.estado };
+  const date = new Date(c.fecha_envio).toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  return (
+    <div className="up-cand-row">
+      <div style={{ minWidth: 0 }}>
+        <div className="up-cand-title">
+          {c.titulo_oferta ?? `Oferta #${c.id_candidatura}`}
+        </div>
+        <div className="up-cand-date">{date}</div>
+        {c.comentario_empresa && (
+          <div className="up-comment-box">"{c.comentario_empresa}"</div>
+        )}
+      </div>
+      <span
+        className="up-status-pill"
+        style={{
+          background: `${col.color}14`,
+          color: col.color,
+          border: `1px solid ${col.color}28`,
+        }}
+      >
+        {col.label}
+      </span>
+    </div>
+  );
+}
+
+function SuggestedCard({ profile }: { profile: SuggestedProfile }) {
+  const ec = EC[profile.type];
+  const initials = profile.name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("");
+  return (
+    <a href={profile.href} className="up-suggestion">
+      <div className="up-sug-head">
+        {profile.avatarUrl ? (
+          <img
+            src={profile.avatarUrl}
+            alt={profile.name}
+            className="up-sug-avatar"
+            style={{ border: `1px solid ${ec.accentBorder}` }}
+          />
+        ) : (
+          <div
+            className="up-sug-avatar-placeholder"
+            style={{
+              background: ec.accentFaint,
+              border: `1px solid ${ec.accentBorder}`,
+              color: ec.accent,
+            }}
+          >
+            {initials || "?"}
+          </div>
+        )}
+        <div style={{ minWidth: 0 }}>
+          <div className="up-sug-name">{profile.name}</div>
+          <div className="up-sug-sub">{profile.subtitle}</div>
+        </div>
+      </div>
+      <span
+        className="up-sug-reason"
+        style={{ background: ec.accentFaint, color: ec.accent }}
+      >
+        <Ic.Link /> {profile.reason}
+      </span>
+    </a>
+  );
+}
+
+function Btn({
   label,
   variant = "secondary",
   onClick,
@@ -991,55 +1634,14 @@ function ActionBtn({
   danger?: boolean;
   icon?: React.ReactNode;
 }) {
-  const base: React.CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    padding: "8px 16px",
-    borderRadius: 9,
-    fontSize: 12.5,
-    fontWeight: 600,
-    fontFamily: "'DM Sans', sans-serif",
-    cursor: disabled || l ? "not-allowed" : "pointer",
-    border: "1px solid",
-    transition: "all 0.15s",
-    opacity: disabled || l ? 0.45 : 1,
-    letterSpacing: "-0.01em",
-  };
-  const styles: React.CSSProperties =
-    variant === "primary"
-      ? {
-          ...base,
-          background: danger
-            ? "rgba(239,68,68,0.1)"
-            : "var(--color-brand, #c0ff72)",
-          color: danger ? "#f87171" : "#0d1a05",
-          borderColor: danger ? "rgba(239,68,68,0.3)" : "transparent",
-        }
-      : {
-          ...base,
-          background: "transparent",
-          color: danger ? "#f87171" : "var(--color-text-secondary)",
-          borderColor: danger
-            ? "rgba(239,68,68,0.2)"
-            : "var(--color-border-strong)",
-        };
+  const cls = danger
+    ? "up-btn up-btn-danger"
+    : variant === "primary"
+      ? "up-btn up-btn-primary"
+      : "up-btn up-btn-secondary";
   return (
-    <button onClick={onClick} disabled={disabled || l} style={styles}>
-      {l ? (
-        <div
-          style={{
-            width: 11,
-            height: 11,
-            borderRadius: "50%",
-            border: "1.5px solid currentColor",
-            borderTopColor: "transparent",
-            animation: "spin 0.7s linear infinite",
-          }}
-        />
-      ) : (
-        icon
-      )}
+    <button className={cls} onClick={onClick} disabled={disabled || l}>
+      {l ? <div className="up-spinner" /> : icon}
       {label}
     </button>
   );
@@ -1058,276 +1660,73 @@ function Toast({
     const t = setTimeout(onDismiss, 3500);
     return () => clearTimeout(t);
   }, [onDismiss]);
+  const isOk = type === "success";
   return (
     <div
+      className="up-toast"
       style={{
-        position: "fixed",
-        bottom: 24,
-        right: 24,
-        zIndex: 9999,
-        padding: "11px 16px",
-        borderRadius: 10,
-        background:
-          type === "success" ? "rgba(192,255,114,0.1)" : "rgba(239,68,68,0.1)",
-        border: `1px solid ${type === "success" ? "rgba(192,255,114,0.25)" : "rgba(239,68,68,0.25)"}`,
-        color: type === "success" ? "#c0ff72" : "#f87171",
-        fontSize: 13,
-        fontFamily: "'DM Sans', sans-serif",
-        fontWeight: 600,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        animation: "fade-up 0.2s ease forwards",
+        background: isOk ? "rgba(192,255,114,0.08)" : "rgba(239,68,68,0.08)",
+        borderColor: isOk ? "rgba(192,255,114,0.2)" : "rgba(239,68,68,0.2)",
+        color: isOk ? "#c0ff72" : "#f87171",
       }}
     >
-      {type === "success" ? <I.Check size={11} /> : "×"} {message}
+      {isOk ? <Ic.Check s={10} /> : <Ic.X s={10} />}
+      {message}
     </div>
   );
 }
 
-function SkillBar({ skill }: { skill: string }) {
-  const hash = skill.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const pct = 45 + (hash % 50);
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 5,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 12.5,
-            color: "var(--color-text-secondary)",
-            fontFamily: "'DM Sans', sans-serif",
-          }}
-        >
-          {skill}
-        </span>
-        <span
-          style={{
-            fontSize: 11,
-            color: "var(--color-text-subtle)",
-            fontFamily: "'DM Mono', monospace",
-          }}
-        >
-          {pct}%
-        </span>
-      </div>
-      <div
-        style={{
-          height: 3,
-          borderRadius: 2,
-          background: "rgba(255,255,255,0.06)",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${pct}%`,
-            borderRadius: 2,
-            background: "linear-gradient(90deg, #c0ff72 0%, #60a5fa 100%)",
-            transition: "width 1s ease",
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function CandidaturaRow({ c }: { c: Candidatura }) {
-  const col = CAND_COLOR[c.estado] ?? { color: "#6b7280", label: c.estado };
-  const date = new Date(c.fecha_envio).toLocaleDateString("es-ES", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "12px 0",
-        borderBottom: "1px solid rgba(255,255,255,0.05)",
-        gap: 12,
-      }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 13.5,
-            fontWeight: 600,
-            color: "var(--color-text)",
-            fontFamily: "'DM Sans', sans-serif",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {c.titulo_oferta ?? `Oferta #${c.id_candidatura}`}
-        </div>
-        <div
-          style={{
-            fontSize: 11.5,
-            color: "var(--color-text-subtle)",
-            fontFamily: "'DM Mono', monospace",
-            marginTop: 2,
-          }}
-        >
-          {date}
-        </div>
-      </div>
-      <span
-        style={{
-          fontSize: 10.5,
-          fontWeight: 600,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          padding: "3px 9px",
-          borderRadius: 6,
-          background: `${col.color}14`,
-          color: col.color,
-          border: `1px solid ${col.color}30`,
-          fontFamily: "'DM Sans', sans-serif",
-          flexShrink: 0,
-        }}
-      >
-        {col.label}
-      </span>
-    </div>
-  );
-}
-
-function SuggestedCard({
-  profile,
+function Avatar({
+  url,
+  name,
+  size = 58,
+  ec,
 }: {
-  profile: {
-    id: string;
-    name: string;
-    subtitle: string;
-    avatarUrl?: string;
-    href: string;
-    type: EntityType;
-    reason: string;
-  };
+  url?: string;
+  name: string;
+  size?: number;
+  ec: (typeof EC)[keyof typeof EC];
 }) {
-  const ec = EC[profile.type];
-  const initials = profile.name
+  const initials = name
     .split(" ")
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase())
     .join("");
-  const [hovered, setHovered] = useState(false);
+  const style: React.CSSProperties = {
+    width: size,
+    height: size,
+    borderRadius: Math.round(size * 0.17),
+    border: `1.5px solid ${ec.accentBorder}`,
+    flexShrink: 0,
+  };
+  if (url)
+    return (
+      <img
+        src={url}
+        alt={name}
+        style={{ ...style, objectFit: "cover", display: "block" }}
+      />
+    );
   return (
-    <a
-      href={profile.href}
-      style={{ textDecoration: "none" }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <div
+      style={{
+        ...style,
+        background: ec.accentFaint,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: size * 0.28,
+        fontWeight: 800,
+        color: ec.accent,
+        letterSpacing: "-0.03em",
+      }}
     >
-      <div
-        style={{
-          background: hovered ? ec.accentDim : "var(--color-surface-strong)",
-          border: `1px solid ${hovered ? ec.accentMid : "var(--color-border)"}`,
-          borderRadius: 12,
-          padding: 14,
-          transition: "all 0.18s",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {profile.avatarUrl ? (
-            <img
-              src={profile.avatarUrl}
-              alt={profile.name}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 8,
-                objectFit: "cover",
-                border: `1px solid ${ec.accentMid}`,
-                flexShrink: 0,
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 8,
-                background: ec.accentDim,
-                border: `1px solid ${ec.accentMid}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                fontWeight: 700,
-                color: ec.accent,
-                fontFamily: "'DM Sans', sans-serif",
-                flexShrink: 0,
-              }}
-            >
-              {initials || "?"}
-            </div>
-          )}
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: "var(--color-text)",
-                fontFamily: "'DM Sans', sans-serif",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              {profile.name}
-            </div>
-            <div
-              style={{
-                fontSize: 11.5,
-                color: "var(--color-text-muted)",
-                fontFamily: "'DM Sans', sans-serif",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {profile.subtitle}
-            </div>
-          </div>
-        </div>
-        <span
-          style={{
-            fontSize: 10.5,
-            color: ec.accent,
-            fontFamily: "'DM Sans', sans-serif",
-            background: ec.accentDim,
-            padding: "2px 8px",
-            borderRadius: 5,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            alignSelf: "flex-start",
-            fontWeight: 500,
-          }}
-        >
-          <I.Link /> {profile.reason}
-        </span>
-      </div>
-    </a>
+      {initials || "?"}
+    </div>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function UserProfilePage({
   entityType: propEntityType,
@@ -1366,11 +1765,7 @@ export default function UserProfilePage({
     success: null,
     error: null,
   });
-  // const [suggestions, setSuggestions] = useState<
-  //   ReturnType<typeof SuggestedCard> extends React.ReactElement
-  //     ? never
-  //     : Parameters<typeof SuggestedCard>[0]["profile"][]
-  // >([]);
+  const [suggestions, setSuggestions] = useState<SuggestedProfile[]>([]);
   const [candidaturas, setCandidaturas] = useState<Candidatura[]>([]);
   const [stats, setStats] = useState<{
     candidaturas: number;
@@ -1444,6 +1839,7 @@ export default function UserProfilePage({
     if (isTutorPage || !profile) return;
     const loadExtras = async () => {
       const loads: Promise<void>[] = [];
+
       if (rawEntityType === "estudiante") {
         loads.push(
           (async () => {
@@ -1458,7 +1854,7 @@ export default function UserProfilePage({
               )
               .eq("id_estudiante", entityId)
               .order("fecha_envio", { ascending: false })
-              .limit(10);
+              .limit(15);
             const enriched: Candidatura[] = await Promise.all(
               (candData ?? []).map(async (c) => {
                 const { data: oferta } = await supabase
@@ -1474,6 +1870,7 @@ export default function UserProfilePage({
           })(),
         );
       }
+
       if (rawEntityType === "empresa") {
         loads.push(
           (async () => {
@@ -1499,6 +1896,7 @@ export default function UserProfilePage({
           })(),
         );
       }
+
       if (rawEntityType === "centro_educativo") {
         loads.push(
           (async () => {
@@ -1510,10 +1908,12 @@ export default function UserProfilePage({
           })(),
         );
       }
-      // Suggestions
+
+      // Suggestions — role-aware
       loads.push(
         (async () => {
-          const sugs: Parameters<typeof SuggestedCard>[0]["profile"][] = [];
+          const sugs: SuggestedProfile[] = [];
+
           if (rawEntityType === "estudiante") {
             const est = profile as Estudiante;
             const { data: centroLink } = await supabase
@@ -1546,7 +1946,7 @@ export default function UserProfilePage({
                     subtitle: [p.titulacion, p.ciudad]
                       .filter(Boolean)
                       .join(" · "),
-                    avatarUrl: p.avatar_url,
+                    avatarUrl: p.avatar_url ?? undefined,
                     href: `/estudiante/${p.id}`,
                     reason: "Mismo centro",
                   }),
@@ -1572,13 +1972,14 @@ export default function UserProfilePage({
                     subtitle: [p.titulacion, p.ciudad]
                       .filter(Boolean)
                       .join(" · "),
-                    avatarUrl: p.avatar_url,
+                    avatarUrl: p.avatar_url ?? undefined,
                     href: `/estudiante/${p.id}`,
                     reason: "Misma titulación",
                   }),
                 );
             }
           }
+
           if (rawEntityType === "empresa") {
             const emp = profile as Empresa;
             if (emp.sector) {
@@ -1594,13 +1995,37 @@ export default function UserProfilePage({
                   type: "empresa",
                   name: e.nombre,
                   subtitle: [e.sector, e.ciudad].filter(Boolean).join(" · "),
-                  avatarUrl: e.logo_url,
+                  avatarUrl: e.logo_url ?? undefined,
                   href: `/empresa/${e.id}`,
                   reason: emp.sector!,
                 }),
               );
             }
+            if (sugs.length < 4) {
+              const existing = new Set([...sugs.map((s) => s.id), entityId]);
+              const { data: byCity } = await supabase
+                .from("empresa")
+                .select("id, nombre, sector, ciudad, logo_url")
+                .eq("ciudad", (profile as Empresa).ciudad ?? "")
+                .neq("id", entityId)
+                .limit(4);
+              (byCity ?? [])
+                .filter((e) => !existing.has(e.id))
+                .slice(0, 4 - sugs.length)
+                .forEach((e) =>
+                  sugs.push({
+                    id: e.id,
+                    type: "empresa",
+                    name: e.nombre,
+                    subtitle: [e.sector, e.ciudad].filter(Boolean).join(" · "),
+                    avatarUrl: e.logo_url ?? undefined,
+                    href: `/empresa/${e.id}`,
+                    reason: "Misma ciudad",
+                  }),
+                );
+            }
           }
+
           if (rawEntityType === "centro_educativo") {
             const centro = profile as CentroEducativo;
             if (centro.ciudad) {
@@ -1618,16 +2043,43 @@ export default function UserProfilePage({
                   subtitle: [c.tipo_centro, c.ciudad]
                     .filter(Boolean)
                     .join(" · "),
-                  avatarUrl: c.avatar_url,
+                  avatarUrl: c.avatar_url ?? undefined,
                   href: `/centro/${c.id}`,
                   reason: centro.ciudad!,
                 }),
               );
             }
+            if (sugs.length < 4 && centro.tipo_centro) {
+              const existing = new Set([...sugs.map((s) => s.id), entityId]);
+              const { data: byType } = await supabase
+                .from("centro_educativo")
+                .select("id, nombre, tipo_centro, ciudad, avatar_url")
+                .eq("tipo_centro", centro.tipo_centro)
+                .neq("id", entityId)
+                .limit(4);
+              (byType ?? [])
+                .filter((c) => !existing.has(c.id))
+                .slice(0, 4 - sugs.length)
+                .forEach((c) =>
+                  sugs.push({
+                    id: c.id,
+                    type: "centro_educativo",
+                    name: c.nombre,
+                    subtitle: [c.tipo_centro, c.ciudad]
+                      .filter(Boolean)
+                      .join(" · "),
+                    avatarUrl: c.avatar_url ?? undefined,
+                    href: `/centro/${c.id}`,
+                    reason: "Mismo tipo",
+                  }),
+                );
+            }
           }
-          setSuggestions(sugs.slice(0, 4) as any);
+
+          setSuggestions(sugs.slice(0, 4));
         })(),
       );
+
       await Promise.all(loads);
     };
     loadExtras();
@@ -1639,6 +2091,7 @@ export default function UserProfilePage({
     const load = async () => {
       const ctx: typeof viewerContext = {};
       const loads: Promise<void>[] = [];
+
       if (viewerRole === "tutor_centro") {
         loads.push(
           (async () => {
@@ -1714,6 +2167,7 @@ export default function UserProfilePage({
           })(),
         );
       }
+
       await Promise.all(loads);
       setViewerContext(ctx);
     };
@@ -1822,7 +2276,7 @@ export default function UserProfilePage({
         .eq("id_estudiante", entityId);
       if (e) throw e;
       setViewerContext((c) => ({ ...c, isMiEstudiante: true }));
-    }, "Estudiante asignado como tutorizado");
+    }, "Estudiante asignado");
   const handleUnassign = () =>
     withAction(async () => {
       const { error: e } = await supabase
@@ -1831,17 +2285,19 @@ export default function UserProfilePage({
         .eq("id_estudiante", entityId);
       if (e) throw e;
       setViewerContext((c) => ({ ...c, isMiEstudiante: false }));
-    }, "Estudiante desasignado de tu tutela");
+    }, "Estudiante desasignado");
   const handleStartPracticas = () =>
     withAction(async () => {
       if (!viewerContext.empresaId)
         throw new Error("No se encontró tu empresa");
-      const { error: e } = await supabase.from("estudiante_estado").upsert({
-        id_estudiante: entityId,
-        id_empresa: viewerContext.empresaId,
-        estado: "en_practicas",
-        updated_at: new Date().toISOString(),
-      });
+      const { error: e } = await supabase
+        .from("estudiante_estado")
+        .upsert({
+          id_estudiante: entityId,
+          id_empresa: viewerContext.empresaId,
+          estado: "en_practicas",
+          updated_at: new Date().toISOString(),
+        });
       if (e) throw e;
       setViewerContext((c) => ({ ...c, isMyPracticasStudent: true }));
     }, "Prácticas iniciadas");
@@ -1857,15 +2313,18 @@ export default function UserProfilePage({
     }, "Prácticas finalizadas");
   const handleGuardar = () =>
     withAction(async () => {
-      const { error: e } = await supabase.from("guardado").insert({
-        id_estudiante: entityId,
-        fecha_guardado: new Date().toISOString(),
-      });
+      const { error: e } = await supabase
+        .from("guardado")
+        .insert({
+          id_estudiante: entityId,
+          fecha_guardado: new Date().toISOString(),
+        });
       if (e) throw e;
-    }, "Estudiante guardado");
+    }, "Guardado");
 
-  // ── Loading ──
-  if (loading) {
+  // ─── Loading / Error ──────────────────────────────────────────────────────
+
+  if (loading)
     return (
       <div
         style={{
@@ -1877,10 +2336,11 @@ export default function UserProfilePage({
           alignItems: "center",
         }}
       >
+        <style>{GLOBAL_CSS}</style>
         <div
           style={{
-            width: 26,
-            height: 26,
+            width: 20,
+            height: 20,
             borderRadius: "50%",
             border: "2px solid var(--color-border-strong)",
             borderTopColor: "var(--color-brand)",
@@ -1890,9 +2350,8 @@ export default function UserProfilePage({
         <style>{`@keyframes spin { to { transform:rotate(360deg) } }`}</style>
       </div>
     );
-  }
 
-  if (error || (!profile && !tutorProfile)) {
+  if (error || (!profile && !tutorProfile))
     return (
       <div
         style={{
@@ -1906,179 +2365,67 @@ export default function UserProfilePage({
           gap: 12,
         }}
       >
+        <style>{GLOBAL_CSS}</style>
         <span
           style={{
-            fontSize: 14,
+            fontSize: 13,
             color: "var(--color-text-muted)",
-            fontFamily: "'DM Sans', sans-serif",
+            fontFamily: "inherit",
           }}
         >
           {error ?? "Perfil no encontrado"}
         </span>
         <button
+          className="up-btn up-btn-secondary"
           onClick={handleBack}
-          style={{
-            padding: "8px 18px",
-            borderRadius: 9,
-            border: "1px solid var(--color-border-strong)",
-            background: "transparent",
-            color: "var(--color-text-secondary)",
-            cursor: "pointer",
-            fontSize: 13,
-            fontFamily: "'DM Sans', sans-serif",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
+          style={{ fontFamily: "inherit" }}
         >
-          <I.ArrowLeft /> Volver
+          <Ic.ArrowLeft /> Volver
         </button>
-        <style>{`@keyframes spin { to { transform:rotate(360deg) } }`}</style>
       </div>
     );
-  }
 
-  // ── Tutor page ──
+  // ─── Tutor page ───────────────────────────────────────────────────────────
+
   if (isTutorPage && tutorProfile) {
     const name = tutorProfile.nombre ?? "";
-    const initials = name
-      .split(" ")
-      .slice(0, 2)
-      .map((w: string) => w[0]?.toUpperCase())
-      .join("");
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "var(--color-bg)",
-          paddingTop: 80,
-          fontFamily: "'DM Sans', sans-serif",
-        }}
-      >
-        <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=DM+Mono:wght@400;500&display=swap');
-          @keyframes spin { to { transform:rotate(360deg) } }
-          @keyframes fade-up { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
-        `}</style>
-        <div
-          style={{ maxWidth: 860, margin: "0 auto", padding: "32px 24px 80px" }}
-        >
-          <button
-            onClick={handleBack}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              marginBottom: 28,
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--color-text-subtle)",
-              fontSize: 13,
-              fontFamily: "'DM Sans', sans-serif",
-              padding: 0,
-            }}
-          >
-            <I.ArrowLeft /> Volver al directorio
+      <div className="up-root">
+        <style>{GLOBAL_CSS}</style>
+        <div className="up-inner" style={{ display: "block", maxWidth: 700 }}>
+          <button className="up-back" onClick={handleBack}>
+            <Ic.ArrowLeft /> Volver al directorio
           </button>
-          <div
-            style={{
-              background: "var(--color-surface-strong)",
-              border: `1px solid ${ec.accentMid}`,
-              borderRadius: 16,
-              overflow: "hidden",
-            }}
-          >
-            <div style={{ height: 4, background: ec.accent }} />
-            <div style={{ padding: "32px 28px 28px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 16,
-                  marginBottom: 20,
-                }}
-              >
-                {tutorProfile.avatar_url ? (
-                  <img
-                    src={tutorProfile.avatar_url}
-                    alt={name}
-                    style={{
-                      width: 72,
-                      height: 72,
-                      borderRadius: 14,
-                      objectFit: "cover",
-                      border: `1.5px solid ${ec.accentMid}`,
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 72,
-                      height: 72,
-                      borderRadius: 14,
-                      background: ec.accentDim,
-                      border: `1.5px solid ${ec.accentMid}`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 22,
-                      fontWeight: 700,
-                      color: ec.accent,
-                      fontFamily: "'DM Sans', sans-serif",
-                    }}
-                  >
-                    {initials || "?"}
+          <div className="up-panel up-hero">
+            <div
+              className="up-hero-accent-bar"
+              style={{ background: ec.accent }}
+            />
+            <div className="up-hero-body">
+              <div className="up-hero-top">
+                <div className="up-hero-left">
+                  <Avatar url={tutorProfile.avatar_url} name={name} ec={ec} />
+                  <div className="up-hero-meta">
+                    <div
+                      className="up-entity-label"
+                      style={{ color: ec.accent }}
+                    >
+                      <Ic.Dot color={ec.dot} /> {ec.label}
+                    </div>
+                    <h1 className="up-name">{name}</h1>
+                    <div className="up-subtitle">
+                      {tutorType === "tutor_empresa"
+                        ? tutorProfile.cargo
+                        : tutorProfile.departamento}
+                    </div>
                   </div>
-                )}
-                <div>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 600,
-                      letterSpacing: "0.12em",
-                      textTransform: "uppercase",
-                      color: ec.accent,
-                      fontFamily: "'DM Mono', monospace",
-                      marginBottom: 6,
-                    }}
-                  >
-                    {
-                      ENTITY_LABELS[
-                        effectiveType as "tutor_empresa" | "tutor_centro"
-                      ]
-                    }
-                  </div>
-                  <h1
-                    style={{
-                      margin: 0,
-                      fontSize: 24,
-                      fontWeight: 800,
-                      color: "var(--color-text)",
-                      fontFamily: "'DM Sans', sans-serif",
-                      letterSpacing: "-0.03em",
-                    }}
-                  >
-                    {name}
-                  </h1>
-                  <p
-                    style={{
-                      margin: "4px 0 0",
-                      fontSize: 14,
-                      color: "var(--color-text-muted)",
-                    }}
-                  >
-                    {tutorType === "tutor_empresa"
-                      ? tutorProfile.cargo
-                      : tutorProfile.departamento}
-                  </p>
                 </div>
               </div>
             </div>
           </div>
-          <SectionCard title="Información" icon={<I.Info />}>
+          <SectionCard title="Información" icon={<Ic.Info />}>
             <InfoRow
-              icon={<I.Briefcase />}
+              icon={<Ic.Briefcase />}
               label={tutorType === "tutor_empresa" ? "Cargo" : "Departamento"}
               value={
                 tutorType === "tutor_empresa"
@@ -2092,14 +2439,12 @@ export default function UserProfilePage({
     );
   }
 
-  // ── Profile data helpers ──
-  const getName = () => {
-    if (rawEntityType === "estudiante") {
-      const s = profile as Estudiante;
-      return `${s.nombre ?? ""} ${s.apellidos ?? ""}`.trim();
-    }
-    return (profile as Empresa | CentroEducativo).nombre ?? "";
-  };
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  const getName = () =>
+    rawEntityType === "estudiante"
+      ? `${(profile as Estudiante).nombre ?? ""} ${(profile as Estudiante).apellidos ?? ""}`.trim()
+      : ((profile as Empresa | CentroEducativo).nombre ?? "");
   const getAvatar = () =>
     rawEntityType === "empresa"
       ? (profile as Empresa).logo_url
@@ -2112,6 +2457,7 @@ export default function UserProfilePage({
       year: "numeric",
     });
   };
+
   const profileName = getName();
   const avatarUrl = getAvatar();
   const memberSince = getMemberSince();
@@ -2127,65 +2473,93 @@ export default function UserProfilePage({
       rawEntityType === "estudiante" &&
       entityId === viewerId);
 
-  const tabs = [
-    { id: "info" as const, label: "Información", icon: <I.Info /> },
+  const tabs: TabItem[] = [
+    { id: "info", label: "Información", icon: <Ic.Info /> },
     ...(canSeeCandidaturas && rawEntityType === "estudiante"
       ? [
           {
             id: "candidaturas" as const,
-            label: `Candidaturas`,
+            label: "Candidaturas",
             count: stats.candidaturas,
-            icon: <I.FileText />,
+            icon: <Ic.FileText />,
           },
         ]
       : []),
-    { id: "actividad" as const, label: "Actividad", icon: <I.Activity /> },
+    { id: "actividad", label: "Actividad", icon: <Ic.Activity /> },
   ];
 
-  // ── Actions ──
+  const getSubtitle = () => {
+    if (rawEntityType === "estudiante")
+      return [
+        (profile as Estudiante).titulacion,
+        (profile as Estudiante).ciudad,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    if (rawEntityType === "empresa")
+      return [
+        (profile as Empresa).sector,
+        (profile as Empresa).ciudad,
+        (profile as Empresa).tamano,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    if (rawEntityType === "centro_educativo")
+      return [
+        (profile as CentroEducativo).tipo_centro,
+        (profile as CentroEducativo).ciudad,
+        (profile as CentroEducativo).provincia,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    return "";
+  };
+
+  // ─── Actions ─────────────────────────────────────────────────────────────
+
   function renderActions() {
     if (viewerRole === "administrador")
       return (
         <>
           {(rawEntityType === "empresa" ||
             rawEntityType === "centro_educativo") && (
-            <ActionBtn
+            <Btn
               label="Verificar"
               variant="primary"
               onClick={handleVerify(
                 rawEntityType as "empresa" | "centro_educativo",
               )}
               loading={al}
-              icon={<I.Check />}
+              icon={<Ic.Check />}
             />
           )}
           {userBlock?.blocked ? (
-            <ActionBtn
+            <Btn
               label="Desbloquear"
               onClick={handleUnblock}
               loading={al}
-              icon={<I.Unlock />}
+              icon={<Ic.Unlock />}
             />
           ) : (
-            <ActionBtn
+            <Btn
               label="Bloquear"
               danger
               onClick={handleBlock}
               loading={al}
-              icon={<I.Lock />}
+              icon={<Ic.Lock />}
             />
           )}
-          <ActionBtn
+          <Btn
             label="Eliminar"
             danger
             onClick={handleDelete}
             loading={al}
-            icon={<I.Trash />}
+            icon={<Ic.Trash />}
           />
-          <ActionBtn
+          <Btn
             label="Mensaje"
             onClick={() => alert("Abrir chat")}
-            icon={<I.MessageSquare />}
+            icon={<Ic.Message />}
           />
         </>
       );
@@ -2193,25 +2567,25 @@ export default function UserProfilePage({
       return (
         <>
           {viewerContext.isEnrolledEstudiante ? (
-            <ActionBtn
+            <Btn
               label="Desvincular"
               danger
               onClick={handleUnenroll}
               loading={al}
             />
           ) : (
-            <ActionBtn
+            <Btn
               label="Vincular al centro"
               variant="primary"
               onClick={handleEnroll}
               loading={al}
-              icon={<I.Users />}
+              icon={<Ic.Users />}
             />
           )}
-          <ActionBtn
+          <Btn
             label="Mensaje"
             onClick={() => alert("Abrir chat")}
-            icon={<I.MessageSquare />}
+            icon={<Ic.Message />}
           />
         </>
       );
@@ -2221,25 +2595,25 @@ export default function UserProfilePage({
         <>
           {sameCenter ? (
             viewerContext.isMiEstudiante ? (
-              <ActionBtn
+              <Btn
                 label="Quitar tutorizado"
                 danger
                 onClick={handleUnassign}
                 loading={al}
               />
             ) : (
-              <ActionBtn
-                label="Añadir como tutorizado"
+              <Btn
+                label="Tutorizar"
                 variant="primary"
                 onClick={handleAssign}
                 loading={al}
-                icon={<I.Users />}
+                icon={<Ic.Users />}
               />
             )
           ) : (
             <span
               style={{
-                fontSize: 12,
+                fontSize: 11,
                 color: "var(--color-text-subtle)",
                 alignSelf: "center",
               }}
@@ -2247,10 +2621,10 @@ export default function UserProfilePage({
               Fuera de tu centro
             </span>
           )}
-          <ActionBtn
+          <Btn
             label="Mensaje"
             onClick={() => alert("Abrir chat")}
-            icon={<I.MessageSquare />}
+            icon={<Ic.Message />}
           />
         </>
       );
@@ -2259,31 +2633,31 @@ export default function UserProfilePage({
       return (
         <>
           {viewerContext.isMyPracticasStudent ? (
-            <ActionBtn
+            <Btn
               label="Finalizar prácticas"
               danger
               onClick={handleEndPracticas}
               loading={al}
             />
           ) : (
-            <ActionBtn
+            <Btn
               label="Iniciar prácticas"
               variant="primary"
               onClick={handleStartPracticas}
               loading={al}
-              icon={<I.Briefcase />}
+              icon={<Ic.Briefcase />}
             />
           )}
-          <ActionBtn
+          <Btn
             label="Guardar"
             onClick={handleGuardar}
             loading={al}
-            icon={<I.Bookmark />}
+            icon={<Ic.Bookmark />}
           />
-          <ActionBtn
+          <Btn
             label="Mensaje"
             onClick={() => alert("Abrir chat")}
-            icon={<I.MessageSquare />}
+            icon={<Ic.Message />}
           />
         </>
       );
@@ -2291,26 +2665,26 @@ export default function UserProfilePage({
       if (rawEntityType === "estudiante")
         return (
           <>
-            <ActionBtn
+            <Btn
               label="Guardar perfil"
               variant="primary"
               onClick={handleGuardar}
               loading={al}
-              icon={<I.Bookmark />}
+              icon={<Ic.Bookmark />}
             />
-            <ActionBtn
+            <Btn
               label="Mensaje"
               onClick={() => alert("Abrir chat")}
-              icon={<I.MessageSquare />}
+              icon={<Ic.Message />}
             />
           </>
         );
       if (rawEntityType === "centro_educativo")
         return (
-          <ActionBtn
+          <Btn
             label="Contactar centro"
             onClick={() => alert("Abrir chat")}
-            icon={<I.MessageSquare />}
+            icon={<Ic.Message />}
           />
         );
     }
@@ -2318,82 +2692,71 @@ export default function UserProfilePage({
       if (rawEntityType === "empresa")
         return (
           <>
-            <ActionBtn
+            <Btn
               label="Ver ofertas"
               variant="primary"
               onClick={() =>
                 (window.location.href = `/empresa/${entityId}/ofertas`)
               }
-              icon={<I.Layers />}
+              icon={<Ic.Layers />}
             />
-            <ActionBtn
+            <Btn
               label="Mensaje"
               onClick={() => alert("Abrir chat")}
-              icon={<I.MessageSquare />}
+              icon={<Ic.Message />}
             />
           </>
         );
       if (rawEntityType === "centro_educativo")
         return (
-          <ActionBtn
+          <Btn
             label="Contactar centro"
             onClick={() => alert("Abrir chat")}
-            icon={<I.MessageSquare />}
+            icon={<Ic.Message />}
           />
         );
     }
     return null;
   }
 
-  // ── Info sections ──
+  // ─── Info sections ────────────────────────────────────────────────────────
+
   function renderInfoSections() {
     if (rawEntityType === "estudiante") {
       const s = profile as Estudiante;
       return (
         <>
           {s.sobre_mi && (
-            <SectionCard title="Sobre mí" icon={<I.Info />}>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 14,
-                  color: "var(--color-text-secondary)",
-                  lineHeight: 1.8,
-                  fontFamily: "'DM Sans', sans-serif",
-                }}
-              >
-                {s.sobre_mi}
-              </p>
+            <SectionCard title="Presentación" icon={<Ic.Info />}>
+              <p className="up-prose">{s.sobre_mi}</p>
             </SectionCard>
           )}
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
-          >
-            <SectionCard title="Contacto y datos" icon={<I.FileText />}>
-              <InfoRow icon={<I.MapPin />} label="Ciudad" value={s.ciudad} />
+          <div className="up-two-col">
+            <SectionCard title="Datos de contacto" icon={<Ic.FileText />}>
+              <InfoRow icon={<Ic.MapPin />} label="Ciudad" value={s.ciudad} />
               <InfoRow
-                icon={<I.GraduationCap />}
+                icon={<Ic.GradCap />}
                 label="Titulación"
                 value={s.titulacion}
               />
               <InfoRow
-                icon={<I.Calendar />}
+                icon={<Ic.Calendar />}
                 label="Disponibilidad"
                 value={s.disponibilidad}
               />
               <InfoRow
-                icon={<I.Briefcase />}
+                icon={<Ic.Briefcase />}
                 label="Tipo búsqueda"
                 value={s.tipo_busqueda}
               />
               <InfoRow
-                icon={<I.Globe />}
+                icon={<Ic.Globe />}
                 label="Modalidad"
                 value={s.modalidad}
               />
               {(viewerRole !== "estudiante" || entityId === viewerId) && (
                 <InfoRow
-                  icon={<I.Phone />}
+                  icon={<Ic.Phone />}
                   label="Teléfono"
                   value={s.telefono}
                 />
@@ -2401,11 +2764,11 @@ export default function UserProfilePage({
               {(viewerRole === "administrador" ||
                 viewerRole === "tutor_centro" ||
                 viewerRole === "tutor_empresa") && (
-                <InfoRow icon={<I.Mail />} label="Email" value={s.email} />
+                <InfoRow icon={<Ic.Mail />} label="Email" value={s.email} />
               )}
               {s.github_username && (
                 <InfoRow
-                  icon={<I.GitHub />}
+                  icon={<Ic.GitHub />}
                   label="GitHub"
                   value={`github.com/${s.github_username}`}
                   href={`https://github.com/${s.github_username}`}
@@ -2413,123 +2776,69 @@ export default function UserProfilePage({
               )}
             </SectionCard>
             {s.habilidades && s.habilidades.length > 0 && (
-              <SectionCard title="Nivel de habilidades" icon={<I.Activity />}>
-                {s.habilidades.slice(0, 6).map((h) => (
+              <SectionCard title="Nivel de habilidades" icon={<Ic.Activity />}>
+                {s.habilidades.slice(0, 7).map((h) => (
                   <SkillBar key={h} skill={h} />
                 ))}
               </SectionCard>
             )}
           </div>
           {s.habilidades && s.habilidades.length > 0 && (
-            <SectionCard title="Habilidades" icon={<I.Code />}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+            <SectionCard title="Habilidades y tecnologías" icon={<Ic.Code />}>
+              <div className="up-tags">
                 {s.habilidades.map((h) => (
-                  <Tag key={h} label={h} />
+                  <span key={h} className="up-tag">
+                    <Ic.Hash />
+                    {h}
+                  </span>
                 ))}
               </div>
             </SectionCard>
           )}
           {Array.isArray(s.formaciones) && s.formaciones.length > 0 && (
-            <SectionCard title="Formación académica" icon={<I.GraduationCap />}>
+            <SectionCard title="Formación académica" icon={<Ic.GradCap />}>
               {(s.formaciones as Record<string, string>[]).map((f, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    gap: 14,
-                    padding: "12px 0",
-                    borderBottom:
-                      i < s.formaciones!.length - 1
-                        ? "1px solid rgba(255,255,255,0.05)"
-                        : "none",
-                  }}
-                >
+                <div key={i} className="up-formation-row">
                   <div
+                    className="up-formation-icon"
                     style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 8,
-                      background: EC.centro_educativo.accentDim,
-                      border: `1px solid ${EC.centro_educativo.accentMid}`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      background: EC.centro_educativo.accentFaint,
+                      border: `1px solid ${EC.centro_educativo.accentBorder}`,
                       color: EC.centro_educativo.accent,
-                      flexShrink: 0,
                     }}
                   >
-                    <I.GraduationCap />
+                    <Ic.GradCap />
                   </div>
                   <div>
-                    <div
-                      style={{
-                        fontSize: 13.5,
-                        fontWeight: 700,
-                        color: "var(--color-text)",
-                        fontFamily: "'DM Sans', sans-serif",
-                        letterSpacing: "-0.01em",
-                      }}
-                    >
-                      {f.titulo}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--color-text-muted)",
-                        marginTop: 2,
-                        fontFamily: "'DM Sans', sans-serif",
-                      }}
-                    >
+                    <div className="up-formation-name">{f.titulo}</div>
+                    <div className="up-formation-sub">
                       {[f.institucion, f.anio].filter(Boolean).join(" · ")}
                     </div>
+                    {f.descripcion && (
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          color: "var(--color-text-muted)",
+                          marginTop: 4,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {f.descripcion}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </SectionCard>
           )}
           {Array.isArray(s.proyectos) && s.proyectos.length > 0 && (
-            <SectionCard title="Proyectos" icon={<I.Code />}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-                  gap: 10,
-                }}
-              >
+            <SectionCard title="Proyectos destacados" icon={<Ic.Code />}>
+              <div className="up-projects-grid">
                 {(s.proyectos as Record<string, string>[]).map((p, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      background: "var(--color-surface-elevated)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 10,
-                      padding: 14,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 13.5,
-                        fontWeight: 700,
-                        color: "var(--color-text)",
-                        fontFamily: "'DM Sans', sans-serif",
-                        marginBottom: 4,
-                        letterSpacing: "-0.01em",
-                      }}
-                    >
-                      {p.titulo}
-                    </div>
+                  <div key={i} className="up-project-card">
+                    <div className="up-project-name">{p.titulo}</div>
                     {p.descripcion && (
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "var(--color-text-muted)",
-                          lineHeight: 1.55,
-                          marginBottom: 8,
-                          fontFamily: "'DM Sans', sans-serif",
-                        }}
-                      >
-                        {p.descripcion}
-                      </div>
+                      <div className="up-project-desc">{p.descripcion}</div>
                     )}
                     {p.enlace && (
                       <a
@@ -2537,16 +2846,15 @@ export default function UserProfilePage({
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
-                          fontSize: 12,
+                          fontSize: 11.5,
                           color: "var(--color-brand)",
                           textDecoration: "none",
-                          display: "flex",
+                          display: "inline-flex",
                           alignItems: "center",
                           gap: 4,
-                          fontFamily: "'DM Sans', sans-serif",
                         }}
                       >
-                        Ver proyecto <I.ExternalLink />
+                        Ver proyecto <Ic.ExternalLink />
                       </a>
                     )}
                   </div>
@@ -2555,11 +2863,11 @@ export default function UserProfilePage({
             </SectionCard>
           )}
           {s.redes_sociales && Object.keys(s.redes_sociales).length > 0 && (
-            <SectionCard title="Redes sociales" icon={<I.Link />}>
+            <SectionCard title="Redes sociales" icon={<Ic.Link />}>
               {Object.entries(s.redes_sociales).map(([red, url]) => (
                 <InfoRow
                   key={red}
-                  icon={<I.Link />}
+                  icon={<Ic.Link />}
                   label={red}
                   value={url}
                   href={url}
@@ -2576,63 +2884,61 @@ export default function UserProfilePage({
       return (
         <>
           {e.descripcion && (
-            <SectionCard title="Sobre la empresa" icon={<I.Building />}>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 14,
-                  color: "var(--color-text-secondary)",
-                  lineHeight: 1.8,
-                  fontFamily: "'DM Sans', sans-serif",
-                }}
-              >
-                {e.descripcion}
-              </p>
+            <SectionCard title="Sobre la empresa" icon={<Ic.Building />}>
+              <p className="up-prose">{e.descripcion}</p>
             </SectionCard>
           )}
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
-          >
-            <SectionCard title="Información" icon={<I.FileText />}>
-              <InfoRow icon={<I.MapPin />} label="Ciudad" value={e.ciudad} />
-              <InfoRow icon={<I.Briefcase />} label="Sector" value={e.sector} />
-              <InfoRow icon={<I.Users />} label="Tamaño" value={e.tamano} />
+          <div className="up-two-col">
+            <SectionCard title="Información corporativa" icon={<Ic.FileText />}>
+              <InfoRow icon={<Ic.MapPin />} label="Ciudad" value={e.ciudad} />
               <InfoRow
-                icon={<I.Mail />}
+                icon={<Ic.Briefcase />}
+                label="Sector"
+                value={e.sector}
+              />
+              <InfoRow icon={<Ic.Users />} label="Tamaño" value={e.tamano} />
+              <InfoRow
+                icon={<Ic.Mail />}
                 label="Email"
                 value={e.email_contacto}
               />
-              <InfoRow icon={<I.Phone />} label="Teléfono" value={e.telefono} />
               <InfoRow
-                icon={<I.Globe />}
+                icon={<Ic.Phone />}
+                label="Teléfono"
+                value={e.telefono}
+              />
+              <InfoRow
+                icon={<Ic.Globe />}
                 label="Web"
                 value={e.web}
                 href={e.web}
               />
               {viewerRole === "administrador" && (
-                <InfoRow icon={<I.Shield />} label="CIF" value={e.cif} />
+                <InfoRow icon={<Ic.Shield />} label="CIF" value={e.cif} />
               )}
             </SectionCard>
-            {(e.linkedin || e.twitter || e.instagram) && (
-              <SectionCard title="Redes sociales" icon={<I.Link />}>
-                {e.linkedin && (
-                  <InfoRow
-                    icon={<I.Linkedin />}
-                    label="LinkedIn"
-                    value={e.linkedin}
-                    href={e.linkedin}
-                  />
-                )}
-                {e.twitter && (
-                  <InfoRow
-                    icon={<I.Twitter />}
-                    label="Twitter / X"
-                    value={e.twitter}
-                    href={e.twitter}
-                  />
-                )}
-              </SectionCard>
-            )}
+            <div>
+              {(e.linkedin || e.twitter || e.instagram) && (
+                <SectionCard title="Redes y presencia" icon={<Ic.Link />}>
+                  {e.linkedin && (
+                    <InfoRow
+                      icon={<Ic.Linkedin />}
+                      label="LinkedIn"
+                      value={e.linkedin}
+                      href={e.linkedin}
+                    />
+                  )}
+                  {e.twitter && (
+                    <InfoRow
+                      icon={<Ic.Twitter />}
+                      label="Twitter / X"
+                      value={e.twitter}
+                      href={e.twitter}
+                    />
+                  )}
+                </SectionCard>
+              )}
+            </div>
           </div>
         </>
       );
@@ -2643,58 +2949,60 @@ export default function UserProfilePage({
       return (
         <>
           {c.descripcion && (
-            <SectionCard title="Sobre el centro" icon={<I.BookOpen />}>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 14,
-                  color: "var(--color-text-secondary)",
-                  lineHeight: 1.8,
-                  fontFamily: "'DM Sans', sans-serif",
-                }}
-              >
-                {c.descripcion}
-              </p>
+            <SectionCard title="Sobre el centro" icon={<Ic.BookOpen />}>
+              <p className="up-prose">{c.descripcion}</p>
             </SectionCard>
           )}
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
-          >
-            <SectionCard title="Información" icon={<I.FileText />}>
-              <InfoRow icon={<I.MapPin />} label="Ciudad" value={c.ciudad} />
+          <div className="up-two-col">
+            <SectionCard title="Datos del centro" icon={<Ic.FileText />}>
+              <InfoRow icon={<Ic.MapPin />} label="Ciudad" value={c.ciudad} />
               <InfoRow
-                icon={<I.MapPin />}
+                icon={<Ic.MapPin />}
                 label="Provincia"
                 value={c.provincia}
               />
               <InfoRow
-                icon={<I.BookOpen />}
-                label="Tipo centro"
+                icon={<Ic.BookOpen />}
+                label="Tipo"
                 value={c.tipo_centro}
               />
               <InfoRow
-                icon={<I.Users />}
+                icon={<Ic.Users />}
                 label="N.º alumnos"
                 value={c.num_alumnos?.toString()}
               />
               <InfoRow
-                icon={<I.Mail />}
+                icon={<Ic.Mail />}
                 label="Email"
                 value={c.email_contacto}
               />
-              <InfoRow icon={<I.Phone />} label="Teléfono" value={c.telefono} />
               <InfoRow
-                icon={<I.Globe />}
+                icon={<Ic.Phone />}
+                label="Teléfono"
+                value={c.telefono}
+              />
+              <InfoRow
+                icon={<Ic.Globe />}
                 label="Web"
                 value={c.sitio_web}
                 href={c.sitio_web}
               />
             </SectionCard>
             {c.titulaciones && c.titulaciones.length > 0 && (
-              <SectionCard title="Titulaciones" icon={<I.Layers />}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              <SectionCard title="Titulaciones ofertadas" icon={<Ic.Layers />}>
+                <div className="up-tags" style={{ gap: 5 }}>
                   {c.titulaciones.map((t) => (
-                    <AccentTag key={t} label={t} ec={ec} />
+                    <span
+                      key={t}
+                      className="up-accent-tag"
+                      style={{
+                        background: ec.accentFaint,
+                        border: `1px solid ${ec.accentBorder}`,
+                        color: ec.accent,
+                      }}
+                    >
+                      {t}
+                    </span>
                   ))}
                 </div>
               </SectionCard>
@@ -2706,595 +3014,528 @@ export default function UserProfilePage({
     return null;
   }
 
-  // ── Main render ──
+  // ─── Main render ──────────────────────────────────────────────────────────
+
+  const dispInfo =
+    rawEntityType === "estudiante"
+      ? (DISP_MAP[(profile as Estudiante).disponibilidad ?? ""] ?? null)
+      : null;
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--color-bg)",
-        paddingTop: 80,
-        fontFamily: "'DM Sans', sans-serif",
-      }}
-    >
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=DM+Mono:wght@400;500&display=swap');
-        @keyframes spin { to { transform:rotate(360deg) } }
-        @keyframes fade-up { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
-      `}</style>
+    <MainLayout>
+      <style>{GLOBAL_CSS}</style>
+      <div className="up-root">
+        <div className="up-inner">
+          {/* ── Back (spans full width) ── */}
+          <div style={{ gridColumn: "1 / -1", marginBottom: 4 }}>
+            <button className="up-back" onClick={handleBack}>
+              <Ic.ArrowLeft /> Volver al directorio
+            </button>
+          </div>
 
-      <div
-        style={{ maxWidth: 860, margin: "0 auto", padding: "32px 24px 80px" }}
-      >
-        {/* Back */}
-        <button
-          onClick={handleBack}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            marginBottom: 28,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--color-text-subtle)",
-            fontSize: 13,
-            fontFamily: "'DM Sans', sans-serif",
-            padding: 0,
-            transition: "color 0.15s",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.color = "var(--color-text)")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.color = "var(--color-text-subtle)")
-          }
-        >
-          <I.ArrowLeft /> Volver al directorio
-        </button>
-
-        {/* ── Hero ── */}
-        <div
-          style={{
-            background: "var(--color-surface-strong)",
-            border: `1px solid ${ec.accentMid}`,
-            borderRadius: 16,
-            overflow: "hidden",
-            marginBottom: 12,
-          }}
-        >
-          {/* Accent top bar */}
-          <div style={{ height: 4, background: ec.accent }} />
-
-          <div style={{ padding: "28px 28px 24px" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: 16,
-                marginBottom: 20,
-              }}
-            >
-              {/* Avatar + verified */}
-              <div style={{ position: "relative" }}>
-                <Avatar url={avatarUrl} name={profileName} size={76} ec={ec} />
-                {isVerified && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: -4,
-                      right: -4,
-                      width: 20,
-                      height: 20,
-                      borderRadius: "50%",
-                      background: "#c0ff72",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "2px solid var(--color-surface-strong)",
-                    }}
-                  >
-                    <I.Check size={9} />
+          {/* ── Main column ── */}
+          <div className="up-main">
+            {/* Hero card */}
+            <div className="up-panel up-hero">
+              <div
+                className="up-hero-accent-bar"
+                style={{ background: ec.accent }}
+              />
+              <div className="up-hero-body">
+                <div className="up-hero-top">
+                  <div className="up-hero-left">
+                    <div className="up-avatar-wrap">
+                      <Avatar url={avatarUrl} name={profileName} ec={ec} />
+                      {isVerified && (
+                        <div className="up-verified-badge">
+                          <Ic.Check s={8} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="up-hero-meta">
+                      <div
+                        className="up-entity-label"
+                        style={{ color: ec.accent }}
+                      >
+                        <Ic.Dot color={ec.dot} />
+                        {rawEntityType ? EC[rawEntityType].label : ""}
+                        {isVerified && (
+                          <span
+                            style={{
+                              marginLeft: 6,
+                              fontSize: 9,
+                              background: "rgba(192,255,114,0.1)",
+                              border: "1px solid rgba(192,255,114,0.2)",
+                              color: "#c0ff72",
+                              padding: "1px 5px",
+                              borderRadius: 3,
+                              letterSpacing: "0.06em",
+                            }}
+                          >
+                            VERIFICADO
+                          </span>
+                        )}
+                      </div>
+                      <h1 className="up-name">{profileName}</h1>
+                      <div className="up-subtitle">{getSubtitle()}</div>
+                    </div>
                   </div>
-                )}
+                  <div className="up-hero-actions">{renderActions()}</div>
+                </div>
+
+                <div className="up-pills">
+                  {memberSince && (
+                    <span className="up-pill">
+                      <Ic.Calendar /> Miembro desde {memberSince}
+                    </span>
+                  )}
+                  {dispInfo && (
+                    <span className="up-pill" style={{ color: dispInfo.color }}>
+                      <Ic.Dot color={dispInfo.color} /> {dispInfo.label}
+                    </span>
+                  )}
+                  {rawEntityType === "empresa" && (profile as Empresa).web && (
+                    <a
+                      href={(profile as Empresa).web!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 11,
+                        color: ec.accent,
+                        textDecoration: "none",
+                      }}
+                    >
+                      <Ic.Globe /> {(profile as Empresa).web}
+                    </a>
+                  )}
+                </div>
               </div>
-              {/* Actions */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  flexWrap: "wrap",
-                  paddingTop: 4,
-                }}
-              >
-                {renderActions()}
-              </div>
+
+              {/* Stats */}
+              {(stats.candidaturas > 0 ||
+                stats.ofertas > 0 ||
+                stats.estudiantes > 0 ||
+                stats.valoracion !== undefined) && (
+                <div className="up-stats">
+                  {rawEntityType === "estudiante" && (
+                    <div className="up-stat">
+                      <div
+                        className="up-stat-value"
+                        style={{ color: ec.accent }}
+                      >
+                        {stats.candidaturas}
+                      </div>
+                      <div className="up-stat-label">Candidaturas</div>
+                    </div>
+                  )}
+                  {rawEntityType === "empresa" && (
+                    <div className="up-stat">
+                      <div
+                        className="up-stat-value"
+                        style={{ color: ec.accent }}
+                      >
+                        {stats.ofertas}
+                      </div>
+                      <div className="up-stat-label">Ofertas activas</div>
+                    </div>
+                  )}
+                  {rawEntityType === "empresa" &&
+                    stats.valoracion !== undefined && (
+                      <div className="up-stat">
+                        <div
+                          className="up-stat-value"
+                          style={{ color: "#facc15" }}
+                        >
+                          {stats.valoracion}
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 400,
+                              color: "var(--color-text-subtle)",
+                            }}
+                          >
+                            /5
+                          </span>
+                        </div>
+                        <div className="up-stat-label">Valoración media</div>
+                      </div>
+                    )}
+                  {rawEntityType === "centro_educativo" && (
+                    <div className="up-stat">
+                      <div
+                        className="up-stat-value"
+                        style={{ color: ec.accent }}
+                      >
+                        {stats.estudiantes}
+                      </div>
+                      <div className="up-stat-label">Estudiantes</div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Name + type label */}
-            <div style={{ marginBottom: 6 }}>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  color: ec.accent,
-                  fontFamily: "'DM Mono', monospace",
-                  marginBottom: 8,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                }}
-              >
-                <div style={{ width: 14, height: 1, background: ec.accent }} />
-                {rawEntityType ? ENTITY_LABELS[rawEntityType] : ""}
-                {isVerified && (
-                  <span
-                    style={{
-                      marginLeft: 6,
-                      fontSize: 9,
-                      background: "rgba(192,255,114,0.1)",
-                      border: "1px solid rgba(192,255,114,0.25)",
-                      color: "#c0ff72",
-                      padding: "1px 6px",
-                      borderRadius: 4,
-                      letterSpacing: "0.08em",
-                    }}
-                  >
-                    VERIFICADO
-                  </span>
-                )}
-              </div>
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: 26,
-                  fontWeight: 800,
-                  color: "var(--color-text)",
-                  fontFamily: "'DM Sans', sans-serif",
-                  letterSpacing: "-0.035em",
-                  lineHeight: 1.1,
-                }}
-              >
-                {profileName}
-              </h1>
-            </div>
-
-            {/* Subtitle */}
-            <p
-              style={{
-                margin: "0 0 14px",
-                fontSize: 14,
-                color: "var(--color-text-muted)",
-                lineHeight: 1.5,
-              }}
-            >
-              {rawEntityType === "estudiante" &&
-                [
-                  (profile as Estudiante).titulacion,
-                  (profile as Estudiante).ciudad,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              {rawEntityType === "empresa" &&
-                [
-                  (profile as Empresa).sector,
-                  (profile as Empresa).ciudad,
-                  (profile as Empresa).tamano,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              {rawEntityType === "centro_educativo" &&
-                [
-                  (profile as CentroEducativo).tipo_centro,
-                  (profile as CentroEducativo).ciudad,
-                  (profile as CentroEducativo).provincia,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-            </p>
-
-            {/* Meta row */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                flexWrap: "wrap",
-              }}
-            >
-              {memberSince && (
-                <span
+            {/* Tabs */}
+            <div className="up-tabs">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`up-tab${activeTab === tab.id ? " active" : ""}`}
+                  onClick={() => setActiveTab(tab.id)}
                   style={{
-                    fontSize: 12,
-                    color: "var(--color-text-subtle)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
+                    borderBottomColor:
+                      activeTab === tab.id ? ec.accent : "transparent",
                   }}
                 >
-                  <I.Calendar /> Miembro desde {memberSince}
-                </span>
-              )}
-              {rawEntityType === "estudiante" &&
-                (profile as Estudiante).disponibilidad &&
-                (() => {
-                  const d =
-                    DISP_COLOR[(profile as Estudiante).disponibilidad!] ??
-                    DISP_COLOR.no_disponible;
-                  return (
+                  <span
+                    style={{
+                      display: "flex",
+                      opacity: activeTab === tab.id ? 1 : 0.5,
+                    }}
+                  >
+                    {tab.icon}
+                  </span>
+                  {tab.label}
+                  {"count" in tab && tab.count > 0 && (
+                    <span className="up-tab-badge">{tab.count}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            {activeTab === "info" && renderInfoSections()}
+
+            {activeTab === "candidaturas" && (
+              <SectionCard
+                title={`Candidaturas enviadas · ${stats.candidaturas}`}
+                icon={<Ic.FileText />}
+              >
+                {candidaturas.length === 0 ? (
+                  <p className="up-empty">No hay candidaturas registradas.</p>
+                ) : (
+                  candidaturas.map((c) => (
+                    <CandidaturaRow key={c.id_candidatura} c={c} />
+                  ))
+                )}
+              </SectionCard>
+            )}
+
+            {activeTab === "actividad" && (
+              <SectionCard title="Actividad reciente" icon={<Ic.Activity />}>
+                {memberSince && (
+                  <div className="up-activity-row">
+                    <div
+                      className="up-activity-icon"
+                      style={{
+                        background: ec.accentFaint,
+                        color: ec.accent,
+                        borderColor: ec.accentBorder,
+                      }}
+                    >
+                      <Ic.Calendar />
+                    </div>
+                    <div>
+                      <div className="up-activity-text">
+                        Perfil creado en Relance
+                      </div>
+                      <div className="up-activity-sub">{memberSince}</div>
+                    </div>
+                  </div>
+                )}
+                {rawEntityType === "estudiante" && stats.candidaturas > 0 && (
+                  <div className="up-activity-row">
+                    <div className="up-activity-icon">
+                      <Ic.FileText />
+                    </div>
+                    <div>
+                      <div className="up-activity-text">
+                        {stats.candidaturas} candidatura
+                        {stats.candidaturas > 1 ? "s" : ""} enviada
+                        {stats.candidaturas > 1 ? "s" : ""}
+                      </div>
+                      <div className="up-activity-sub">
+                        Ver historial completo en la pestaña Candidaturas
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {rawEntityType === "empresa" && stats.ofertas > 0 && (
+                  <div className="up-activity-row">
+                    <div className="up-activity-icon">
+                      <Ic.Layers />
+                    </div>
+                    <div>
+                      <div className="up-activity-text">
+                        {stats.ofertas} oferta{stats.ofertas > 1 ? "s" : ""}{" "}
+                        publicada{stats.ofertas > 1 ? "s" : ""}
+                      </div>
+                      <div className="up-activity-sub">
+                        Historial de publicaciones
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <p
+                  style={{
+                    margin: "14px 0 0",
+                    fontSize: 11,
+                    color: "var(--color-text-subtle)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  El historial detallado de actividad estará disponible
+                  próximamente.
+                </p>
+              </SectionCard>
+            )}
+          </div>
+
+          {/* ── Sidebar ── */}
+          <div className="up-sidebar">
+            <div className="up-sidebar-inner">
+              {/* Quick info strip */}
+              <div>
+                <div className="up-sidebar-label">Datos clave</div>
+                <div className="up-info-strip">
+                  {rawEntityType === "estudiante" &&
+                    (() => {
+                      const s = profile as Estudiante;
+                      return (
+                        <>
+                          {s.ciudad && (
+                            <div className="up-strip-row">
+                              <span className="up-strip-label">Ciudad</span>
+                              <span className="up-strip-val">{s.ciudad}</span>
+                            </div>
+                          )}
+                          {s.titulacion && (
+                            <div className="up-strip-row">
+                              <span className="up-strip-label">Titulación</span>
+                              <span className="up-strip-val">
+                                {s.titulacion}
+                              </span>
+                            </div>
+                          )}
+                          {s.modalidad && (
+                            <div className="up-strip-row">
+                              <span className="up-strip-label">Modalidad</span>
+                              <span className="up-strip-val">
+                                {s.modalidad}
+                              </span>
+                            </div>
+                          )}
+                          {s.tipo_busqueda && (
+                            <div className="up-strip-row">
+                              <span className="up-strip-label">Búsqueda</span>
+                              <span className="up-strip-val">
+                                {s.tipo_busqueda}
+                              </span>
+                            </div>
+                          )}
+                          {s.disponibilidad &&
+                            (() => {
+                              const d = DISP_MAP[s.disponibilidad!];
+                              return d ? (
+                                <div className="up-strip-row">
+                                  <span className="up-strip-label">Estado</span>
+                                  <span
+                                    style={{
+                                      color: d.color,
+                                      fontSize: 11.5,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 4,
+                                    }}
+                                  >
+                                    <Ic.Dot color={d.color} />
+                                    {d.label}
+                                  </span>
+                                </div>
+                              ) : null;
+                            })()}
+                        </>
+                      );
+                    })()}
+                  {rawEntityType === "empresa" &&
+                    (() => {
+                      const e = profile as Empresa;
+                      return (
+                        <>
+                          {e.sector && (
+                            <div className="up-strip-row">
+                              <span className="up-strip-label">Sector</span>
+                              <span className="up-strip-val">{e.sector}</span>
+                            </div>
+                          )}
+                          {e.ciudad && (
+                            <div className="up-strip-row">
+                              <span className="up-strip-label">Ciudad</span>
+                              <span className="up-strip-val">{e.ciudad}</span>
+                            </div>
+                          )}
+                          {e.tamano && (
+                            <div className="up-strip-row">
+                              <span className="up-strip-label">Tamaño</span>
+                              <span className="up-strip-val">{e.tamano}</span>
+                            </div>
+                          )}
+                          <div className="up-strip-row">
+                            <span className="up-strip-label">Verificada</span>
+                            <span
+                              style={{
+                                color: isVerified ? "#4ade80" : "#f87171",
+                                fontSize: 11.5,
+                              }}
+                            >
+                              {isVerified ? "Sí" : "No"}
+                            </span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  {rawEntityType === "centro_educativo" &&
+                    (() => {
+                      const c = profile as CentroEducativo;
+                      return (
+                        <>
+                          {c.tipo_centro && (
+                            <div className="up-strip-row">
+                              <span className="up-strip-label">Tipo</span>
+                              <span className="up-strip-val">
+                                {c.tipo_centro}
+                              </span>
+                            </div>
+                          )}
+                          {c.ciudad && (
+                            <div className="up-strip-row">
+                              <span className="up-strip-label">Ciudad</span>
+                              <span className="up-strip-val">{c.ciudad}</span>
+                            </div>
+                          )}
+                          {c.provincia && (
+                            <div className="up-strip-row">
+                              <span className="up-strip-label">Provincia</span>
+                              <span className="up-strip-val">
+                                {c.provincia}
+                              </span>
+                            </div>
+                          )}
+                          {c.num_alumnos != null && (
+                            <div className="up-strip-row">
+                              <span className="up-strip-label">Alumnos</span>
+                              <span className="up-strip-val">
+                                {c.num_alumnos}
+                              </span>
+                            </div>
+                          )}
+                          <div className="up-strip-row">
+                            <span className="up-strip-label">Verificado</span>
+                            <span
+                              style={{
+                                color: isVerified ? "#4ade80" : "#f87171",
+                                fontSize: 11.5,
+                              }}
+                            >
+                              {isVerified ? "Sí" : "No"}
+                            </span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                </div>
+              </div>
+
+              {/* Viewer context card — only shows relevant info */}
+              {(viewerContext.isMiEstudiante ||
+                viewerContext.isEnrolledEstudiante ||
+                viewerContext.isMyPracticasStudent) && (
+                <div className="up-viewer-context-card">
+                  {viewerContext.isMiEstudiante && (
                     <span
                       style={{
-                        fontSize: 12,
-                        fontWeight: 500,
+                        color: "#4ade80",
                         display: "flex",
                         alignItems: "center",
                         gap: 5,
-                        color: d.color,
+                        fontSize: 11.5,
                       }}
                     >
-                      <div
-                        style={{
-                          width: 5,
-                          height: 5,
-                          borderRadius: "50%",
-                          background: d.color,
-                        }}
-                      />
-                      {d.label}
+                      <Ic.Check s={10} /> Estudiante tutorizado por ti
                     </span>
-                  );
-                })()}
-              {rawEntityType === "empresa" && (profile as Empresa).web && (
-                <a
-                  href={(profile as Empresa).web!}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    fontSize: 12,
-                    color: ec.accent,
-                    textDecoration: "none",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                  }}
-                >
-                  <I.Globe /> {(profile as Empresa).web}
-                </a>
-              )}
-            </div>
-          </div>
-
-          {/* Stats row */}
-          {(stats.candidaturas > 0 ||
-            stats.ofertas > 0 ||
-            stats.estudiantes > 0 ||
-            stats.valoracion !== undefined) && (
-            <>
-              <div style={{ height: 1, background: "var(--color-border)" }} />
-              <div
-                style={{
-                  display: "flex",
-                  padding: "16px 28px",
-                  gap: 10,
-                  flexWrap: "wrap",
-                }}
-              >
-                {rawEntityType === "estudiante" && (
-                  <StatBadge
-                    value={stats.candidaturas}
-                    label="Candidaturas"
-                    color={ec.accent}
-                  />
-                )}
-                {rawEntityType === "empresa" && (
-                  <StatBadge
-                    value={stats.ofertas}
-                    label="Ofertas"
-                    color={ec.accent}
-                  />
-                )}
-                {rawEntityType === "empresa" &&
-                  stats.valoracion !== undefined && (
-                    <StatBadge
-                      value={`${stats.valoracion} / 5`}
-                      label="Valoración media"
-                      color="#facc15"
-                    />
                   )}
-                {rawEntityType === "centro_educativo" && (
-                  <StatBadge
-                    value={stats.estudiantes}
-                    label="Estudiantes vinculados"
-                    color={ec.accent}
-                  />
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ── Tabs ── */}
-        <div
-          style={{
-            display: "flex",
-            gap: 0,
-            marginBottom: 16,
-            borderBottom: "1px solid var(--color-border)",
-          }}
-        >
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "10px 16px",
-                background: "transparent",
-                border: "none",
-                borderBottom:
-                  activeTab === tab.id
-                    ? `2px solid ${ec.accent}`
-                    : "2px solid transparent",
-                color:
-                  activeTab === tab.id ? ec.accent : "var(--color-text-muted)",
-                fontSize: 13,
-                fontWeight: activeTab === tab.id ? 700 : 400,
-                fontFamily: "'DM Sans', sans-serif",
-                cursor: "pointer",
-                transition: "all 0.15s",
-                marginBottom: -1,
-                letterSpacing: "-0.01em",
-              }}
-            >
-              <span
-                style={{
-                  opacity: activeTab === tab.id ? 1 : 0.5,
-                  display: "flex",
-                }}
-              >
-                {tab.icon}
-              </span>
-              {tab.label}
-              {"count" in tab && tab.count > 0 && (
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    padding: "1px 6px",
-                    borderRadius: 20,
-                    background:
-                      activeTab === tab.id
-                        ? `${ec.accent}18`
-                        : "rgba(255,255,255,0.06)",
-                    color:
-                      activeTab === tab.id
-                        ? ec.accent
-                        : "var(--color-text-subtle)",
-                    fontFamily: "'DM Mono', monospace",
-                  }}
-                >
-                  {tab.count}
-                </span>
+                  {viewerContext.isEnrolledEstudiante &&
+                    !viewerContext.isMiEstudiante && (
+                      <span
+                        style={{
+                          color: "#60a5fa",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                          fontSize: 11.5,
+                        }}
+                      >
+                        <Ic.Info /> Matriculado en tu centro
+                      </span>
+                    )}
+                  {viewerContext.isMyPracticasStudent && (
+                    <span
+                      style={{
+                        color: "#fb923c",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontSize: 11.5,
+                      }}
+                    >
+                      <Ic.Briefcase /> En prácticas en tu empresa
+                    </span>
+                  )}
+                </div>
               )}
-            </button>
-          ))}
-        </div>
 
-        {/* ── Tab Content ── */}
-        {activeTab === "info" && renderInfoSections()}
-
-        {activeTab === "candidaturas" && (
-          <SectionCard title="Candidaturas enviadas" icon={<I.FileText />}>
-            {candidaturas.length === 0 ? (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  color: "var(--color-text-muted)",
-                  fontFamily: "'DM Sans', sans-serif",
-                }}
-              >
-                No hay candidaturas registradas.
-              </p>
-            ) : (
-              candidaturas.map((c) => (
-                <CandidaturaRow key={c.id_candidatura} c={c} />
-              ))
-            )}
-          </SectionCard>
-        )}
-
-        {activeTab === "actividad" && (
-          <SectionCard title="Actividad reciente" icon={<I.Activity />}>
-            {memberSince && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "flex-start",
-                  padding: "10px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.04)",
-                }}
-              >
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
-                    background: ec.accentDim,
-                    border: `1px solid ${ec.accentMid}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: ec.accent,
-                    flexShrink: 0,
-                  }}
-                >
-                  <I.Calendar />
-                </div>
+              {/* Suggestions */}
+              {suggestions.length > 0 && (
                 <div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: "var(--color-text-secondary)",
-                      fontFamily: "'DM Sans', sans-serif",
-                    }}
-                  >
-                    Perfil creado en Relance
+                  <div className="up-sidebar-label" style={{ marginTop: 4 }}>
+                    {rawEntityType === "empresa"
+                      ? "Empresas relacionadas"
+                      : rawEntityType === "centro_educativo"
+                        ? "Centros relacionados"
+                        : "Estudiantes relacionados"}
                   </div>
                   <div
-                    style={{
-                      fontSize: 11,
-                      color: "var(--color-text-subtle)",
-                      fontFamily: "'DM Mono', monospace",
-                      marginTop: 2,
-                    }}
+                    style={{ display: "flex", flexDirection: "column", gap: 6 }}
                   >
-                    {memberSince}
+                    {suggestions.map((s) => (
+                      <SuggestedCard key={s.id} profile={s} />
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
-            {rawEntityType === "estudiante" && stats.candidaturas > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "flex-start",
-                  padding: "10px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.04)",
-                }}
-              >
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid var(--color-border)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "var(--color-text-subtle)",
-                    flexShrink: 0,
-                  }}
-                >
-                  <I.FileText />
-                </div>
-                <div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: "var(--color-text-secondary)",
-                      fontFamily: "'DM Sans', sans-serif",
-                    }}
-                  >
-                    {stats.candidaturas} candidatura
-                    {stats.candidaturas > 1 ? "s" : ""} enviada
-                    {stats.candidaturas > 1 ? "s" : ""}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "var(--color-text-subtle)",
-                      fontFamily: "'DM Mono', monospace",
-                      marginTop: 2,
-                    }}
-                  >
-                    Historial completo
-                  </div>
-                </div>
-              </div>
-            )}
-            <p
-              style={{
-                margin: "16px 0 0",
-                fontSize: 12,
-                color: "var(--color-text-subtle)",
-                fontFamily: "'DM Sans', sans-serif",
-                lineHeight: 1.5,
-              }}
-            >
-              El historial detallado de actividad estará disponible
-              próximamente.
-            </p>
-          </SectionCard>
-        )}
-
-        {/* ── Related profiles ── */}
-        {(suggestions as any[]).length > 0 && (
-          <div style={{ marginTop: 36 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                marginBottom: 16,
-              }}
-            >
-              <div
-                style={{
-                  height: 1,
-                  flex: 1,
-                  background: "var(--color-border)",
-                }}
-              />
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  color: "var(--color-text-subtle)",
-                  fontFamily: "'DM Mono', monospace",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Perfiles relacionados
-              </span>
-              <div
-                style={{
-                  height: 1,
-                  flex: 1,
-                  background: "var(--color-border)",
-                }}
-              />
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                gap: 10,
-              }}
-            >
-              {(suggestions as any[]).map((s: any) => (
-                <SuggestedCard key={s.id} profile={s} />
-              ))}
+              )}
             </div>
           </div>
-        )}
-
-        {/* ── Toasts ── */}
-        {actionState.success && (
-          <Toast
-            message={actionState.success}
-            type="success"
-            onDismiss={() => setActionState((s) => ({ ...s, success: null }))}
-          />
-        )}
-        {actionState.error && (
-          <Toast
-            message={actionState.error}
-            type="error"
-            onDismiss={() => setActionState((s) => ({ ...s, error: null }))}
-          />
-        )}
+        </div>
       </div>
-    </div>
+
+      {/* Toasts */}
+      {actionState.success && (
+        <Toast
+          message={actionState.success}
+          type="success"
+          onDismiss={() => setActionState((s) => ({ ...s, success: null }))}
+        />
+      )}
+      {actionState.error && (
+        <Toast
+          message={actionState.error}
+          type="error"
+          onDismiss={() => setActionState((s) => ({ ...s, error: null }))}
+        />
+      )}
+    </MainLayout>
   );
 }

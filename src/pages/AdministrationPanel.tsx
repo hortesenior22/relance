@@ -2,18 +2,43 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import MainLayout from "../components/layout/MainLayout";
-import InviteModal from "../components/InviteModal";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── InviteModal props interface (fixes the TS error) ──────────────────────────
+interface InviteModalProps {
+  user: import("@supabase/supabase-js").User | null;
+  onClose: () => void;
+  entityType: string;
+  inviteRoute: string;
+  expiresInHours: number;
+  title: string;
+  description: string;
+  warningText: string;
+  roleLabel: string;
+  inviterName: string;
+}
+
+// Import with cast so existing InviteModal JS component accepts the typed props
+import InviteModalRaw from "../components/InviteModal";
+const InviteModal = InviteModalRaw as React.ComponentType<InviteModalProps>;
+
+// ─── Shared atoms (same style language as CenterEducativePanel) ───────────────
+
 function Spinner() {
   return (
-    <div className="flex items-center justify-center py-20">
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "56px 0",
+      }}
+    >
       <div
         style={{
-          width: 28,
-          height: 28,
-          border: "2px solid rgba(255,255,255,0.08)",
-          borderTopColor: "rgba(255,255,255,0.5)",
+          width: 26,
+          height: 26,
+          border: "2px solid var(--color-border-strong)",
+          borderTopColor: "var(--color-brand)",
           borderRadius: "50%",
           animation: "spin 0.8s linear infinite",
         }}
@@ -22,41 +47,217 @@ function Spinner() {
   );
 }
 
-const ROL_COLOR: Record<string, string> = {
-  estudiante: "#60a5fa",
-  empresa: "#a78bfa",
-  centro_educativo: "#f59e0b",
-  tutor_empresa: "#34d399",
-  tutor_centro: "#34d399",
-  admin: "#C0FF72",
-  bloqueado: "#f87171",
-};
+function IconSearch() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+function IconRefresh() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M23 4v6h-6M1 20v-6h6" />
+      <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+    </svg>
+  );
+}
+function IconPlus() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+function IconShield() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+function IconUsers() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  );
+}
+function IconClipboard() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>
+  );
+}
+function IconEye() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+function IconCheck() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+function IconX() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+function IconClose() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+    </svg>
+  );
+}
 
-const ROL_LABEL: Record<string, string> = {
-  estudiante: "Estudiante",
-  empresa: "Empresa",
-  centro_educativo: "Centro",
-  tutor_empresa: "Tutor empresa",
-  tutor_centro: "Tutor centro",
-  admin: "Admin",
-  bloqueado: "Bloqueado",
+// ─── Role badge — uses CSS vars ───────────────────────────────────────────────
+
+const ROL_CFG: Record<
+  string,
+  { label: string; color: string; bg: string; border: string }
+> = {
+  estudiante: {
+    label: "Estudiante",
+    color: "var(--color-info)",
+    bg: "rgba(96,165,250,0.1)",
+    border: "rgba(96,165,250,0.25)",
+  },
+  empresa: {
+    label: "Empresa",
+    color: "#a78bfa",
+    bg: "rgba(167,139,250,0.1)",
+    border: "rgba(167,139,250,0.25)",
+  },
+  centro_educativo: {
+    label: "Centro",
+    color: "var(--color-warning)",
+    bg: "rgba(251,191,36,0.1)",
+    border: "rgba(251,191,36,0.25)",
+  },
+  tutor_empresa: {
+    label: "Tutor empresa",
+    color: "var(--color-success)",
+    bg: "rgba(74,222,128,0.1)",
+    border: "rgba(74,222,128,0.25)",
+  },
+  tutor_centro: {
+    label: "Tutor centro",
+    color: "var(--color-success)",
+    bg: "rgba(74,222,128,0.1)",
+    border: "rgba(74,222,128,0.25)",
+  },
+  admin: {
+    label: "Admin",
+    color: "var(--color-brand)",
+    bg: "rgba(192,255,114,0.1)",
+    border: "rgba(192,255,114,0.25)",
+  },
+  bloqueado: {
+    label: "Bloqueado",
+    color: "var(--color-error)",
+    bg: "rgba(248,113,113,0.1)",
+    border: "rgba(248,113,113,0.25)",
+  },
 };
 
 function RolBadge({ rol }: { rol: string }) {
-  const color = ROL_COLOR[rol] ?? "#6b7280";
+  const cfg = ROL_CFG[rol] ?? {
+    label: rol,
+    color: "var(--color-text-subtle)",
+    bg: "rgba(255,255,255,0.05)",
+    border: "rgba(255,255,255,0.1)",
+  };
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
-        fontSize: 11,
-        color,
+        fontSize: 10,
         fontWeight: 600,
-        background: `${color}14`,
-        border: `1px solid ${color}30`,
+        color: cfg.color,
+        background: cfg.bg,
+        border: `1px solid ${cfg.border}`,
         borderRadius: 20,
         padding: "2px 9px",
+        letterSpacing: "0.03em",
+        whiteSpace: "nowrap",
       }}
     >
       <span
@@ -64,61 +265,63 @@ function RolBadge({ rol }: { rol: string }) {
           width: 5,
           height: 5,
           borderRadius: "50%",
-          background: color,
-          display: "inline-block",
+          background: cfg.color,
           flexShrink: 0,
         }}
       />
-      {ROL_LABEL[rol] ?? rol}
+      {cfg.label}
     </span>
   );
 }
 
-function Stars({ rating }: { rating: number }) {
-  const r = Number(rating) || 0;
-  return (
-    <span style={{ color: "#f59e0b", fontSize: 12, letterSpacing: 1 }}>
-      {"★".repeat(Math.round(r))}
-      {"☆".repeat(5 - Math.round(r))}
-      <span style={{ color: "#6b7280", marginLeft: 5, fontSize: 11 }}>
-        {r.toFixed(1)}
-      </span>
-    </span>
-  );
-}
+// ─── Stat card — same as CenterEducativePanel ─────────────────────────────────
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({
   label,
   value,
   sub,
   suffix = "",
-  accent = "#C0FF72",
+  accent = false,
 }: {
   label: string;
   value: number | string;
   sub?: string;
   suffix?: string;
-  accent?: string;
+  accent?: boolean;
 }) {
   return (
     <div
       style={{
-        background: "rgba(255,255,255,0.025)",
-        border: "1px solid rgba(255,255,255,0.07)",
-        borderRadius: 16,
-        padding: "22px 24px",
+        background: "var(--color-surface-strong)",
+        border: `1px solid ${accent ? "rgba(192,255,114,0.22)" : "var(--color-border)"}`,
+        borderRadius: 12,
+        padding: "18px 20px",
         display: "flex",
         flexDirection: "column",
-        gap: 6,
+        gap: 5,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
+      {accent && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 2,
+            background:
+              "linear-gradient(90deg, var(--color-brand), transparent)",
+          }}
+        />
+      )}
       <p
         style={{
-          fontSize: 10,
+          fontSize: 9,
           textTransform: "uppercase",
-          letterSpacing: "0.12em",
-          color: "#4b5563",
+          letterSpacing: "0.13em",
+          color: "var(--color-text-subtle)",
           fontWeight: 700,
           margin: 0,
         }}
@@ -127,25 +330,31 @@ function StatCard({
       </p>
       <p
         style={{
-          fontSize: 34,
+          fontSize: 30,
           fontWeight: 800,
-          color: accent,
+          color: "var(--color-text)",
           margin: 0,
           lineHeight: 1,
           fontVariantNumeric: "tabular-nums",
+          letterSpacing: "-0.03em",
         }}
       >
         {value}
         {suffix}
       </p>
       {sub && (
-        <p style={{ fontSize: 11, color: "#6b7280", margin: 0 }}>{sub}</p>
+        <p
+          style={{ fontSize: 10, color: "var(--color-text-muted)", margin: 0 }}
+        >
+          {sub}
+        </p>
       )}
     </div>
   );
 }
 
-// ─── Section Header ───────────────────────────────────────────────────────────
+// ─── Section header ───────────────────────────────────────────────────────────
+
 function SectionHeader({
   title,
   subtitle,
@@ -161,18 +370,30 @@ function SectionHeader({
         display: "flex",
         alignItems: "flex-end",
         justifyContent: "space-between",
-        marginBottom: 20,
+        marginBottom: 16,
         gap: 12,
       }}
     >
       <div>
         <h2
-          style={{ fontSize: 17, fontWeight: 700, color: "#f9fafb", margin: 0 }}
+          style={{
+            fontSize: 15,
+            fontWeight: 700,
+            color: "var(--color-text)",
+            margin: 0,
+            letterSpacing: "-0.02em",
+          }}
         >
           {title}
         </h2>
         {subtitle && (
-          <p style={{ fontSize: 12, color: "#6b7280", margin: "4px 0 0" }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "var(--color-text-muted)",
+              margin: "3px 0 0",
+            }}
+          >
             {subtitle}
           </p>
         )}
@@ -182,7 +403,8 @@ function SectionHeader({
   );
 }
 
-// ─── Search Input ─────────────────────────────────────────────────────────────
+// ─── Search input ─────────────────────────────────────────────────────────────
+
 function SearchInput({
   value,
   onChange,
@@ -193,26 +415,20 @@ function SearchInput({
   placeholder: string;
 }) {
   return (
-    <div style={{ position: "relative", maxWidth: 280 }}>
-      <svg
+    <div style={{ position: "relative", maxWidth: 240 }}>
+      <span
         style={{
           position: "absolute",
-          left: 11,
+          left: 10,
           top: "50%",
           transform: "translateY(-50%)",
-          width: 14,
-          height: 14,
-          color: "#4b5563",
+          color: "var(--color-text-subtle)",
           pointerEvents: "none",
+          display: "flex",
         }}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
       >
-        <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </svg>
+        <IconSearch />
+      </span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -220,15 +436,15 @@ function SearchInput({
         style={{
           width: "100%",
           boxSizing: "border-box",
-          paddingLeft: 32,
-          paddingRight: 12,
-          paddingTop: 8,
-          paddingBottom: 8,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 10,
-          fontSize: 12,
-          color: "#d1d5db",
+          paddingLeft: 30,
+          paddingRight: 10,
+          paddingTop: 7,
+          paddingBottom: 7,
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: 9,
+          fontSize: 11,
+          color: "var(--color-text-secondary)",
           outline: "none",
           fontFamily: "inherit",
         }}
@@ -238,41 +454,44 @@ function SearchInput({
 }
 
 // ─── Table ────────────────────────────────────────────────────────────────────
+
 function Table({
   headers,
   children,
+  empty,
 }: {
   headers: string[];
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  empty?: string;
 }) {
   return (
     <div
       style={{
-        border: "1px solid rgba(255,255,255,0.07)",
-        borderRadius: 14,
+        border: "1px solid var(--color-border)",
+        borderRadius: 12,
         overflow: "hidden",
       }}
     >
       <table
-        style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}
+        style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}
       >
         <thead>
           <tr
             style={{
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              background: "rgba(255,255,255,0.02)",
+              borderBottom: "1px solid var(--color-border)",
+              background: "var(--color-surface)",
             }}
           >
             {headers.map((h, i) => (
               <th
                 key={i}
                 style={{
-                  padding: "11px 16px",
+                  padding: "10px 14px",
                   textAlign: "left",
-                  fontSize: 10,
+                  fontSize: 9,
                   textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  color: "#4b5563",
+                  letterSpacing: "0.11em",
+                  color: "var(--color-text-subtle)",
                   fontWeight: 700,
                 }}
               >
@@ -283,6 +502,18 @@ function Table({
         </thead>
         <tbody>{children}</tbody>
       </table>
+      {empty && (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "28px 0",
+            color: "var(--color-text-subtle)",
+            fontSize: 12,
+          }}
+        >
+          {empty}
+        </div>
+      )}
     </div>
   );
 }
@@ -291,23 +522,20 @@ function TR({ cells, last }: { cells: React.ReactNode[]; last?: boolean }) {
   return (
     <tr
       style={{
-        borderBottom: last ? "none" : "1px solid rgba(255,255,255,0.04)",
-        transition: "background 0.15s",
+        borderBottom: last ? "none" : "1px solid var(--color-border-subtle)",
+        transition: "background 0.12s",
       }}
       onMouseEnter={(e) =>
-        ((e.currentTarget as HTMLElement).style.background =
-          "rgba(255,255,255,0.02)")
+        (e.currentTarget.style.background = "var(--color-surface)")
       }
-      onMouseLeave={(e) =>
-        ((e.currentTarget as HTMLElement).style.background = "transparent")
-      }
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
       {cells.map((c, i) => (
         <td
           key={i}
           style={{
-            padding: "11px 16px",
-            color: "#d1d5db",
+            padding: "10px 14px",
+            color: "var(--color-text-secondary)",
             verticalAlign: "middle",
           }}
         >
@@ -318,7 +546,38 @@ function TR({ cells, last }: { cells: React.ReactNode[]; last?: boolean }) {
   );
 }
 
-// ─── Btn ─────────────────────────────────────────────────────────────────────
+// ─── Button ───────────────────────────────────────────────────────────────────
+
+type BtnVariant = "default" | "primary" | "danger" | "success" | "ghost";
+
+const BTN_STYLES: Record<BtnVariant, React.CSSProperties> = {
+  default: {
+    background: "var(--color-surface-elevated)",
+    border: "1px solid var(--color-border-strong)",
+    color: "var(--color-text-secondary)",
+  },
+  primary: {
+    background: "rgba(192,255,114,0.1)",
+    border: "1px solid rgba(192,255,114,0.3)",
+    color: "var(--color-brand)",
+  },
+  danger: {
+    background: "rgba(248,113,113,0.08)",
+    border: "1px solid rgba(248,113,113,0.22)",
+    color: "var(--color-error)",
+  },
+  success: {
+    background: "rgba(74,222,128,0.08)",
+    border: "1px solid rgba(74,222,128,0.22)",
+    color: "var(--color-success)",
+  },
+  ghost: {
+    background: "transparent",
+    border: "1px solid var(--color-border)",
+    color: "var(--color-text-muted)",
+  },
+};
+
 function Btn({
   onClick,
   children,
@@ -328,52 +587,24 @@ function Btn({
 }: {
   onClick?: () => void;
   children: React.ReactNode;
-  variant?: "default" | "primary" | "danger" | "success" | "ghost";
+  variant?: BtnVariant;
   disabled?: boolean;
   small?: boolean;
 }) {
-  const styles: Record<string, React.CSSProperties> = {
-    default: {
-      background: "rgba(255,255,255,0.05)",
-      border: "1px solid rgba(255,255,255,0.1)",
-      color: "#d1d5db",
-    },
-    primary: {
-      background: "rgba(192,255,114,0.1)",
-      border: "1px solid rgba(192,255,114,0.25)",
-      color: "#C0FF72",
-    },
-    danger: {
-      background: "rgba(248,113,113,0.08)",
-      border: "1px solid rgba(248,113,113,0.2)",
-      color: "#f87171",
-    },
-    success: {
-      background: "rgba(52,211,153,0.08)",
-      border: "1px solid rgba(52,211,153,0.2)",
-      color: "#34d399",
-    },
-    ghost: {
-      background: "transparent",
-      border: "1px solid rgba(255,255,255,0.07)",
-      color: "#6b7280",
-    },
-  };
-
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       style={{
-        ...styles[variant],
-        borderRadius: 10,
-        padding: small ? "5px 12px" : "8px 16px",
+        ...BTN_STYLES[variant],
+        borderRadius: 9,
+        padding: small ? "5px 11px" : "7px 14px",
         fontSize: small ? 11 : 12,
         fontWeight: 600,
         fontFamily: "inherit",
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.4 : 1,
-        transition: "all 0.15s",
+        transition: "all 0.14s",
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
@@ -385,17 +616,59 @@ function Btn({
   );
 }
 
+// ─── Avatar initials ──────────────────────────────────────────────────────────
+
+function Avatar({ name, size = 32 }: { name: string; size?: number }) {
+  const initials = (name ?? "?")
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  const COLORS = [
+    "#c0ff72",
+    "#60a5fa",
+    "#f59e0b",
+    "#a78bfa",
+    "#34d399",
+    "#f87171",
+  ];
+  const color = COLORS[(name?.charCodeAt(0) ?? 0) % COLORS.length];
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        flexShrink: 0,
+        background: `${color}18`,
+        border: `1.5px solid ${color}40`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: size * 0.36,
+        fontWeight: 700,
+        color,
+        letterSpacing: "-0.02em",
+      }}
+    >
+      {initials}
+    </div>
+  );
+}
+
 // ─── OfferField ───────────────────────────────────────────────────────────────
+
 function OfferField({ label, value }: { label: string; value?: any }) {
   const empty = !value || (Array.isArray(value) && value.length === 0);
   return (
     <div>
       <p
         style={{
-          fontSize: 10,
-          color: "#4b5563",
+          fontSize: 9,
+          color: "var(--color-text-subtle)",
           textTransform: "uppercase",
-          letterSpacing: "0.1em",
+          letterSpacing: "0.11em",
           fontWeight: 700,
           margin: "0 0 4px",
         }}
@@ -403,7 +676,11 @@ function OfferField({ label, value }: { label: string; value?: any }) {
         {label}
       </p>
       {empty ? (
-        <p style={{ fontSize: 12, color: "#374151", margin: 0 }}>—</p>
+        <p
+          style={{ fontSize: 11, color: "var(--color-text-subtle)", margin: 0 }}
+        >
+          —
+        </p>
       ) : Array.isArray(value) ? (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
           {value.map((v: any, i: number) => (
@@ -412,10 +689,10 @@ function OfferField({ label, value }: { label: string; value?: any }) {
               style={{
                 background: "rgba(192,255,114,0.08)",
                 border: "1px solid rgba(192,255,114,0.2)",
-                color: "#C0FF72",
-                fontSize: 11,
-                padding: "2px 8px",
-                borderRadius: 6,
+                color: "var(--color-brand)",
+                fontSize: 10,
+                padding: "2px 7px",
+                borderRadius: 5,
                 fontFamily: "monospace",
               }}
             >
@@ -425,7 +702,12 @@ function OfferField({ label, value }: { label: string; value?: any }) {
         </div>
       ) : (
         <p
-          style={{ fontSize: 12, color: "#d1d5db", margin: 0, lineHeight: 1.6 }}
+          style={{
+            fontSize: 11,
+            color: "var(--color-text-secondary)",
+            margin: 0,
+            lineHeight: 1.6,
+          }}
         >
           {value}
         </p>
@@ -434,7 +716,8 @@ function OfferField({ label, value }: { label: string; value?: any }) {
   );
 }
 
-// ─── Modal: Validar Oferta ────────────────────────────────────────────────────
+// ─── ValidarOfertaModal ───────────────────────────────────────────────────────
+
 function ValidarOfertaModal({
   oferta,
   onClose,
@@ -464,7 +747,7 @@ function ValidarOfertaModal({
     onClose();
   };
 
-  const tipo_map: Record<string, string> = {
+  const TIPO_MAP: Record<string, string> = {
     practicas: "Prácticas",
     practicas_contratacion: "Prácticas + contratación",
     empleo_junior: "Empleo junior",
@@ -481,7 +764,7 @@ function ValidarOfertaModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.8)",
+        background: "rgba(0,0,0,0.75)",
         backdropFilter: "blur(4px)",
         padding: 16,
       }}
@@ -489,22 +772,22 @@ function ValidarOfertaModal({
     >
       <div
         style={{
-          background: "#080a0f",
-          border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: 20,
+          background: "var(--color-bg)",
+          border: "1px solid var(--color-border-strong)",
+          borderRadius: 16,
           width: "100%",
-          maxWidth: 640,
+          maxWidth: 620,
           maxHeight: "90vh",
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
+          boxShadow: "0 24px 56px rgba(0,0,0,0.55)",
         }}
       >
-        {/* Header modal */}
+        {/* Header */}
         <div
           style={{
-            padding: "20px 24px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            padding: "18px 22px",
+            borderBottom: "1px solid var(--color-border)",
             display: "flex",
             alignItems: "flex-start",
             justifyContent: "space-between",
@@ -515,10 +798,10 @@ function ValidarOfertaModal({
           <div style={{ minWidth: 0 }}>
             <p
               style={{
-                fontSize: 10,
+                fontSize: 9,
                 textTransform: "uppercase",
                 letterSpacing: "0.12em",
-                color: "#f59e0b",
+                color: "var(--color-warning)",
                 fontWeight: 700,
                 margin: "0 0 4px",
               }}
@@ -528,14 +811,20 @@ function ValidarOfertaModal({
             <h2
               style={{
                 margin: 0,
-                fontSize: 17,
+                fontSize: 16,
                 fontWeight: 700,
-                color: "#f9fafb",
+                color: "var(--color-text)",
               }}
             >
               {oferta.titulo}
             </h2>
-            <p style={{ margin: "3px 0 0", fontSize: 12, color: "#6b7280" }}>
+            <p
+              style={{
+                margin: "2px 0 0",
+                fontSize: 11,
+                color: "var(--color-text-muted)",
+              }}
+            >
               {oferta.empresa_nombre}
             </p>
           </div>
@@ -544,54 +833,48 @@ function ValidarOfertaModal({
             style={{
               background: "transparent",
               border: "none",
-              color: "#4b5563",
+              color: "var(--color-text-subtle)",
               cursor: "pointer",
               padding: 4,
               flexShrink: 0,
+              display: "flex",
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
-            </svg>
+            <IconClose />
           </button>
         </div>
 
-        {/* Contenido scrollable */}
+        {/* Scrollable body */}
         <div
           style={{
             overflowY: "auto",
             flex: 1,
-            padding: "20px 24px",
+            padding: "18px 22px",
             display: "flex",
             flexDirection: "column",
-            gap: 20,
+            gap: 16,
           }}
         >
-          {/* Info general */}
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
-              gap: "12px 24px",
+              gap: "10px 20px",
             }}
           >
             <OfferField
-              label="Tipo de oferta"
-              value={tipo_map[oferta.tipo_oferta] ?? oferta.tipo_oferta}
+              label="Tipo"
+              value={TIPO_MAP[oferta.tipo_oferta] ?? oferta.tipo_oferta}
             />
             <OfferField label="Modalidad" value={oferta.modalidad} />
             <OfferField label="Ubicación" value={oferta.ubicacion} />
             <OfferField
-              label="Fecha publicación"
+              label="Publicación"
               value={
                 oferta.fecha_publicacion
                   ? new Date(oferta.fecha_publicacion).toLocaleDateString(
                       "es-ES",
-                      {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                      },
+                      { day: "2-digit", month: "long", year: "numeric" },
                     )
                   : null
               }
@@ -635,11 +918,7 @@ function ValidarOfertaModal({
                 oferta.fecha_fin_solicitud
                   ? new Date(oferta.fecha_fin_solicitud).toLocaleDateString(
                       "es-ES",
-                      {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                      },
+                      { day: "2-digit", month: "long", year: "numeric" },
                     )
                   : null
               }
@@ -655,164 +934,117 @@ function ValidarOfertaModal({
               }
             />
           </div>
-
-          <div
-            style={{
-              borderTop: "1px solid rgba(255,255,255,0.06)",
-              paddingTop: 16,
-            }}
-          >
-            <OfferField label="Descripción" value={oferta.descripcion} />
-          </div>
-          <div
-            style={{
-              borderTop: "1px solid rgba(255,255,255,0.06)",
-              paddingTop: 16,
-            }}
-          >
-            <OfferField
-              label="Requisitos"
-              value={oferta.requisitos ?? oferta.requisitos_adicionales}
-            />
-          </div>
+          {[
+            ["Descripción", oferta.descripcion],
+            ["Requisitos", oferta.requisitos ?? oferta.requisitos_adicionales],
+            ["Beneficios", oferta.beneficios],
+          ].map(([lbl, val]) =>
+            val ? (
+              <div
+                key={lbl as string}
+                style={{
+                  borderTop: "1px solid var(--color-border)",
+                  paddingTop: 14,
+                }}
+              >
+                <OfferField label={lbl as string} value={val} />
+              </div>
+            ) : null,
+          )}
           {oferta.tecnologias?.length > 0 && (
             <div
               style={{
-                borderTop: "1px solid rgba(255,255,255,0.06)",
-                paddingTop: 16,
+                borderTop: "1px solid var(--color-border)",
+                paddingTop: 14,
               }}
             >
               <OfferField label="Tecnologías" value={oferta.tecnologias} />
             </div>
           )}
-          {oferta.beneficios && (
-            <div
-              style={{
-                borderTop: "1px solid rgba(255,255,255,0.06)",
-                paddingTop: 16,
-              }}
-            >
-              <OfferField label="Beneficios" value={oferta.beneficios} />
-            </div>
-          )}
         </div>
 
-        {/* Footer modal */}
+        {/* Footer */}
         <div
           style={{
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-            padding: "16px 24px",
+            borderTop: "1px solid var(--color-border)",
+            padding: "14px 22px",
             flexShrink: 0,
             display: "flex",
             flexDirection: "column",
-            gap: 12,
+            gap: 10,
           }}
         >
-          {/* Selector acción */}
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}
           >
-            <button
-              onClick={() => setAction("activa")}
-              style={{
-                padding: "10px 0",
-                borderRadius: 12,
-                border: `1px solid ${action === "activa" ? "rgba(52,211,153,0.4)" : "rgba(255,255,255,0.08)"}`,
-                background:
-                  action === "activa"
-                    ? "rgba(52,211,153,0.12)"
-                    : "rgba(255,255,255,0.03)",
-                color: action === "activa" ? "#34d399" : "#6b7280",
-                fontSize: 12,
-                fontWeight: 600,
-                fontFamily: "inherit",
-                cursor: "pointer",
-                transition: "all 0.15s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-              }}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              Aprobar oferta
-            </button>
-            <button
-              onClick={() => setAction("rechazada")}
-              style={{
-                padding: "10px 0",
-                borderRadius: 12,
-                border: `1px solid ${action === "rechazada" ? "rgba(248,113,113,0.4)" : "rgba(255,255,255,0.08)"}`,
-                background:
-                  action === "rechazada"
-                    ? "rgba(248,113,113,0.1)"
-                    : "rgba(255,255,255,0.03)",
-                color: action === "rechazada" ? "#f87171" : "#6b7280",
-                fontSize: 12,
-                fontWeight: 600,
-                fontFamily: "inherit",
-                cursor: "pointer",
-                transition: "all 0.15s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-              }}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-              Rechazar
-            </button>
+            {(["activa", "rechazada"] as const).map((a) => {
+              const isApr = a === "activa";
+              const active = action === a;
+              return (
+                <button
+                  key={a}
+                  onClick={() => setAction(a)}
+                  style={{
+                    padding: "9px 0",
+                    borderRadius: 10,
+                    fontFamily: "inherit",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    transition: "all 0.14s",
+                    border: `1px solid ${active ? (isApr ? "rgba(74,222,128,0.4)" : "rgba(248,113,113,0.4)") : "var(--color-border)"}`,
+                    background: active
+                      ? isApr
+                        ? "rgba(74,222,128,0.1)"
+                        : "rgba(248,113,113,0.08)"
+                      : "var(--color-surface)",
+                    color: active
+                      ? isApr
+                        ? "var(--color-success)"
+                        : "var(--color-error)"
+                      : "var(--color-text-muted)",
+                  }}
+                >
+                  {isApr ? <IconCheck /> : <IconX />}
+                  {isApr ? "Aprobar oferta" : "Rechazar"}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Motivo rechazo */}
           {action === "rechazada" && (
             <div>
               <label
                 style={{
                   display: "block",
-                  fontSize: 10,
-                  color: "#6b7280",
+                  fontSize: 9,
+                  color: "var(--color-text-subtle)",
                   textTransform: "uppercase",
-                  letterSpacing: "0.1em",
+                  letterSpacing: "0.11em",
                   fontWeight: 700,
-                  marginBottom: 6,
+                  marginBottom: 5,
                 }}
               >
-                Motivo del rechazo <span style={{ color: "#f87171" }}>*</span>
+                Motivo <span style={{ color: "var(--color-error)" }}>*</span>
               </label>
               <textarea
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value.slice(0, 300))}
                 rows={3}
-                placeholder="Explica brevemente por qué se rechaza esta oferta..."
+                placeholder="Explica brevemente por qué se rechaza esta oferta…"
                 style={{
                   width: "100%",
                   boxSizing: "border-box",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: 10,
-                  color: "#d1d5db",
-                  fontSize: 12,
-                  padding: "10px 12px",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 9,
+                  color: "var(--color-text-secondary)",
+                  fontSize: 11,
+                  padding: "9px 11px",
                   fontFamily: "inherit",
                   resize: "none",
                   outline: "none",
@@ -821,9 +1053,9 @@ function ValidarOfertaModal({
               <p
                 style={{
                   fontSize: 10,
-                  color: "#4b5563",
+                  color: "var(--color-text-subtle)",
                   textAlign: "right",
-                  margin: "3px 0 0",
+                  margin: "2px 0 0",
                 }}
               >
                 {motivo.length}/300
@@ -831,7 +1063,6 @@ function ValidarOfertaModal({
             </div>
           )}
 
-          {/* Botones confirmar */}
           <div style={{ display: "flex", gap: 8 }}>
             <Btn onClick={onClose} variant="ghost">
               Cancelar
@@ -843,30 +1074,29 @@ function ValidarOfertaModal({
               }
               style={{
                 flex: 1,
-                padding: "10px 0",
-                borderRadius: 10,
-                border: `1px solid ${
-                  action === "activa"
-                    ? "rgba(52,211,153,0.3)"
-                    : action === "rechazada"
-                      ? "rgba(248,113,113,0.3)"
-                      : "rgba(255,255,255,0.08)"
-                }`,
-                background:
-                  action === "activa"
-                    ? "rgba(52,211,153,0.1)"
-                    : action === "rechazada"
-                      ? "rgba(248,113,113,0.1)"
-                      : "rgba(255,255,255,0.03)",
-                color:
-                  action === "activa"
-                    ? "#34d399"
-                    : action === "rechazada"
-                      ? "#f87171"
-                      : "#4b5563",
+                padding: "9px 0",
+                borderRadius: 9,
+                fontFamily: "inherit",
                 fontSize: 12,
                 fontWeight: 700,
-                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                transition: "all 0.14s",
+                border: `1px solid ${action === "activa" ? "rgba(74,222,128,0.3)" : action === "rechazada" ? "rgba(248,113,113,0.3)" : "var(--color-border)"}`,
+                background:
+                  action === "activa"
+                    ? "rgba(74,222,128,0.1)"
+                    : action === "rechazada"
+                      ? "rgba(248,113,113,0.08)"
+                      : "var(--color-surface)",
+                color:
+                  action === "activa"
+                    ? "var(--color-success)"
+                    : action === "rechazada"
+                      ? "var(--color-error)"
+                      : "var(--color-text-subtle)",
                 cursor:
                   !action ||
                   (action === "rechazada" && !motivo.trim()) ||
@@ -879,18 +1109,13 @@ function ValidarOfertaModal({
                   saving
                     ? 0.4
                     : 1,
-                transition: "all 0.15s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
               }}
             >
               {saving ? (
                 <div
                   style={{
-                    width: 14,
-                    height: 14,
+                    width: 13,
+                    height: 13,
                     border: "2px solid rgba(255,255,255,0.1)",
                     borderTopColor: "currentColor",
                     borderRadius: "50%",
@@ -912,16 +1137,10 @@ function ValidarOfertaModal({
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-export default function AdministrationPanel() {
-  const { user, avatarUrl } = useAuth();
+// ─── Main component ───────────────────────────────────────────────────────────
 
-  const fullName = user?.user_metadata?.full_name ?? user?.email ?? "Admin";
-  const initials = fullName
-    .split(" ")
-    .slice(0, 2)
-    .map((n: string) => n[0]?.toUpperCase())
-    .join("");
+export default function AdministrationPanel() {
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState("dashboard");
   const [searchUsuario, setSearchUsuario] = useState("");
@@ -994,29 +1213,28 @@ export default function AdministrationPanel() {
 
   const cargarOfertas = useCallback(async () => {
     setLoadingOfertas(true);
-    const { data: ofertasData, error: ofertasError } = await supabase
+    const { data: ofertasData } = await supabase
       .from("oferta")
       .select(
         `id_oferta, titulo, descripcion, modalidad, ubicacion, tipo_oferta,
-         salario_mensual, duracion_semanas, horas_semanales,
-         num_plazas, num_plazas_restantes, beneficios, requisitos_adicionales,
-         opcion_contrato, fecha_publicacion, fecha_fin_solicitud,
-         estado, id_empresa`,
+               salario_mensual, duracion_semanas, horas_semanales,
+               num_plazas, num_plazas_restantes, beneficios, requisitos_adicionales,
+               opcion_contrato, fecha_publicacion, fecha_fin_solicitud, estado, id_empresa`,
       )
       .eq("estado", "pendiente")
       .order("fecha_publicacion", { ascending: true });
-    if (ofertasError) console.error("[cargarOfertas]:", ofertasError);
+
     const ofertasRaw = ofertasData ?? [];
     const empresaIds = [
       ...new Set(ofertasRaw.map((o: any) => o.id_empresa).filter(Boolean)),
     ];
     let empresaMap: Record<string, any> = {};
     if (empresaIds.length > 0) {
-      const { data: empresasData } = await supabase
+      const { data: empData } = await supabase
         .from("empresa")
         .select("id, nombre, logo_url")
         .in("id", empresaIds);
-      empresaMap = (empresasData ?? []).reduce((acc: any, e: any) => {
+      empresaMap = (empData ?? []).reduce((acc: any, e: any) => {
         acc[e.id] = e;
         return acc;
       }, {});
@@ -1051,13 +1269,12 @@ export default function AdministrationPanel() {
 
   const cargarUsuarios = useCallback(async () => {
     setLoadingUsuarios(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("usuario")
       .select("id, email, nombre, rol, created_at, avatar_url")
       .not("rol", "eq", "admin")
       .order("created_at", { ascending: false })
       .limit(100);
-    if (error) console.error("[cargarUsuarios]:", error);
     if (!mountedRef.current) return;
     setUsuarios(data ?? []);
     setLoadingUsuarios(false);
@@ -1065,12 +1282,11 @@ export default function AdministrationPanel() {
 
   const cargarAdmins = useCallback(async () => {
     setLoadingAdmins(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("usuario")
       .select("id, email, nombre, created_at, avatar_url")
       .eq("rol", "admin")
       .order("created_at", { ascending: true });
-    if (error) console.error("[cargarAdmins]:", error);
     if (!mountedRef.current) return;
     setAdmins(data ?? []);
     setLoadingAdmins(false);
@@ -1079,7 +1295,6 @@ export default function AdministrationPanel() {
   useEffect(() => {
     cargarStats();
   }, [cargarStats]);
-
   useEffect(() => {
     if (activeTab === "ofertas") cargarOfertas();
     if (activeTab === "usuarios") cargarUsuarios();
@@ -1116,57 +1331,57 @@ export default function AdministrationPanel() {
     <MainLayout>
       <>
         <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
-          * { box-sizing: border-box; }
           @keyframes spin { to { transform: rotate(360deg); } }
           @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-          input::placeholder, textarea::placeholder { color: #4b5563; }
-          input:focus, textarea:focus { border-color: rgba(255,255,255,0.18) !important; box-shadow: 0 0 0 3px rgba(255,255,255,0.03); }
+          * { box-sizing: border-box; }
+          input::placeholder, textarea::placeholder { color: var(--color-text-subtle); }
+          input:focus, textarea:focus { border-color: var(--color-border-strong) !important; }
           ::-webkit-scrollbar { width: 4px; }
           ::-webkit-scrollbar-track { background: transparent; }
-          ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+          ::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 4px; }
         `}</style>
 
         <div
           style={{
             minHeight: "100vh",
-            background: "#080a0f",
-            fontFamily: "'DM Sans', system-ui, sans-serif",
-            color: "#f9fafb",
+            background: "var(--color-bg)",
+            fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+            color: "var(--color-text)",
           }}
         >
           <div
             style={{
-              maxWidth: 960,
+              maxWidth: 1000,
               margin: "0 auto",
-              padding: "40px 24px 60px",
-              animation: "fadeUp 0.4s ease",
+              padding: "32px 24px 64px",
+              animation: "fadeUp 0.3s ease",
             }}
           >
             {/* ── Header ── */}
-            <div style={{ marginBottom: 36 }}>
+            <div style={{ marginBottom: 28 }}>
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 12,
-                  marginBottom: 6,
+                  gap: 7,
+                  marginBottom: 8,
                 }}
               >
-                <div
+                <span
                   style={{
-                    width: 8,
-                    height: 8,
+                    width: 5,
+                    height: 5,
                     borderRadius: "50%",
-                    background: "#C0FF72",
+                    background: "var(--color-brand)",
+                    display: "inline-block",
                   }}
                 />
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 9,
                     textTransform: "uppercase",
-                    letterSpacing: "0.12em",
-                    color: "#6b7280",
+                    letterSpacing: "0.14em",
+                    color: "var(--color-text-muted)",
                     fontWeight: 700,
                   }}
                 >
@@ -1176,7 +1391,7 @@ export default function AdministrationPanel() {
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
+                  alignItems: "flex-end",
                   justifyContent: "space-between",
                   gap: 12,
                   flexWrap: "wrap",
@@ -1186,38 +1401,26 @@ export default function AdministrationPanel() {
                   <h1
                     style={{
                       margin: 0,
-                      fontSize: 26,
+                      fontSize: 24,
                       fontWeight: 800,
-                      color: "#f9fafb",
-                      letterSpacing: "-0.02em",
+                      color: "var(--color-text)",
+                      letterSpacing: "-0.03em",
                     }}
                   >
                     Panel de administración
                   </h1>
                   <p
                     style={{
-                      margin: "6px 0 0",
-                      fontSize: 13,
-                      color: "#6b7280",
+                      margin: "4px 0 0",
+                      fontSize: 12,
+                      color: "var(--color-text-muted)",
                     }}
                   >
                     {user?.email ?? "—"}
                   </p>
                 </div>
                 <Btn variant="primary" onClick={() => setInviteModal(true)}>
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    <line x1="12" y1="8" x2="12" y2="16" />
-                    <line x1="8" y1="12" x2="16" y2="12" />
-                  </svg>
-                  Invitar administrador
+                  <IconShield /> Invitar administrador
                 </Btn>
               </div>
             </div>
@@ -1227,61 +1430,67 @@ export default function AdministrationPanel() {
               style={{
                 display: "flex",
                 gap: 2,
-                background: "rgba(255,255,255,0.025)",
-                border: "1px solid rgba(255,255,255,0.07)",
-                borderRadius: 12,
-                padding: 4,
-                marginBottom: 32,
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                borderRadius: 11,
+                padding: 3,
+                marginBottom: 24,
                 overflowX: "auto",
               }}
             >
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    padding: "7px 16px",
-                    borderRadius: 8,
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    fontFamily: "inherit",
-                    whiteSpace: "nowrap",
-                    transition: "all 0.15s",
-                    background:
-                      activeTab === tab.id
-                        ? "rgba(255,255,255,0.08)"
+              {TABS.map((tab) => {
+                const active = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: 8,
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      fontFamily: "inherit",
+                      whiteSpace: "nowrap",
+                      letterSpacing: "-0.01em",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
+                      transition: "all 0.14s",
+                      background: active
+                        ? "var(--color-surface-elevated)"
                         : "transparent",
-                    color: activeTab === tab.id ? "#f9fafb" : "#6b7280",
-                    boxShadow:
-                      activeTab === tab.id
-                        ? "0 1px 3px rgba(0,0,0,0.3)"
+                      color: active
+                        ? "var(--color-text)"
+                        : "var(--color-text-muted)",
+                      boxShadow: active
+                        ? "0 1px 4px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)"
                         : "none",
-                    letterSpacing: "0.01em",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 7,
-                  }}
-                >
-                  {tab.label}
-                  {tab.badge != null && tab.badge > 0 && (
-                    <span
-                      style={{
-                        background: "#f59e0b",
-                        color: "#080a0f",
-                        fontSize: 10,
-                        fontWeight: 800,
-                        borderRadius: 20,
-                        padding: "1px 6px",
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {tab.badge}
-                    </span>
-                  )}
-                </button>
-              ))}
+                      borderBottom: active
+                        ? "1px solid rgba(192,255,114,0.18)"
+                        : "1px solid transparent",
+                    }}
+                  >
+                    {tab.label}
+                    {tab.badge != null && tab.badge > 0 && (
+                      <span
+                        style={{
+                          background: "var(--color-warning)",
+                          color: "var(--color-bg)",
+                          fontSize: 9,
+                          fontWeight: 800,
+                          borderRadius: 20,
+                          padding: "1px 6px",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* ══ DASHBOARD ══ */}
@@ -1290,8 +1499,8 @@ export default function AdministrationPanel() {
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: 24,
-                  animation: "fadeUp 0.3s ease",
+                  gap: 16,
+                  animation: "fadeUp 0.22s ease",
                 }}
               >
                 {loadingStats ? (
@@ -1302,39 +1511,35 @@ export default function AdministrationPanel() {
                       style={{
                         display: "grid",
                         gridTemplateColumns:
-                          "repeat(auto-fill, minmax(170px, 1fr))",
-                        gap: 12,
+                          "repeat(auto-fill, minmax(160px, 1fr))",
+                        gap: 8,
                       }}
                     >
                       <StatCard
                         label="Estudiantes"
                         value={stats.estudiantes}
                         sub="Registrados"
-                        accent="#60a5fa"
+                        accent
                       />
                       <StatCard
                         label="Empresas"
                         value={stats.empresas}
                         sub="Activas"
-                        accent="#a78bfa"
                       />
                       <StatCard
                         label="Centros educativos"
                         value={stats.centros}
                         sub="Registrados"
-                        accent="#f59e0b"
                       />
                       <StatCard
                         label="Tutores"
                         value={stats.tutores}
                         sub="Empresa y centro"
-                        accent="#34d399"
                       />
                       <StatCard
                         label="Ofertas activas"
                         value={stats.ofertas_activas}
                         sub="Publicadas"
-                        accent="#C0FF72"
                       />
                       <StatCard
                         label="Pendientes de revisión"
@@ -1344,29 +1549,28 @@ export default function AdministrationPanel() {
                             ? "Requieren atención"
                             : "Todo al día"
                         }
-                        accent="#f59e0b"
                       />
                     </div>
 
-                    {/* Accesos rápidos */}
+                    {/* Quick actions */}
                     <div
                       style={{
-                        background: "rgba(255,255,255,0.025)",
-                        border: "1px solid rgba(255,255,255,0.07)",
-                        borderRadius: 16,
+                        background: "var(--color-surface-strong)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 12,
                         overflow: "hidden",
                       }}
                     >
                       <p
                         style={{
-                          fontSize: 10,
+                          fontSize: 9,
                           textTransform: "uppercase",
-                          letterSpacing: "0.12em",
-                          color: "#4b5563",
+                          letterSpacing: "0.13em",
+                          color: "var(--color-text-subtle)",
                           fontWeight: 700,
-                          padding: "16px 20px",
+                          padding: "14px 18px",
                           margin: 0,
-                          borderBottom: "1px solid rgba(255,255,255,0.05)",
+                          borderBottom: "1px solid var(--color-border)",
                         }}
                       >
                         Acciones rápidas
@@ -1375,65 +1579,33 @@ export default function AdministrationPanel() {
                         style={{
                           display: "grid",
                           gridTemplateColumns:
-                            "repeat(auto-fill, minmax(240px, 1fr))",
+                            "repeat(auto-fill, minmax(220px, 1fr))",
                         }}
                       >
                         {[
                           {
                             onClick: () => setActiveTab("ofertas"),
-                            color: "#f59e0b",
+                            color: "var(--color-warning)",
+                            colorRaw: "#f59e0b",
                             label: "Validar ofertas",
                             sub: `${stats.ofertas_pendientes} pendientes`,
-                            icon: (
-                              <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                              </svg>
-                            ),
+                            icon: <IconClipboard />,
                           },
                           {
                             onClick: () => setActiveTab("usuarios"),
-                            color: "#60a5fa",
+                            color: "var(--color-info)",
+                            colorRaw: "#60a5fa",
                             label: "Gestionar usuarios",
                             sub: `${stats.estudiantes + stats.empresas + stats.centros + stats.tutores} registrados`,
-                            icon: (
-                              <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                              </svg>
-                            ),
+                            icon: <IconUsers />,
                           },
                           {
                             onClick: () => setInviteModal(true),
-                            color: "#C0FF72",
+                            color: "var(--color-brand)",
+                            colorRaw: "#c0ff72",
                             label: "Invitar administrador",
                             sub: "Enlace seguro · caduca en 48 h",
-                            icon: (
-                              <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                <line x1="12" y1="8" x2="12" y2="16" />
-                                <line x1="8" y1="12" x2="16" y2="12" />
-                              </svg>
-                            ),
+                            icon: <IconShield />,
                           },
                         ].map((item, i, arr) => (
                           <button
@@ -1444,35 +1616,32 @@ export default function AdministrationPanel() {
                               border: "none",
                               borderRight:
                                 i < arr.length - 1
-                                  ? "1px solid rgba(255,255,255,0.05)"
+                                  ? "1px solid var(--color-border)"
                                   : "none",
-                              padding: "18px 20px",
+                              padding: "16px 18px",
                               display: "flex",
                               alignItems: "center",
-                              gap: 14,
+                              gap: 12,
                               cursor: "pointer",
                               textAlign: "left",
-                              transition: "background 0.15s",
+                              transition: "background 0.14s",
                               width: "100%",
                             }}
                             onMouseEnter={(e) =>
-                              ((
-                                e.currentTarget as HTMLElement
-                              ).style.background = "rgba(255,255,255,0.02)")
+                              (e.currentTarget.style.background =
+                                "var(--color-surface)")
                             }
                             onMouseLeave={(e) =>
-                              ((
-                                e.currentTarget as HTMLElement
-                              ).style.background = "transparent")
+                              (e.currentTarget.style.background = "transparent")
                             }
                           >
                             <div
                               style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: 10,
-                                background: `${item.color}14`,
-                                border: `1px solid ${item.color}30`,
+                                width: 34,
+                                height: 34,
+                                borderRadius: 9,
+                                background: `${item.colorRaw}14`,
+                                border: `1px solid ${item.colorRaw}30`,
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
@@ -1486,9 +1655,9 @@ export default function AdministrationPanel() {
                               <p
                                 style={{
                                   margin: 0,
-                                  fontSize: 13,
-                                  fontWeight: 600,
-                                  color: "#f9fafb",
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  color: "var(--color-text)",
                                 }}
                               >
                                 {item.label}
@@ -1496,8 +1665,8 @@ export default function AdministrationPanel() {
                               <p
                                 style={{
                                   margin: "2px 0 0",
-                                  fontSize: 11,
-                                  color: "#6b7280",
+                                  fontSize: 10,
+                                  color: "var(--color-text-muted)",
                                 }}
                               >
                                 {item.sub}
@@ -1514,70 +1683,57 @@ export default function AdministrationPanel() {
 
             {/* ══ VALIDAR OFERTAS ══ */}
             {activeTab === "ofertas" && (
-              <div style={{ animation: "fadeUp 0.3s ease" }}>
+              <div style={{ animation: "fadeUp 0.22s ease" }}>
                 <SectionHeader
                   title="Ofertas pendientes"
                   subtitle="Revisa y aprueba o rechaza cada oferta antes de publicarla."
                   action={
                     <Btn variant="ghost" onClick={cargarOfertas} small>
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M23 4v6h-6M1 20v-6h6" />
-                        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-                      </svg>
-                      Actualizar
+                      <IconRefresh /> Actualizar
                     </Btn>
                   }
                 />
-
                 {loadingOfertas ? (
                   <Spinner />
                 ) : ofertasPendientes.length === 0 ? (
                   <div
                     style={{
                       textAlign: "center",
-                      padding: "48px 0",
-                      border: "1px dashed rgba(255,255,255,0.08)",
-                      borderRadius: 16,
+                      padding: "44px 0",
+                      border: "1px dashed var(--color-border)",
+                      borderRadius: 12,
                     }}
                   >
                     <div
                       style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 14,
-                        background: "rgba(52,211,153,0.08)",
-                        border: "1px solid rgba(52,211,153,0.2)",
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        background: "rgba(74,222,128,0.08)",
+                        border: "1px solid rgba(74,222,128,0.2)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        margin: "0 auto 12px",
+                        margin: "0 auto 10px",
+                        color: "var(--color-success)",
                       }}
                     >
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#34d399"
-                        strokeWidth="2.5"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
+                      <IconCheck />
                     </div>
-                    <p style={{ color: "#f9fafb", fontWeight: 600, margin: 0 }}>
+                    <p
+                      style={{
+                        color: "var(--color-text)",
+                        fontWeight: 600,
+                        margin: 0,
+                        fontSize: 13,
+                      }}
+                    >
                       ¡Todo al día!
                     </p>
                     <p
                       style={{
-                        color: "#4b5563",
-                        fontSize: 12,
+                        color: "var(--color-text-subtle)",
+                        fontSize: 11,
                         margin: "4px 0 0",
                       }}
                     >
@@ -1586,37 +1742,37 @@ export default function AdministrationPanel() {
                   </div>
                 ) : (
                   <div
-                    style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                    style={{ display: "flex", flexDirection: "column", gap: 6 }}
                   >
                     {ofertasPendientes.map((o) => (
                       <div
                         key={o.id_oferta}
                         style={{
-                          background: "rgba(255,255,255,0.025)",
-                          border: "1px solid rgba(255,255,255,0.07)",
-                          borderRadius: 14,
-                          padding: "14px 16px",
+                          background: "var(--color-surface-strong)",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: 12,
+                          padding: "12px 14px",
                           display: "flex",
                           alignItems: "center",
-                          gap: 14,
-                          transition: "border-color 0.15s",
+                          gap: 12,
+                          transition: "border-color 0.14s",
                         }}
                         onMouseEnter={(e) =>
-                          ((e.currentTarget as HTMLElement).style.borderColor =
-                            "rgba(255,255,255,0.14)")
+                          (e.currentTarget.style.borderColor =
+                            "var(--color-border-strong)")
                         }
                         onMouseLeave={(e) =>
-                          ((e.currentTarget as HTMLElement).style.borderColor =
-                            "rgba(255,255,255,0.07)")
+                          (e.currentTarget.style.borderColor =
+                            "var(--color-border)")
                         }
                       >
-                        {/* Avatar empresa */}
+                        {/* Company avatar */}
                         <div
                           style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 12,
-                            background: "rgba(192,255,114,0.08)",
+                            width: 40,
+                            height: 40,
+                            borderRadius: 10,
+                            background: "rgba(192,255,114,0.06)",
                             border: "1px solid rgba(192,255,114,0.15)",
                             display: "flex",
                             alignItems: "center",
@@ -1637,11 +1793,11 @@ export default function AdministrationPanel() {
                             />
                           ) : (
                             <svg
-                              width="18"
-                              height="18"
+                              width="16"
+                              height="16"
                               viewBox="0 0 24 24"
                               fill="none"
-                              stroke="#C0FF72"
+                              stroke="var(--color-brand)"
                               strokeWidth="1.5"
                             >
                               <rect x="2" y="7" width="20" height="14" rx="2" />
@@ -1655,29 +1811,30 @@ export default function AdministrationPanel() {
                             style={{
                               display: "flex",
                               alignItems: "center",
-                              gap: 8,
+                              gap: 7,
                               flexWrap: "wrap",
                             }}
                           >
                             <p
                               style={{
                                 margin: 0,
-                                fontSize: 13,
+                                fontSize: 12,
                                 fontWeight: 700,
-                                color: "#f9fafb",
+                                color: "var(--color-text)",
+                                letterSpacing: "-0.01em",
                               }}
                             >
                               {o.titulo}
                             </p>
                             <span
                               style={{
-                                fontSize: 10,
+                                fontSize: 9,
                                 fontWeight: 700,
-                                color: "#f59e0b",
-                                background: "rgba(245,158,11,0.1)",
-                                border: "1px solid rgba(245,158,11,0.25)",
+                                color: "var(--color-warning)",
+                                background: "rgba(251,191,36,0.1)",
+                                border: "1px solid rgba(251,191,36,0.25)",
                                 borderRadius: 20,
-                                padding: "1px 8px",
+                                padding: "1px 7px",
                               }}
                             >
                               Pendiente
@@ -1685,9 +1842,9 @@ export default function AdministrationPanel() {
                           </div>
                           <p
                             style={{
-                              margin: "3px 0 0",
-                              fontSize: 11,
-                              color: "#6b7280",
+                              margin: "2px 0 0",
+                              fontSize: 10,
+                              color: "var(--color-text-muted)",
                             }}
                           >
                             {o.empresa_nombre} · {o.modalidad ?? "—"} ·{" "}
@@ -1698,19 +1855,19 @@ export default function AdministrationPanel() {
                               style={{
                                 display: "flex",
                                 flexWrap: "wrap",
-                                gap: 4,
-                                marginTop: 6,
+                                gap: 3,
+                                marginTop: 5,
                               }}
                             >
                               {o.tecnologias.slice(0, 5).map((t: any) => (
                                 <span
                                   key={t.id_tecnologia}
                                   style={{
-                                    background: "rgba(255,255,255,0.04)",
-                                    border: "1px solid rgba(255,255,255,0.07)",
-                                    color: "#6b7280",
-                                    fontSize: 10,
-                                    padding: "1px 6px",
+                                    background: "var(--color-surface)",
+                                    border: "1px solid var(--color-border)",
+                                    color: "var(--color-text-subtle)",
+                                    fontSize: 9,
+                                    padding: "1px 5px",
                                     borderRadius: 4,
                                     fontFamily: "monospace",
                                   }}
@@ -1724,8 +1881,8 @@ export default function AdministrationPanel() {
 
                         <p
                           style={{
-                            fontSize: 11,
-                            color: "#4b5563",
+                            fontSize: 10,
+                            color: "var(--color-text-subtle)",
                             flexShrink: 0,
                           }}
                         >
@@ -1735,24 +1892,12 @@ export default function AdministrationPanel() {
                               )
                             : ""}
                         </p>
-
                         <Btn
                           variant="primary"
                           small
                           onClick={() => setValidarOferta(o)}
                         >
-                          <svg
-                            width="12"
-                            height="12"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
-                          Revisar
+                          <IconEye /> Revisar
                         </Btn>
                       </div>
                     ))}
@@ -1763,10 +1908,10 @@ export default function AdministrationPanel() {
 
             {/* ══ USUARIOS ══ */}
             {activeTab === "usuarios" && (
-              <div style={{ animation: "fadeUp 0.3s ease" }}>
+              <div style={{ animation: "fadeUp 0.22s ease" }}>
                 <SectionHeader
                   title="Usuarios registrados"
-                  subtitle={`${usuarios.length} usuarios (sin admins)`}
+                  subtitle={`${usuarios.length} usuarios sin admins`}
                   action={
                     <SearchInput
                       value={searchUsuario}
@@ -1780,6 +1925,11 @@ export default function AdministrationPanel() {
                 ) : (
                   <Table
                     headers={["Usuario", "Rol", "Fecha registro", "Acción"]}
+                    empty={
+                      usuariosFiltrados.length === 0
+                        ? "No se encontraron usuarios."
+                        : undefined
+                    }
                   >
                     {usuariosFiltrados.map((u, i) => (
                       <TR
@@ -1790,24 +1940,24 @@ export default function AdministrationPanel() {
                             style={{
                               display: "flex",
                               alignItems: "center",
-                              gap: 10,
+                              gap: 9,
                             }}
                           >
                             <div
                               style={{
-                                width: 32,
-                                height: 32,
+                                width: 30,
+                                height: 30,
                                 borderRadius: "50%",
-                                background: "rgba(255,255,255,0.05)",
-                                border: "1px solid rgba(255,255,255,0.08)",
+                                background: "var(--color-surface-elevated)",
+                                border: "1px solid var(--color-border)",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 flexShrink: 0,
                                 overflow: "hidden",
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: 700,
-                                color: "#9ca3af",
+                                color: "var(--color-text-subtle)",
                               }}
                             >
                               {u.avatar_url ? (
@@ -1828,9 +1978,10 @@ export default function AdministrationPanel() {
                               <p
                                 style={{
                                   margin: 0,
-                                  fontWeight: 600,
-                                  color: "#f9fafb",
-                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  color: "var(--color-text)",
+                                  fontSize: 11,
+                                  letterSpacing: "-0.01em",
                                 }}
                               >
                                 {u.nombre || "Sin nombre"}
@@ -1838,8 +1989,8 @@ export default function AdministrationPanel() {
                               <p
                                 style={{
                                   margin: "1px 0 0",
-                                  color: "#6b7280",
-                                  fontSize: 11,
+                                  color: "var(--color-text-subtle)",
+                                  fontSize: 10,
                                 }}
                               >
                                 {u.email}
@@ -1849,9 +2000,9 @@ export default function AdministrationPanel() {
                           <RolBadge rol={u.rol} />,
                           <span
                             style={{
-                              color: "#6b7280",
-                              fontSize: 11,
-                              fontFamily: "'DM Mono', monospace",
+                              color: "var(--color-text-subtle)",
+                              fontSize: 10,
+                              fontVariantNumeric: "tabular-nums",
                             }}
                           >
                             {u.created_at
@@ -1874,24 +2025,12 @@ export default function AdministrationPanel() {
                     ))}
                   </Table>
                 )}
-                {!loadingUsuarios && usuariosFiltrados.length === 0 && (
-                  <div
-                    style={{
-                      textAlign: "center",
-                      padding: "40px 0",
-                      color: "#4b5563",
-                      fontSize: 13,
-                    }}
-                  >
-                    No se encontraron usuarios.
-                  </div>
-                )}
               </div>
             )}
 
             {/* ══ ADMINISTRADORES ══ */}
             {activeTab === "admins" && (
-              <div style={{ animation: "fadeUp 0.3s ease" }}>
+              <div style={{ animation: "fadeUp 0.22s ease" }}>
                 <SectionHeader
                   title="Administradores"
                   subtitle="Usuarios con acceso total a la plataforma."
@@ -1901,27 +2040,15 @@ export default function AdministrationPanel() {
                       onClick={() => setInviteModal(true)}
                       small
                     >
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                      Invitar admin
+                      <IconPlus /> Invitar admin
                     </Btn>
                   }
                 />
-
                 {loadingAdmins ? (
                   <Spinner />
                 ) : (
                   <div
-                    style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                    style={{ display: "flex", flexDirection: "column", gap: 6 }}
                   >
                     {admins.map((a) => {
                       const isMe = a.id === user?.id;
@@ -1931,19 +2058,19 @@ export default function AdministrationPanel() {
                           style={{
                             background: isMe
                               ? "rgba(192,255,114,0.04)"
-                              : "rgba(255,255,255,0.025)",
-                            border: `1px solid ${isMe ? "rgba(192,255,114,0.2)" : "rgba(255,255,255,0.07)"}`,
-                            borderRadius: 14,
-                            padding: "16px 20px",
+                              : "var(--color-surface-strong)",
+                            border: `1px solid ${isMe ? "rgba(192,255,114,0.2)" : "var(--color-border)"}`,
+                            borderRadius: 12,
+                            padding: "14px 18px",
                             display: "flex",
                             alignItems: "center",
-                            gap: 14,
+                            gap: 12,
                           }}
                         >
                           <div
                             style={{
-                              width: 40,
-                              height: 40,
+                              width: 38,
+                              height: 38,
                               borderRadius: "50%",
                               background: "rgba(192,255,114,0.08)",
                               border: "1px solid rgba(192,255,114,0.2)",
@@ -1951,9 +2078,9 @@ export default function AdministrationPanel() {
                               alignItems: "center",
                               justifyContent: "center",
                               flexShrink: 0,
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: 700,
-                              color: "#C0FF72",
+                              color: "var(--color-brand)",
                               overflow: "hidden",
                             }}
                           >
@@ -1976,15 +2103,16 @@ export default function AdministrationPanel() {
                               style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: 8,
+                                gap: 7,
                               }}
                             >
                               <p
                                 style={{
                                   margin: 0,
-                                  fontSize: 13,
+                                  fontSize: 12,
                                   fontWeight: 700,
-                                  color: "#f9fafb",
+                                  color: "var(--color-text)",
+                                  letterSpacing: "-0.01em",
                                 }}
                               >
                                 {a.nombre || "Sin nombre"}
@@ -1992,12 +2120,12 @@ export default function AdministrationPanel() {
                               {isMe && (
                                 <span
                                   style={{
-                                    fontSize: 10,
+                                    fontSize: 9,
                                     background: "rgba(192,255,114,0.12)",
-                                    color: "#C0FF72",
+                                    color: "var(--color-brand)",
                                     border: "1px solid rgba(192,255,114,0.25)",
                                     borderRadius: 20,
-                                    padding: "1px 8px",
+                                    padding: "1px 7px",
                                     fontWeight: 700,
                                   }}
                                 >
@@ -2008,8 +2136,8 @@ export default function AdministrationPanel() {
                             <p
                               style={{
                                 margin: "2px 0 0",
-                                fontSize: 11,
-                                color: "#6b7280",
+                                fontSize: 10,
+                                color: "var(--color-text-muted)",
                               }}
                             >
                               {a.email}
@@ -2020,18 +2148,15 @@ export default function AdministrationPanel() {
                             <p
                               style={{
                                 margin: "4px 0 0",
-                                fontSize: 11,
-                                color: "#4b5563",
+                                fontSize: 10,
+                                color: "var(--color-text-subtle)",
                               }}
                             >
                               Desde{" "}
                               {a.created_at
                                 ? new Date(a.created_at).toLocaleDateString(
                                     "es-ES",
-                                    {
-                                      month: "short",
-                                      year: "numeric",
-                                    },
+                                    { month: "short", year: "numeric" },
                                   )
                                 : "—"}
                             </p>
@@ -2040,64 +2165,56 @@ export default function AdministrationPanel() {
                       );
                     })}
 
-                    {/* Botón añadir */}
+                    {/* Add admin button */}
                     <button
                       onClick={() => setInviteModal(true)}
                       style={{
-                        background: "rgba(255,255,255,0.015)",
-                        border: "1px dashed rgba(255,255,255,0.08)",
-                        borderRadius: 14,
-                        padding: "16px 20px",
+                        background: "var(--color-surface)",
+                        border: "1px dashed var(--color-border)",
+                        borderRadius: 12,
+                        padding: "14px 18px",
                         display: "flex",
                         alignItems: "center",
-                        gap: 14,
+                        gap: 12,
                         cursor: "pointer",
-                        transition: "all 0.15s",
+                        transition: "all 0.14s",
                         width: "100%",
-                        marginTop: 4,
+                        marginTop: 2,
                       }}
                       onMouseEnter={(e) => {
                         const el = e.currentTarget as HTMLElement;
                         el.style.borderColor = "rgba(192,255,114,0.3)";
-                        el.style.background = "rgba(192,255,114,0.03)";
+                        el.style.background = "rgba(192,255,114,0.02)";
                       }}
                       onMouseLeave={(e) => {
                         const el = e.currentTarget as HTMLElement;
-                        el.style.borderColor = "rgba(255,255,255,0.08)";
-                        el.style.background = "rgba(255,255,255,0.015)";
+                        el.style.borderColor = "var(--color-border)";
+                        el.style.background = "var(--color-surface)";
                       }}
                     >
                       <div
                         style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: 10,
-                          background: "rgba(255,255,255,0.04)",
+                          width: 34,
+                          height: 34,
+                          borderRadius: 9,
+                          background: "var(--color-surface-elevated)",
+                          border: "1px solid var(--color-border)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           flexShrink: 0,
+                          color: "var(--color-text-subtle)",
                         }}
                       >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#6b7280"
-                          strokeWidth="2"
-                        >
-                          <line x1="12" y1="5" x2="12" y2="19" />
-                          <line x1="5" y1="12" x2="19" y2="12" />
-                        </svg>
+                        <IconPlus />
                       </div>
                       <div style={{ textAlign: "left" }}>
                         <p
                           style={{
                             margin: 0,
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: 600,
-                            color: "#9ca3af",
+                            color: "var(--color-text-secondary)",
                           }}
                         >
                           Añadir nuevo administrador
@@ -2105,8 +2222,8 @@ export default function AdministrationPanel() {
                         <p
                           style={{
                             margin: "2px 0 0",
-                            fontSize: 11,
-                            color: "#4b5563",
+                            fontSize: 10,
+                            color: "var(--color-text-subtle)",
                           }}
                         >
                           Enlace de invitación seguro · caduca en 48 h

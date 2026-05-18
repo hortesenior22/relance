@@ -19,11 +19,7 @@ type EntityType =
   | "tutor_centro"
   | "oferta";
 
-type RelationStatus =
-  | "matriculado" // centro_educativo: estudiante vinculado al centro
-  | "en_practicas" // empresa: estudiante actualmente en prácticas
-  | "finalizado" // empresa: prácticas finalizadas
-  | null; // sin vínculo conocido
+type RelationStatus = "matriculado" | "en_practicas" | "finalizado" | null;
 
 interface SearchResult {
   id: string;
@@ -40,9 +36,7 @@ export interface SearchModalProps {
   onClose: () => void;
   role: Role;
   userId: string;
-  /** Opcional: navegar a ExplorarPage al hacer click en un resultado en vez de ir directamente al perfil */
   useExplorarPage?: boolean;
-  /** Ruta base de ExplorarPage, por defecto "/explorar" */
   explorarBasePath?: string;
 }
 
@@ -63,8 +57,6 @@ const ROLE_PERMISSIONS: Record<Role, EntityType[]> = {
   tutor_empresa: ["estudiante"],
   estudiante: ["empresa", "centro_educativo", "oferta"],
 };
-
-// ─── Labels, colores e iconos SVG ─────────────────────────────────────────────
 
 const ENTITY_LABELS: Record<EntityType, string> = {
   empresa: "Empresa",
@@ -123,11 +115,11 @@ const ENTITY_COLOR: Record<
   },
 };
 
-// ─── Iconos SVG por entidad ───────────────────────────────────────────────────
+// ─── Iconos SVG ───────────────────────────────────────────────────────────────
 
 function EntityIcon({
   type,
-  size = 15,
+  size = 12,
   color = "currentColor",
 }: {
   type: EntityType;
@@ -142,7 +134,6 @@ function EntityIcon({
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
   };
-
   switch (type) {
     case "empresa":
       return (
@@ -198,15 +189,15 @@ function EntityIcon({
   }
 }
 
-// ─── Placeholders por entidad ─────────────────────────────────────────────────
+// ─── Placeholders ─────────────────────────────────────────────────────────────
 
 const ENTITY_PLACEHOLDER: Record<EntityType, string> = {
-  empresa: "Buscar empresas por nombre…",
+  empresa: "Buscar empresas…",
   centro_educativo: "Buscar centros educativos…",
-  estudiante: "Buscar estudiantes por nombre…",
+  estudiante: "Buscar estudiantes…",
   tutor_empresa: "Buscar tutores de empresa…",
   tutor_centro: "Buscar tutores de centro…",
-  oferta: "Buscar ofertas por título…",
+  oferta: "Buscar ofertas…",
 };
 
 const RECENT: string[] = [
@@ -248,19 +239,16 @@ async function resolveSearchContext(
       .select("id")
       .eq("usuario_id", userId)
       .maybeSingle();
-
     if (error)
       console.error("[Search] resolveContext tutor_centro:", error.message);
     if (!tutorRow?.id) {
       ctx.tutorStudentIds = [];
       return ctx;
     }
-
     const { data: asignados, error: errA } = await supabase
       .from("centro_estudiante")
       .select("id_estudiante")
       .eq("id_tutor", tutorRow.id);
-
     if (errA)
       console.error("[Search] resolveContext centro_estudiante:", errA.message);
     ctx.tutorStudentIds = (asignados ?? []).map((r) => r.id_estudiante);
@@ -272,20 +260,17 @@ async function resolveSearchContext(
       .select("empresa_id")
       .eq("usuario_id", userId)
       .maybeSingle();
-
     if (error)
       console.error("[Search] resolveContext tutor_empresa:", error.message);
     if (!tutorRow?.empresa_id) {
       ctx.tutorStudentIds = [];
       return ctx;
     }
-
     const { data: estadoRows, error: errE } = await supabase
       .from("estudiante_estado")
       .select("id_estudiante")
       .eq("id_empresa", tutorRow.empresa_id)
       .in("estado", ["en_practicas", "finalizado"]);
-
     if (errE)
       console.error("[Search] resolveContext estudiante_estado:", errE.message);
     ctx.tutorStudentIds = (estadoRows ?? []).map((r) => r.id_estudiante);
@@ -294,7 +279,7 @@ async function resolveSearchContext(
   return ctx;
 }
 
-// ─── Helper: buscar estudiantes directamente en tabla estudiante ──────────────
+// ─── Queries ──────────────────────────────────────────────────────────────────
 
 async function fetchEstudiantesDirecto(
   term: string,
@@ -305,37 +290,21 @@ async function fetchEstudiantesDirecto(
     .select("id, nombre, apellidos, titulacion, ciudad, avatar_url")
     .or(`nombre.ilike.%${term}%,apellidos.ilike.%${term}%`)
     .limit(8);
-
   if (scopedIds && scopedIds.length > 0) query = query.in("id", scopedIds);
-
   const { data, error } = await query;
   if (error) {
     console.error("[Search] fetchEstudiantesDirecto:", error.message);
     return [];
   }
-
-  return (data ?? []).map((s) => mapEstudiante(s));
-}
-
-function mapEstudiante(s: {
-  id: string;
-  nombre: string | null;
-  apellidos: string | null;
-  titulacion: string | null;
-  ciudad: string | null;
-  avatar_url: string | null;
-}): SearchResult {
-  return {
+  return (data ?? []).map((s) => ({
     id: s.id,
     type: "estudiante" as const,
     name: `${s.nombre ?? ""} ${s.apellidos ?? ""}`.trim(),
     subtitle: [s.titulacion, s.ciudad].filter(Boolean).join(" · "),
     avatarUrl: s.avatar_url ?? undefined,
-    href: `/perfiles/${s.id}`,
-  };
+    href: `/estudiante/${s.id}`,
+  }));
 }
-
-// ─── Queries Supabase ─────────────────────────────────────────────────────────
 
 async function fetchEmpresas(term: string): Promise<SearchResult[]> {
   const { data, error } = await supabase
@@ -343,19 +312,17 @@ async function fetchEmpresas(term: string): Promise<SearchResult[]> {
     .select("id, nombre, sector, ciudad, logo_url")
     .ilike("nombre", `%${term}%`)
     .limit(8);
-
   if (error) {
     console.error("[Search] empresa:", error.message);
     return [];
   }
-
   return (data ?? []).map((e) => ({
     id: e.id,
     type: "empresa" as const,
     name: e.nombre ?? "",
     subtitle: [e.sector, e.ciudad].filter(Boolean).join(" · "),
     avatarUrl: e.logo_url ?? undefined,
-    href: `/perfiles/${e.id}`,
+    href: `/empresa/${e.id}`,
   }));
 }
 
@@ -365,19 +332,17 @@ async function fetchCentros(term: string): Promise<SearchResult[]> {
     .select("id, nombre, tipo_centro, ciudad, avatar_url")
     .ilike("nombre", `%${term}%`)
     .limit(8);
-
   if (error) {
     console.error("[Search] centro_educativo:", error.message);
     return [];
   }
-
   return (data ?? []).map((c) => ({
     id: c.id,
     type: "centro_educativo" as const,
     name: c.nombre ?? "",
     subtitle: [c.tipo_centro, c.ciudad].filter(Boolean).join(" · "),
     avatarUrl: c.avatar_url ?? undefined,
-    href: `/perfiles/${c.id}`,
+    href: `/centro/${c.id}`,
   }));
 }
 
@@ -389,22 +354,13 @@ async function fetchEstudiantes(
   const isTutorScoped = ctx.tutorStudentIds !== null;
   if (isTutorScoped && ctx.tutorStudentIds!.length === 0) return [];
 
-  // ── CENTRO EDUCATIVO: todos los estudiantes + marcar matriculados ──────────
   if (role === "centro_educativo") {
     const { data: todosVinculos } = await supabase
       .from("centro_estudiante")
       .select("id_estudiante, id_centro");
-
     const estudianteCentroMap = new Map<string, string>(
       (todosVinculos ?? []).map((r) => [r.id_estudiante, r.id_centro]),
     );
-
-    const matriculadosEnEsteCentro = new Set(
-      (todosVinculos ?? [])
-        .filter((r) => r.id_centro === ctx.centroId)
-        .map((r) => r.id_estudiante),
-    );
-
     const centroIds = [
       ...new Set((todosVinculos ?? []).map((r) => r.id_centro)),
     ];
@@ -416,10 +372,8 @@ async function fetchEstudiantes(
         .in("id", centroIds);
       (centros ?? []).forEach((c) => centroNombreMap.set(c.id, c.nombre));
     }
-
     const results = await fetchEstudiantesDirecto(term);
     if (!results.length) return [];
-
     return results
       .map((r) => {
         const idCentroDelEstudiante = estudianteCentroMap.get(r.id);
@@ -443,7 +397,6 @@ async function fetchEstudiantes(
       );
   }
 
-  // ── EMPRESA: todos los estudiantes + marcar en_practicas / finalizado ──────
   if (role === "empresa") {
     let estadoMap = new Map<string, "en_practicas" | "finalizado">();
     if (ctx.empresaId) {
@@ -452,20 +405,16 @@ async function fetchEstudiantes(
         .select("id_estudiante, estado")
         .eq("id_empresa", ctx.empresaId)
         .in("estado", ["en_practicas", "finalizado"]);
-
       if (errE)
         console.error("[Search] estudiante_estado empresa:", errE.message);
-      for (const row of estadoRows ?? []) {
+      for (const row of estadoRows ?? [])
         estadoMap.set(
           row.id_estudiante,
           row.estado as "en_practicas" | "finalizado",
         );
-      }
     }
-
     const results = await fetchEstudiantesDirecto(term);
     if (!results.length) return [];
-
     return results
       .map((r) => ({
         ...r,
@@ -480,10 +429,7 @@ async function fetchEstudiantes(
       );
   }
 
-  // ── TUTOR (scoped): solo sus estudiantes asignados ─────────────────────────
   if (isTutorScoped) return fetchEstudiantesDirecto(term, ctx.tutorStudentIds!);
-
-  // ── ADMINISTRADOR / cualquier otro rol: todos ─────────────────────────────
   return fetchEstudiantesDirecto(term);
 }
 
@@ -497,19 +443,16 @@ async function fetchTutoresEmpresa(
     .select("id, nombre, cargo, empresa_id")
     .ilike("nombre", `%${term}%`)
     .limit(8);
-
   if (role === "empresa") {
     if (!ctx.empresaId) return [];
     query = query.eq("empresa_id", ctx.empresaId);
   }
-
   const { data, error } = await query;
   if (error) {
     console.error("[Search] tutor_empresa:", error.message);
     return [];
   }
   if (!data?.length) return [];
-
   const empresaIds = [
     ...new Set(data.map((t) => t.empresa_id).filter(Boolean)),
   ];
@@ -521,7 +464,6 @@ async function fetchTutoresEmpresa(
       .in("id", empresaIds);
     empresaMap = Object.fromEntries((emps ?? []).map((e) => [e.id, e.nombre]));
   }
-
   return data.map((t) => ({
     id: t.id,
     type: "tutor_empresa" as const,
@@ -529,7 +471,7 @@ async function fetchTutoresEmpresa(
     subtitle: [empresaMap[t.empresa_id] ?? null, t.cargo]
       .filter(Boolean)
       .join(" · "),
-    href: `/perfiles/${t.id}`,
+    href: `/tutor-empresa/${t.id}`,
   }));
 }
 
@@ -538,25 +480,43 @@ async function fetchTutoresCentro(
   role: Role,
   ctx: SearchContext,
 ): Promise<SearchResult[]> {
+  if (role === "centro_educativo" && !ctx.centroId) return [];
+  let scopedTutorIds: string[] | null = null;
+  if (role === "centro_educativo") {
+    const { data: centroTutorRows, error: errCT } = await supabase
+      .from("centro_tutor")
+      .select("id_tutor")
+      .eq("id_centro", ctx.centroId!);
+    if (errCT) {
+      console.error("[Search] centro_tutor:", errCT.message);
+      return [];
+    }
+    scopedTutorIds = (centroTutorRows ?? []).map((r) => r.id_tutor);
+    if (scopedTutorIds.length === 0) return [];
+  }
   let query = supabase
     .from("tutor_centro")
-    .select("id, nombre, departamento, centro_id")
+    .select("id, nombre, departamento, usuario_id")
     .ilike("nombre", `%${term}%`)
     .limit(8);
-
-  if (role === "centro_educativo") {
-    if (!ctx.centroId) return [];
-    query = query.eq("centro_id", ctx.centroId);
-  }
-
+  if (scopedTutorIds) query = query.in("id", scopedTutorIds);
   const { data, error } = await query;
   if (error) {
     console.error("[Search] tutor_centro:", error.message);
     return [];
   }
   if (!data?.length) return [];
-
-  const centroIds = [...new Set(data.map((t) => t.centro_id).filter(Boolean))];
+  const tutorIds = data.map((t) => t.id);
+  const { data: centroTutorRows } = await supabase
+    .from("centro_tutor")
+    .select("id_tutor, id_centro")
+    .in("id_tutor", tutorIds);
+  const tutorCentroMap = new Map<string, string>(
+    (centroTutorRows ?? []).map((r) => [r.id_tutor, r.id_centro]),
+  );
+  const centroIds = [
+    ...new Set((centroTutorRows ?? []).map((r) => r.id_centro).filter(Boolean)),
+  ];
   let centroMap: Record<string, string> = {};
   if (centroIds.length > 0) {
     const { data: centros } = await supabase
@@ -567,16 +527,18 @@ async function fetchTutoresCentro(
       (centros ?? []).map((c) => [c.id, c.nombre]),
     );
   }
-
-  return data.map((t) => ({
-    id: t.id,
-    type: "tutor_centro" as const,
-    name: t.nombre ?? "",
-    subtitle: [centroMap[t.centro_id] ?? null, t.departamento]
-      .filter(Boolean)
-      .join(" · "),
-    href: `/perfiles/${t.id}`,
-  }));
+  return data.map((t) => {
+    const centroId = tutorCentroMap.get(t.id);
+    return {
+      id: t.id,
+      type: "tutor_centro" as const,
+      name: t.nombre ?? "",
+      subtitle: [centroId ? centroMap[centroId] : null, t.departamento]
+        .filter(Boolean)
+        .join(" · "),
+      href: `/tutor-centro/${t.id}`,
+    };
+  });
 }
 
 async function fetchOfertas(
@@ -585,23 +547,19 @@ async function fetchOfertas(
   ctx: SearchContext,
 ): Promise<SearchResult[]> {
   if (role === "empresa" && !ctx.empresaId) return [];
-
   let query = supabase
     .from("oferta")
     .select("id_oferta, titulo, modalidad, ubicacion, id_empresa")
     .ilike("titulo", `%${term}%`)
     .eq("estado", "activa")
     .limit(8);
-
   if (role === "empresa") query = query.eq("id_empresa", ctx.empresaId!);
-
   const { data, error } = await query;
   if (error) {
     console.error("[Search] oferta:", error.message);
     return [];
   }
   if (!data?.length) return [];
-
   const empresaIds = [
     ...new Set(data.map((o) => o.id_empresa).filter(Boolean)),
   ];
@@ -613,7 +571,6 @@ async function fetchOfertas(
       .in("id", empresaIds);
     empresaMap = Object.fromEntries((emps ?? []).map((e) => [e.id, e.nombre]));
   }
-
   return data.map((o) => ({
     id: o.id_oferta,
     type: "oferta" as const,
@@ -625,8 +582,6 @@ async function fetchOfertas(
   }));
 }
 
-// ─── Búsqueda por un solo tipo ────────────────────────────────────────────────
-
 async function runSearchForType(
   term: string,
   type: EntityType,
@@ -634,7 +589,6 @@ async function runSearchForType(
   ctx: SearchContext,
 ): Promise<SearchResult[]> {
   if (!term.trim() || term.trim().length < 2) return [];
-
   switch (type) {
     case "empresa":
       return fetchEmpresas(term);
@@ -651,7 +605,7 @@ async function runSearchForType(
   }
 }
 
-// ─── Hooks ───────────────────────────────────────────────────────────────────
+// ─── Hooks ────────────────────────────────────────────────────────────────────
 
 function useDebounce<T>(value: T, ms: number): T {
   const [d, setD] = useState(value);
@@ -701,36 +655,34 @@ function ResultAvatar({ r }: { r: SearchResult }) {
     .map((w) => w[0]?.toUpperCase())
     .join("");
   const c = ENTITY_COLOR[r.type];
-
   if (r.avatarUrl)
     return (
       <img
         src={r.avatarUrl}
         alt={r.name}
         style={{
-          width: 34,
-          height: 34,
-          borderRadius: 8,
+          width: 26,
+          height: 26,
+          borderRadius: 6,
           objectFit: "cover",
           flexShrink: 0,
           border: "1px solid var(--color-border-strong)",
         }}
       />
     );
-
   return (
     <div
       style={{
-        width: 34,
-        height: 34,
-        borderRadius: 8,
+        width: 26,
+        height: 26,
+        borderRadius: 6,
         flexShrink: 0,
         background: c.bg,
         border: `1px solid ${c.dot}22`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 11,
+        fontSize: 9,
         fontWeight: 700,
         color: c.text,
         fontFamily: "Syne, sans-serif",
@@ -752,14 +704,14 @@ function SRSection({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ marginBottom: 2 }}>
+    <div style={{ marginBottom: 1 }}>
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 7,
-          padding: "5px 18px 3px",
-          fontSize: 10.5,
+          gap: 6,
+          padding: "4px 14px 2px",
+          fontSize: 9.5,
           fontWeight: 700,
           letterSpacing: "0.09em",
           textTransform: "uppercase",
@@ -770,8 +722,8 @@ function SRSection({
         {dot && (
           <span
             style={{
-              width: 5,
-              height: 5,
+              width: 4,
+              height: 4,
               borderRadius: "50%",
               background: dot,
               flexShrink: 0,
@@ -801,8 +753,8 @@ function SRSuggestion({
         width: "100%",
         display: "flex",
         alignItems: "center",
-        gap: 11,
-        padding: "7px 18px",
+        gap: 9,
+        padding: "5px 14px",
         background: "transparent",
         border: "none",
         cursor: "pointer",
@@ -817,8 +769,8 @@ function SRSuggestion({
       <span style={{ color: "var(--color-text-subtle)", flexShrink: 0 }}>
         {icon === "clock" ? (
           <svg
-            width="13"
-            height="13"
+            width="11"
+            height="11"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -831,8 +783,8 @@ function SRSuggestion({
           </svg>
         ) : (
           <svg
-            width="13"
-            height="13"
+            width="11"
+            height="11"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -847,7 +799,7 @@ function SRSuggestion({
       </span>
       <span
         style={{
-          fontSize: 13.5,
+          fontSize: 12,
           color: "var(--color-text-secondary)",
           fontFamily: "Plus Jakarta Sans, sans-serif",
         }}
@@ -857,8 +809,6 @@ function SRSuggestion({
     </button>
   );
 }
-
-// ─── RelationBadge ────────────────────────────────────────────────────────────
 
 const RELATION_BADGE: Record<
   NonNullable<RelationStatus>,
@@ -870,8 +820,8 @@ const RELATION_BADGE: Record<
     text: "#f6ad55",
     icon: (
       <svg
-        width="9"
-        height="9"
+        width="8"
+        height="8"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -890,8 +840,8 @@ const RELATION_BADGE: Record<
     text: "#9ae6b4",
     icon: (
       <svg
-        width="9"
-        height="9"
+        width="8"
+        height="8"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -910,8 +860,8 @@ const RELATION_BADGE: Record<
     text: "#63b3ed",
     icon: (
       <svg
-        width="9"
-        height="9"
+        width="8"
+        height="8"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -942,7 +892,6 @@ function SRResult({
   const rel = result.relationStatus
     ? RELATION_BADGE[result.relationStatus]
     : null;
-
   return (
     <a
       href={result.href}
@@ -955,8 +904,8 @@ function SRResult({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 11,
-        padding: "7px 18px",
+        gap: 9,
+        padding: "5px 14px",
         textDecoration: "none",
         cursor: "pointer",
         background: active ? "rgba(192,255,114,0.05)" : "transparent",
@@ -966,7 +915,6 @@ function SRResult({
         transition: "background 0.1s, border-color 0.1s",
       }}
     >
-      {/* Avatar con indicador de vínculo */}
       <div style={{ position: "relative", flexShrink: 0 }}>
         <ResultAvatar r={result} />
         {rel && (
@@ -975,8 +923,8 @@ function SRResult({
               position: "absolute",
               bottom: -2,
               right: -2,
-              width: 10,
-              height: 10,
+              width: 8,
+              height: 8,
               borderRadius: "50%",
               background: rel.text,
               border: "2px solid var(--color-surface-strong)",
@@ -984,11 +932,10 @@ function SRResult({
           />
         )}
       </div>
-
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            fontSize: 13.5,
+            fontSize: 12,
             fontWeight: 600,
             color: active ? "var(--color-text)" : "var(--color-text-secondary)",
             fontFamily: "Plus Jakarta Sans, sans-serif",
@@ -1001,7 +948,7 @@ function SRResult({
         </div>
         <div
           style={{
-            fontSize: 11.5,
+            fontSize: 10.5,
             color: "var(--color-text-muted)",
             fontFamily: "Plus Jakarta Sans, sans-serif",
             whiteSpace: "nowrap",
@@ -1012,23 +959,21 @@ function SRResult({
           {result.subtitle}
         </div>
       </div>
-
-      {/* Badges lado derecho */}
       <div
-        style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}
+        style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
       >
         {rel && (
           <span
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 4,
-              fontSize: 10,
+              gap: 3,
+              fontSize: 9,
               fontWeight: 700,
-              letterSpacing: "0.06em",
+              letterSpacing: "0.05em",
               textTransform: "uppercase",
-              padding: "2px 7px",
-              borderRadius: 5,
+              padding: "1px 5px",
+              borderRadius: 4,
               background: rel.bg,
               color: rel.text,
               fontFamily: "Plus Jakarta Sans, sans-serif",
@@ -1043,13 +988,13 @@ function SRResult({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 4,
-              fontSize: 10,
+              gap: 3,
+              fontSize: 9,
               fontWeight: 600,
-              letterSpacing: "0.05em",
+              letterSpacing: "0.04em",
               textTransform: "uppercase",
-              padding: "2px 7px",
-              borderRadius: 5,
+              padding: "1px 5px",
+              borderRadius: 4,
               background: "rgba(255,255,255,0.04)",
               color: "var(--color-text-subtle)",
               fontFamily: "Plus Jakarta Sans, sans-serif",
@@ -1057,8 +1002,8 @@ function SRResult({
             }}
           >
             <svg
-              width="9"
-              height="9"
+              width="8"
+              height="8"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -1075,12 +1020,12 @@ function SRResult({
         )}
         <span
           style={{
-            fontSize: 10,
+            fontSize: 9,
             fontWeight: 700,
-            letterSpacing: "0.07em",
+            letterSpacing: "0.06em",
             textTransform: "uppercase",
-            padding: "2px 7px",
-            borderRadius: 5,
+            padding: "1px 5px",
+            borderRadius: 4,
             background: c.bg,
             color: c.text,
             fontFamily: "Plus Jakarta Sans, sans-serif",
@@ -1092,8 +1037,6 @@ function SRResult({
     </a>
   );
 }
-
-// ─── FilterBar ────────────────────────────────────────────────────────────────
 
 function FilterBar({
   types,
@@ -1110,8 +1053,8 @@ function FilterBar({
     <div
       style={{
         display: "flex",
-        gap: 6,
-        padding: "10px 16px",
+        gap: 4,
+        padding: "7px 12px",
         borderBottom: "1px solid var(--color-border)",
         overflowX: "auto",
         scrollbarWidth: "none",
@@ -1127,7 +1070,6 @@ function FilterBar({
             role === "centro_educativo")
             ? getSectionLabel(type, role)
             : ENTITY_LABELS[type];
-
         return (
           <button
             key={type}
@@ -1136,9 +1078,9 @@ function FilterBar({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              padding: "5px 12px",
-              borderRadius: 8,
+              gap: 5,
+              padding: "3px 9px",
+              borderRadius: 6,
               flexShrink: 0,
               border: isActive
                 ? `1px solid ${c.border}`
@@ -1146,12 +1088,11 @@ function FilterBar({
               background: isActive ? c.activeBg : "transparent",
               color: isActive ? c.text : "var(--color-text-subtle)",
               cursor: "pointer",
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: isActive ? 700 : 500,
               fontFamily: "Plus Jakarta Sans, sans-serif",
               whiteSpace: "nowrap",
               transition: "all 0.15s ease",
-              letterSpacing: isActive ? "0.01em" : "0",
             }}
             onMouseEnter={(e) => {
               if (!isActive) {
@@ -1170,15 +1111,15 @@ function FilterBar({
           >
             <EntityIcon
               type={type}
-              size={13}
+              size={11}
               color={isActive ? c.text : "currentColor"}
             />
             {label}
             {isActive && (
               <span
                 style={{
-                  width: 5,
-                  height: 5,
+                  width: 4,
+                  height: 4,
                   borderRadius: "50%",
                   background: c.dot,
                   marginLeft: 1,
@@ -1192,8 +1133,6 @@ function FilterBar({
     </div>
   );
 }
-
-// ─── Enlace a ExplorarPage ────────────────────────────────────────────────────
 
 function ExplorarLink({
   basePath,
@@ -1211,11 +1150,11 @@ function ExplorarLink({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 6,
-        padding: "7px 18px",
+        gap: 5,
+        padding: "5px 14px",
         textDecoration: "none",
         color: c.text,
-        fontSize: 12.5,
+        fontSize: 11.5,
         fontFamily: "Plus Jakarta Sans, sans-serif",
         fontWeight: 600,
         transition: "background 0.1s",
@@ -1224,11 +1163,11 @@ function ExplorarLink({
       onMouseEnter={(e) => (e.currentTarget.style.background = c.bg)}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
-      <EntityIcon type={activeType} size={12} color={c.text} />
+      <EntityIcon type={activeType} size={11} color={c.text} />
       Ver todos los {getSectionLabel(activeType, role).toLowerCase()}
       <svg
-        width="11"
-        height="11"
+        width="10"
+        height="10"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -1244,7 +1183,7 @@ function ExplorarLink({
   );
 }
 
-// ─── SearchModal (export default) ─────────────────────────────────────────────
+// ─── SearchModal ──────────────────────────────────────────────────────────────
 
 export default function SearchModal({
   open,
@@ -1255,7 +1194,6 @@ export default function SearchModal({
   explorarBasePath = "/explorar",
 }: SearchModalProps) {
   const allowedTypes = ROLE_PERMISSIONS[role] ?? [];
-
   const [query, setQuery] = useState("");
   const [activeType, setActiveType] = useState<EntityType>(allowedTypes[0]);
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -1270,7 +1208,6 @@ export default function SearchModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const dq = useDebounce(query, 220);
-
   const isScopedRole =
     role === "tutor_centro" ||
     role === "tutor_empresa" ||
@@ -1282,7 +1219,6 @@ export default function SearchModal({
     if (!open || !userId) return;
     resolveSearchContext(role, userId).then(setSearchCtx);
   }, [open, role, userId]);
-
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 40);
@@ -1292,16 +1228,12 @@ export default function SearchModal({
       setActiveType(allowedTypes[0]);
     }
   }, [open]);
-
-  // Reset al cambiar filtro
   useEffect(() => {
     setQuery("");
     setResults([]);
     setActive(-1);
     setTimeout(() => inputRef.current?.focus(), 30);
   }, [activeType]);
-
-  // Cerrar con Escape
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -1310,7 +1242,6 @@ export default function SearchModal({
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
 
-  // Búsqueda debounced
   useEffect(() => {
     if (!dq.trim() || dq.trim().length < 2) {
       setResults([]);
@@ -1334,7 +1265,6 @@ export default function SearchModal({
     };
   }, [dq, activeType, role, searchCtx]);
 
-  // Navegación con teclado
   const handleKey = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "ArrowDown") {
@@ -1347,10 +1277,9 @@ export default function SearchModal({
         e.preventDefault();
         const r = results[activeIdx];
         if (r) {
-          const dest = useExplorarPage
+          window.location.href = useExplorarPage
             ? buildExplorarUrl(explorarBasePath, r)
             : r.href;
-          window.location.href = dest;
           onClose();
         }
       }
@@ -1358,7 +1287,6 @@ export default function SearchModal({
     [results, activeIdx, onClose, useExplorarPage, explorarBasePath],
   );
 
-  // Scroll al elemento activo
   useEffect(() => {
     if (activeIdx >= 0 && listRef.current) {
       const el = listRef.current.querySelector(
@@ -1369,21 +1297,18 @@ export default function SearchModal({
   }, [activeIdx]);
 
   const c = ENTITY_COLOR[activeType];
-  const placeholder = ENTITY_PLACEHOLDER[activeType];
 
   if (!open) return null;
 
   function handleResultClick(result: SearchResult) {
-    const dest = useExplorarPage
+    window.location.href = useExplorarPage
       ? buildExplorarUrl(explorarBasePath, result)
       : result.href;
-    window.location.href = dest;
     onClose();
   }
 
   return (
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
         aria-hidden="true"
@@ -1391,14 +1316,13 @@ export default function SearchModal({
           position: "fixed",
           inset: 0,
           zIndex: 9998,
-          background: "rgba(1,3,8,0.88)",
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
+          background: "rgba(1,3,8,0.85)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
           animation: "srch-bg 0.15s ease forwards",
         }}
       />
 
-      {/* Dialog */}
       <div
         role="dialog"
         aria-modal
@@ -1410,42 +1334,42 @@ export default function SearchModal({
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "center",
-          padding: "13vh 16px 0",
+          padding: "12vh 16px 0",
           pointerEvents: "none",
         }}
       >
         <div
           style={{
             width: "100%",
-            maxWidth: 620,
+            maxWidth: 500,
             background: "var(--color-surface-strong)",
             border: "1px solid var(--color-border-strong)",
-            borderRadius: 20,
+            borderRadius: 14,
             boxShadow:
-              "0 48px 120px rgba(0,0,0,0.85), 0 0 0 1px rgba(192,255,114,0.07), inset 0 1px 0 rgba(255,255,255,0.04)",
+              "0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(192,255,114,0.06), inset 0 1px 0 rgba(255,255,255,0.04)",
             overflow: "hidden",
             pointerEvents: "all",
-            animation: "srch-in 0.22s cubic-bezier(0.16,1,0.3,1) forwards",
-            maxHeight: "72vh",
+            animation: "srch-in 0.2s cubic-bezier(0.16,1,0.3,1) forwards",
+            maxHeight: "65vh",
             display: "flex",
             flexDirection: "column",
           }}
         >
-          {/* ── Input ── */}
+          {/* Input */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 10,
-              padding: "15px 20px",
+              gap: 8,
+              padding: "11px 14px",
               borderBottom: "1px solid var(--color-border)",
             }}
           >
             {loading ? (
               <div
                 style={{
-                  width: 16,
-                  height: 16,
+                  width: 13,
+                  height: 13,
                   borderRadius: "50%",
                   flexShrink: 0,
                   border: "2px solid var(--color-border-strong)",
@@ -1455,8 +1379,8 @@ export default function SearchModal({
               />
             ) : (
               <svg
-                width="16"
-                height="16"
+                width="13"
+                height="13"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke={query.trim() ? c.dot : "var(--color-text-muted)"}
@@ -1474,7 +1398,7 @@ export default function SearchModal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKey}
-              placeholder={placeholder}
+              placeholder={ENTITY_PLACEHOLDER[activeType]}
               aria-label="Campo de búsqueda"
               style={{
                 flex: 1,
@@ -1482,7 +1406,7 @@ export default function SearchModal({
                 border: "none",
                 outline: "none",
                 color: "var(--color-text)",
-                fontSize: 15,
+                fontSize: 13,
                 fontWeight: 500,
                 fontFamily: "Plus Jakarta Sans, sans-serif",
               }}
@@ -1494,9 +1418,9 @@ export default function SearchModal({
               tabIndex={0}
               onKeyDown={(e) => e.key === "Enter" && onClose()}
               style={{
-                fontSize: 10,
-                padding: "2px 8px",
-                borderRadius: 6,
+                fontSize: 9,
+                padding: "1px 6px",
+                borderRadius: 5,
                 cursor: "pointer",
                 border: "1px solid var(--color-border-strong)",
                 background: "var(--color-surface-elevated)",
@@ -1508,7 +1432,7 @@ export default function SearchModal({
             </kbd>
           </div>
 
-          {/* ── Filtros de tipo ── */}
+          {/* Filtros */}
           {allowedTypes.length > 1 && (
             <FilterBar
               types={allowedTypes}
@@ -1518,11 +1442,10 @@ export default function SearchModal({
             />
           )}
 
-          {/* ── Cuerpo ── */}
+          {/* Cuerpo */}
           <div ref={listRef} style={{ overflowY: "auto", flex: 1 }}>
-            {/* Estado vacío: sugerencias + hint */}
             {!query.trim() && (
-              <div style={{ padding: "6px 0 10px" }}>
+              <div style={{ padding: "5px 0 8px" }}>
                 <SRSection label="Recientes">
                   {RECENT.map((s) => (
                     <SRSuggestion
@@ -1545,20 +1468,20 @@ export default function SearchModal({
                 </SRSection>
                 <div
                   style={{
-                    margin: "4px 18px 6px",
-                    padding: "9px 13px",
-                    borderRadius: 10,
+                    margin: "3px 14px 5px",
+                    padding: "7px 11px",
+                    borderRadius: 8,
                     background: c.bg,
                     border: `1px solid ${c.border}`,
                     display: "flex",
                     alignItems: "center",
-                    gap: 8,
+                    gap: 7,
                   }}
                 >
-                  <EntityIcon type={activeType} size={13} color={c.dot} />
+                  <EntityIcon type={activeType} size={11} color={c.dot} />
                   <span
                     style={{
-                      fontSize: 11.5,
+                      fontSize: 10.5,
                       color: "var(--color-text-muted)",
                       fontFamily: "Plus Jakarta Sans, sans-serif",
                     }}
@@ -1578,9 +1501,8 @@ export default function SearchModal({
               </div>
             )}
 
-            {/* Resultados */}
             {query.trim() && results.length > 0 && (
-              <div style={{ padding: "6px 0 0" }}>
+              <div style={{ padding: "5px 0 0" }}>
                 <SRSection
                   label={getSectionLabel(activeType, role)}
                   dot={c.dot}
@@ -1596,8 +1518,6 @@ export default function SearchModal({
                     />
                   ))}
                 </SRSection>
-
-                {/* Enlace a ExplorarPage si está habilitado */}
                 {useExplorarPage && (
                   <ExplorarLink
                     basePath={explorarBasePath}
@@ -1608,20 +1528,19 @@ export default function SearchModal({
               </div>
             )}
 
-            {/* Sin resultados */}
             {query.trim().length >= 2 && results.length === 0 && !loading && (
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  padding: "40px 0",
-                  gap: 10,
+                  padding: "28px 0",
+                  gap: 8,
                 }}
               >
                 <svg
-                  width="28"
-                  height="28"
+                  width="22"
+                  height="22"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="var(--color-text-subtle)"
@@ -1636,7 +1555,7 @@ export default function SearchModal({
                 <span
                   style={{
                     color: "var(--color-text-muted)",
-                    fontSize: 13,
+                    fontSize: 12,
                     fontFamily: "Plus Jakarta Sans, sans-serif",
                     textAlign: "center",
                   }}
@@ -1653,25 +1572,24 @@ export default function SearchModal({
                     <span
                       style={{
                         display: "block",
-                        fontSize: 11.5,
+                        fontSize: 10.5,
                         color: "var(--color-text-subtle)",
-                        marginTop: 4,
+                        marginTop: 3,
                       }}
                     >
-                      La búsqueda está limitada a tus estudiantes asignados
+                      Búsqueda limitada a tus estudiantes asignados
                     </span>
                   )}
                 </span>
               </div>
             )}
 
-            {/* Mínimo 2 caracteres */}
             {query.trim().length === 1 && (
               <div
                 style={{
-                  padding: "20px",
+                  padding: "16px",
                   textAlign: "center",
-                  fontSize: 12,
+                  fontSize: 11,
                   color: "var(--color-text-subtle)",
                   fontFamily: "Plus Jakarta Sans, sans-serif",
                 }}
@@ -1681,13 +1599,13 @@ export default function SearchModal({
             )}
           </div>
 
-          {/* ── Footer ── */}
+          {/* Footer */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 14,
-              padding: "9px 18px",
+              gap: 10,
+              padding: "7px 14px",
               borderTop: "1px solid var(--color-border)",
               flexWrap: "wrap",
             }}
@@ -1701,13 +1619,13 @@ export default function SearchModal({
             ).map(([k, l]) => (
               <span
                 key={l}
-                style={{ display: "flex", alignItems: "center", gap: 5 }}
+                style={{ display: "flex", alignItems: "center", gap: 4 }}
               >
                 <kbd
                   style={{
-                    fontSize: 10,
-                    padding: "2px 6px",
-                    borderRadius: 5,
+                    fontSize: 9,
+                    padding: "1px 5px",
+                    borderRadius: 4,
                     border: "1px solid var(--color-border-strong)",
                     background: "var(--color-surface-elevated)",
                     color: "var(--color-text-muted)",
@@ -1718,7 +1636,7 @@ export default function SearchModal({
                 </kbd>
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 10,
                     color: "var(--color-text-subtle)",
                     fontFamily: "Plus Jakarta Sans, sans-serif",
                   }}
@@ -1727,8 +1645,6 @@ export default function SearchModal({
                 </span>
               </span>
             ))}
-
-            {/* Acceso rápido a ExplorarPage */}
             {useExplorarPage && !query.trim() && (
               <a
                 href={explorarBasePath}
@@ -1737,8 +1653,8 @@ export default function SearchModal({
                   marginLeft: "auto",
                   display: "flex",
                   alignItems: "center",
-                  gap: 5,
-                  fontSize: 11.5,
+                  gap: 4,
+                  fontSize: 10.5,
                   color: c.text,
                   textDecoration: "none",
                   fontFamily: "Plus Jakarta Sans, sans-serif",
@@ -1749,11 +1665,11 @@ export default function SearchModal({
                 onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
                 onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.8")}
               >
-                <EntityIcon type={activeType} size={11} color={c.text} />
+                <EntityIcon type={activeType} size={10} color={c.text} />
                 Explorar directorio
                 <svg
-                  width="10"
-                  height="10"
+                  width="9"
+                  height="9"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -1766,12 +1682,11 @@ export default function SearchModal({
                 </svg>
               </a>
             )}
-
             {results.length > 0 && (
               <span
                 style={{
                   marginLeft: "auto",
-                  fontSize: 11,
+                  fontSize: 10,
                   color: "var(--color-text-subtle)",
                   fontFamily: "Plus Jakarta Sans, sans-serif",
                 }}
@@ -1785,7 +1700,7 @@ export default function SearchModal({
 
       <style>{`
         @keyframes srch-bg { from { opacity:0 } to { opacity:1 } }
-        @keyframes srch-in  { from { opacity:0; transform:scale(0.96) translateY(-14px) } to { opacity:1; transform:scale(1) translateY(0) } }
+        @keyframes srch-in  { from { opacity:0; transform:scale(0.96) translateY(-12px) } to { opacity:1; transform:scale(1) translateY(0) } }
         @keyframes spin     { to   { transform:rotate(360deg) } }
         div::-webkit-scrollbar { display: none; }
       `}</style>

@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   ReactNode,
 } from "react";
@@ -64,8 +65,6 @@ type AuthContextType = {
   user: User | null;
   userRole: UserRole | null;
   avatarUrl: string | null;
-  // `loading` es true mientras se obtiene la sesión inicial O el rol desde BD.
-  // Úsalo para bloquear renders que dependan del rol.
   loading: boolean;
   refreshAvatar: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -77,17 +76,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  // Empieza en true; solo pasa a false cuando TANTO la sesión COMO el rol están resueltos.
   const [loading, setLoading] = useState(true);
 
+  // Ref para rastrear el email activo sin depender del estado React
+  // Esto nos permite detectar si SIGNED_IN es un login real o un refresco
+  const activeEmailRef = useRef<string | null>(null);
+
   /**
-   * Carga rol Y avatar desde `usuario` en una sola query.
-   * Se llama cada vez que cambia la sesión.
-   * IMPORTANTE: no llama a setLoading(false) — eso lo gestiona el caller
-   * para garantizar que loading sea false solo cuando el rol ya está en estado.
+   * Carga rol Y avatar desde `usuario` usando email como clave.
+   * usuario.id es un UUID propio de la tabla, distinto al UUID de Auth,
+   * por eso usamos email que sí es compartido entre ambas tablas.
    */
   const loadUserData = async (u: User | null) => {
-    if (!u) {
+    if (!u?.email) {
       setUserRole(null);
       setAvatarUrl(null);
       return;
@@ -99,13 +100,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const query = supabase
         .from("usuario")
         .select("rol, avatar_url")
-        .eq("id", u.id)
+        .eq("email", u.email)
         .maybeSingle()
         .then(({ data, error }) => {
           if (error || !data) return null;
           return data;
         });
       const data = await Promise.race([query, timeout]);
+      console.log("[loadUserData] email:", u.email, "→ data:", data);
       setUserRole((data?.rol as UserRole) ?? null);
       setAvatarUrl(data?.avatar_url ?? null);
     } catch {
@@ -119,11 +121,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Llamar tras subir una nueva foto en cualquier perfil.
    */
   const refreshAvatar = async () => {
-    if (!user) return;
+    if (!user?.email) return;
     const { data } = await supabase
       .from("usuario")
       .select("avatar_url")
-      .eq("id", user.id)
+      .eq("email", user.email)
       .maybeSingle();
     if (data?.avatar_url !== undefined) setAvatarUrl(data.avatar_url);
   };
@@ -134,7 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await supabase.auth.getSession();
         const u = data.session?.user ?? null;
         setUser(u);
-        // Esperamos a que el rol esté cargado ANTES de bajar loading a false.
+        // Guardamos el email activo desde el inicio
+        activeEmailRef.current = u?.email ?? null;
         await loadUserData(u);
       } catch (err) {
         console.warn("Error al obtener sesión:", err);
@@ -142,7 +145,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserRole(null);
         setAvatarUrl(null);
       } finally {
-        // Solo aquí bajamos loading: sesión + rol ya están en el estado.
         setLoading(false);
       }
     };
@@ -154,13 +156,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange(
       async (_event, session: Session | null) => {
         const u = session?.user ?? null;
+        const incomingEmail = u?.email ?? null;
+
+        console.log(
+          "[onAuthStateChange] evento:",
+          _event,
+          "| email entrante:",
+          incomingEmail,
+          "| email activo:",
+          activeEmailRef.current,
+        );
+
+        // Siempre silenciosos: nunca bloquean la UI
+        const silentEvents = [
+          "TOKEN_REFRESHED",
+          "USER_UPDATED",
+          "MFA_CHALLENGE_VERIFIED",
+        ];
+
+        // SIGNED_IN es silencioso si el usuario ya estaba activo (mismo email).
+        // Es un login real solo si no había sesión antes o cambió el usuario.
+        const isSameUser =
+          incomingEmail !== null && incomingEmail === activeEmailRef.current;
+        const isSilent =
+          silentEvents.includes(_event) ||
+          (_event === "SIGNED_IN" && isSameUser);
+
+        console.log(
+          "[onAuthStateChange] isSameUser:",
+          isSameUser,
+          "| isSilent:",
+          isSilent,
+        );
+
         setUser(u);
-        // Volvemos a activar loading mientras resolvemos el nuevo rol.
+
+        if (isSilent) {
+          // Refresco silencioso: actualizamos datos sin tocar loading ni la UI
+          loadUserData(u);
+          return;
+        }
+
+        // Cambio real de sesión: login nuevo o logout
+        activeEmailRef.current = incomingEmail;
         setLoading(true);
         try {
           await loadUserData(u);
         } finally {
-          // Solo bajamos loading cuando el rol ya está actualizado.
           setLoading(false);
         }
       },
@@ -170,6 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    activeEmailRef.current = null;
     await supabase.auth.signOut();
     setUser(null);
     setUserRole(null);

@@ -39,8 +39,8 @@ export default function UserMenu({ onClose }) {
   }, [user]);
 
   useEffect(() => {
-    if (!loading && user) cargarNoLeidas();
-  }, [loading, user, cargarNoLeidas]);
+    if (user) cargarNoLeidas();
+  }, [user, cargarNoLeidas]);
 
   useEffect(() => {
     if (!user) return;
@@ -68,7 +68,8 @@ export default function UserMenu({ onClose }) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [onClose]);
 
-  if (loading || !user) return null;
+  // ✅ Solo ocultamos si no hay usuario en absoluto, nunca por loading
+  if (!user) return null;
 
   const handleSignOut = async () => {
     const identities = user?.identities ?? [];
